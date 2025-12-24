@@ -1,0 +1,17 @@
+<odoo>
+    <record id="view_contract_send_method_wizard_form" model="ir.ui.view">
+        <field name="name">contract.send.method.wizard.form</field>
+        <field name="model">contract.send.method.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Select Send Method">
+                <group>
+                    <field name="send_method" widget="radio"/>
+                </group>
+                <footer>
+                    <button string="Confirm" type="object" name="action_confirm_send_method" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

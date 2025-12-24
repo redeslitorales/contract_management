@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_reactivate_subscription_wizard" model="ir.ui.view">
+        <field name="name">reactivate.subscription.wizard.form</field>
+        <field name="model">reactivate.subscription.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reactivate Subscription">
+                <group>
+                    <field name="subscription_id"/>
+                    <field name="reactivation_date"/>
+                </group>
+                <footer>
+                    <button string="Reactivate" type="object" name="action_reactivate_subscription" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_users_form_preferences" model="ir.ui.view">
+            <field name="name">res.users.preferences.docusign.form</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form_simple_modif" />
+            <field name="arch" type="xml">
+                <notebook position="inside">
+                    <page string="Docusign Settings" name="docusign_settings">
+                        <group string="Docusign Login">
+                            <group>
+                                <div style="width: max-content;">
+                                    <div class="text-muted">
+                                        <b>Here you can connect your Docusign account for use with Odoo.</b><br/>
+                                        You can login directly to Docusign via <a href="https://docusign.com" target="_blank">Docusign</a>
+                                        <field name="login_url" invisible="1"/><br/>
+                                        <field name="code" invisible="1"/><br/>
+                                        <field name="access_token" invisible="1"/>
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt8">
+                                            <button name='generate_consent_url' icon="fa-arrow-right" type="object"
+                                                    string="Grant Docusign Consent" class="btn-link"/>
+                                        </div>
+                                        <div class="mt8">
+                                            <button name='get_code' icon="fa-arrow-right" type="object"
+                                                    string="Get login with Docusign account" class="btn-link"/>
+                                        </div>
+                                        <div class="mt8">
+                                            <button name='get_access_token' icon="fa-arrow-right" type="object"
+                                                    string="Get Access Token" class="btn-link"/>
+                                        </div>
+                                        <div class="mt8">
+                                            <button name='refresh_access_token' icon="fa-arrow-right" type="object"
+                                                    string="Refresh Access Token" class="btn-link"/>
+                                        </div>
+                                        <div class="mt8">
+                                            <button name='schedule_refresh_token' icon="fa-arrow-right" type="object"
+                                                    string="Auto Refresh Access Token" class="btn-link"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </group>
+                        </group>
+                        <group string="Information">
+                            <group>
+                                <field readonly='1' name="record_name"/>
+                                <field readonly='1' name="account_type"/>
+                                <field readonly='1' name="client_id"/>
+                                <field readonly='1' name="client_secret" password="1"/>
+                                <field readonly='1' name="account_id"/>
+                                <field readonly='1' name="base_uri" invisible="1"/>
+                                <field readonly='1' name="expiry_time" invisible="1"/>
+                            </group>
+                        </group>
+                    </page>
+                </notebook>
+            </field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Security Groups -->
+        <record id="group_contract_management_user" model="res.groups">
+            <field name="name">Contract Management User</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+        </record>
+
+        <record id="group_contract_management_manager" model="res.groups">
+            <field name="name">Contract Management Manager</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+        </record>
+
+        <record id="group_contract_service_manager" model="res.groups">
+            <field name="name">Contract Service Manager</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+        </record>
+
+        <!-- Access Control Rules -->
+        <record id="access_contract_management_user" model="ir.model.access">
+            <field name="name">access.contract.management.user</field>
+            <field name="model_id" ref="model_contract_management"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+
+        <record id="access_contract_management_manager" model="ir.model.access">
+            <field name="name">access.contract.management.manager</field>
+            <field name="model_id" ref="model_contract_management"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+
+        <record id="access_contract_service_manager" model="ir.model.access">
+            <field name="name">access.contract.service.manager</field>
+            <field name="model_id" ref="model_contract_service"/>
+            <field name="group_id" ref="group_contract_service_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the wizard  -->
+        <record id="access_contract_send_method_wizard" model="ir.model.access">
+            <field name="name">access.contract.send.method.wizard</field>
+            <field name="model_id" ref="model_contract_send_method_wizard"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the service transfer wizard -->
+        <record id="subscription_transfer_wizard_access" model="ir.model.access">
+            <field name="name">subscription.transfer.wizard.access</field>
+            <field name="model_id" ref="model_subscription_transfer_wizard"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the reactivate subscription wizard -->
+        <record id="reactivate_subscription_wizard_access" model="ir.model.access">
+            <field name="name">reactivate.subscription.wizard.access</field>
+            <field name="model_id" ref="model_reactivate_subscription_wizard"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the pause subscription wizard -->
+        <record id="pause_subscription_wizard_access" model="ir.model.access">
+            <field name="name">pause.subscription.wizard.access</field>
+            <field name="model_id" ref="model_pause_subscription_wizard"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the close subscription wizard -->
+        <record id="close_subscription_wizard_access" model="ir.model.access">
+            <field name="name">close.subscription.wizard.access</field>
+            <field name="model_id" ref="model_subscription_closure_wizard"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the upload contract wizard -->
+        <record id="upload_contract_wizard_access" model="ir.model.access">
+            <field name="name">contract.upload.wizard.access</field>
+            <field name="model_id" ref="model_contract_upload_wizard"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <record id="upload_contract_wizard_access" model="ir.model.access">
+            <field name="name">contract.upload.wizard.access</field>
+            <field name="model_id" ref="model_contract_upload_wizard"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="0"/>
+            <field name="perm_create" eval="0"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
+        <!--  Grant access to the terms and conditions -->
+        <record id="sale_terms_conditions_access" model="ir.model.access">
+            <field name="name">sale.terms.conditions.access</field>
+            <field name="model_id" ref="model_sale_terms_conditions"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <record id="sale_terms_conditions_access" model="ir.model.access">
+            <field name="name">sale.terms.conditions.access</field>
+            <field name="model_id" ref="model_sale_terms_conditions"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="0"/>
+            <field name="perm_create" eval="0"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
+        <!--  Grant access to modify clauses-->
+        <record id="sale_contract_clause_access" model="ir.model.access">
+            <field name="name">sale.contract.clausea.access</field>
+            <field name="model_id" ref="model_contract_clause"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <!--  Grant access to the cover letters -->
+        <record id="sale_cover_letter_access" model="ir.model.access">
+            <field name="name">sale.cover.letter.access</field>
+            <field name="model_id" ref="model_sale_cover_letter"/>
+            <field name="group_id" ref="group_contract_management_manager"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+        <record id="sale_cover_letter_access" model="ir.model.access">
+            <field name="name">sale.cover.letter.access</field>
+            <field name="model_id" ref="model_sale_cover_letter"/>
+            <field name="group_id" ref="group_contract_management_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="0"/>
+            <field name="perm_create" eval="0"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
+    </data>
+</odoo>

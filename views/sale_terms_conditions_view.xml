@@ -1,0 +1,28 @@
+<odoo>
+    <record id="view_sale_terms_conditions_form" model="ir.ui.view">
+        <field name="name">sale.terms.conditions.form</field>
+        <field name="model">sale.terms.conditions</field>
+        <field name="arch" type="xml">
+            <form string="Terms and Conditions">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="description"/>
+                        <field name="product_category_ids" widget="many2many_tags"/>
+                        <field name="is_default"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_sale_terms_conditions_tree" model="ir.ui.view">
+        <field name="name">sale.terms.conditions.tree</field>
+        <field name="model">sale.terms.conditions</field>
+        <field name="arch" type="xml">
+            <tree string="Terms and Conditions">
+                <field name="name"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

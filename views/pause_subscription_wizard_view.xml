@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pause_subscription_wizard" model="ir.ui.view">
+        <field name="name">pause.subscription.wizard.form</field>
+        <field name="model">pause.subscription.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Pause Subscription">
+                <group>
+                    <field readonly="1" name="subscription_id"/>
+                    <field name="pause_start_date"/>
+                    <field name="pause_end_date"/>
+                </group>
+                <footer>
+                    <button string="Pause" type="object" name="action_pause_subscription" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

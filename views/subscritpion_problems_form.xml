@@ -1,0 +1,40 @@
+<odoo>
+    <!-- Action to open the subscription problem list view -->
+    <record id="model_subscription_problem" model="ir.model">
+        <field name="name">Subscription Problem</field>
+        <field name="model">subscription.problem</field>
+    </record>
+    
+    <record id="action_subscription_problem" model="ir.actions.act_window">
+        <field name="name">Subscription Problems</field>
+        <field name="res_model">subscription.problem</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Tree view for subscription problems -->
+    <record id="view_subscription_problem_tree" model="ir.ui.view">
+        <field name="name">subscription.problem.tree</field>
+        <field name="model">subscription.problem</field>
+        <field name="arch" type="xml">
+            <tree string="Subscription Problems">
+                <field name="name"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form view for subscription problems -->
+    <record id="view_subscription_problem_form" model="ir.ui.view">
+        <field name="name">subscription.problem.form</field>
+        <field name="model">subscription.problem</field>
+        <field name="arch" type="xml">
+            <form string="Subscription Problem">
+                <group>
+                    <field name="name"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <!-- Menu item for subscription problems -->
+    <menuitem id="menu_subscription_problem" name="Problems" parent="menu_sub_closure_config" action="action_subscription_problem" sequence="10"/>
+</odoo>

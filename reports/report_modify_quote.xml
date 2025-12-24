@@ -1,0 +1,27 @@
+<odoo>
+    <template id="report_saleorder_document_inherit" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@class='page']" position="before">
+            <div class="oe_structure"/>
+            <t t-if="doc.cover_letter_id">
+                <div style="margin-top: 40px; font-family: 'Arial', sans-serif; line-height: 1.5;">
+                    <t t-raw="doc.cover_letter_id.cover_letter"/>
+                </div>
+                <div style="page-break-after: always;"/>
+            </t>
+        </xpath>
+        <xpath expr="//div[@class='page']" position="inside">
+            <div class="oe_structure"/>
+            <t t-if="doc.terms_conditions_ids">
+                <div style="page-break-before: always;"/>
+                <h2>Términos y Condiciones</h2>
+                <ul>
+                    <t t-foreach="doc.terms_conditions_ids" t-as="term">
+                        <li>
+                            <p t-raw="term.description"/>
+                        </li>
+                    </t>
+                </ul>
+            </t>
+        </xpath>
+    </template>
+</odoo>

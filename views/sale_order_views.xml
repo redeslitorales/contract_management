@@ -1,0 +1,34 @@
+<odoo>
+    <record id="view_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form[1]/header[1]/button[@name='action_confirm'][2]" position="attributes">
+                <attribute name="invisible">subscription_state != "1e_confirm"</attribute>
+            </xpath>
+<!--            <xpath expr="//form[1]/header[1]/button[@name='activate_onu']" position="attributes">
+                <attribute name="invisible">subscription_state not in ["1b_install", "1d_internal"]</attribute>
+            </xpath>
+            <xpath expr="//form[1]/header[1]/button[@name='action_get_signature']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+-->            <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
+                <page string="Terms/Conditions" name="terms_conditions">
+                <group name="tc_group_2ca">
+                    <field name="cover_letter_id" readonly="1"/>
+                    <field name="terms_conditions_ids" widget="many2many_tags"/>
+                    <field name="clause_ids"/>
+                </group>
+                </page>
+            </xpath>
+            <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
+                <page string="Docusign Envelopes" name="docusign_connector">
+                <group name="ds_group_2ca">
+                    <field name="docusign_ids" readonly="1"/>
+                </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

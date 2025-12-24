@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_contract_management_root" name="Contract Management" sequence="10"/>
+
+    <menuitem id="menu_contract_management" name="Contracts" parent="menu_contract_management_root" action="action_contract_management" sequence="10"/>
+    <menuitem id="menu_contract_terms" name="Contract Terms" parent="menu_contract_management_root" action="action_dte_base_contract_tree" sequence="10"/> 
+    <menuitem id="menu_sale_cover_letter_management" name="Manage Cover Letters" parent="sale.menu_sales_config" action="action_sale_cover_letter"/>
+    <menuitem id="menu_sale_terms_conditions_management" name="Terms and Conditions" parent="sale.menu_sales_config" action="action_sale_terms_conditions"/>
+    <menuitem id="menu_contract_clause" name="Contract Clauses" parent="sale.menu_sales_config" action="action_contract_clause"/>
+</odoo>

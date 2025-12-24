@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="suscripcion_contract_cabal_paperformat" model="report.paperformat">
+        <field name="name">Contrato Suscripcion Cabal</field>
+        <field name="format">Letter</field>
+        <field name="default" eval="True"/>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">10</field>
+        <field name="margin_bottom">10</field>
+        <field name="margin_left">9</field>
+        <field name="margin_right">9</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_sus_contract_cabal" model="ir.actions.report">
+        <field name="name">Contrato Suscripcion Cabal</field>
+        <field name="model">sale.order</field>
+        <field name="paperformat_id" ref="suscripcion_contract_cabal_paperformat"></field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">sv_suscripcion_contract_report.sus_contract_report_main</field>
+        <field name="report_file">sv_suscripcion_contract_report.sus_contract_report_main</field>
+        <field name="print_report_name">'Contrato '+(object.cabal_sequence or '')</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>

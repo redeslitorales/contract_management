@@ -1,0 +1,42 @@
+<odoo>
+    <record id="view_subscription_closure_wizard_form" model="ir.ui.view">
+        <field name="name">subscription.closure.wizard.form</field>
+        <field name="model">subscription.closure.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Subscription Closure">
+                <sheet>
+                    <group>
+                        <group string="Reason for Closure">
+                            <field name="reason"/>
+                            <field name="notes"/>
+                            <field name="other_reason"/>
+                            <field name="accepted_better_offer"/>
+                        </group>
+                        <group string="Details of Other Offer">
+                            <field name="carrier" groups="base.group_user"/>
+                            <field name="bandwidth" groups="base.group_user"/>
+                            <field name="tv_included" groups="base.group_user"/>
+                            <field name="telephone_included" groups="base.group_user"/>
+                            <field name="monthly_payment" groups="base.group_user"/>
+                        </group>
+                        <group string="Feedback for Cabal">
+                            <field name="service_rating"/>
+                            <field name="problems_experienced" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button string="Confirm" type="object" name="action_confirm" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_subscription_closure_wizard" model="ir.actions.act_window">
+        <field name="name">Subscription Closure Wizard</field>
+        <field name="res_model">subscription.closure.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

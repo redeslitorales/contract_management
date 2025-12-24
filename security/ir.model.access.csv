@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_contract_management_user,access.contract.management.user,model_contract_management,base.group_user,1,1,1,1
+access_contract_management_manager,access.contract.management.manager,model_contract_management,base.group_system,1,1,1,1
+access_contract_service_manager,access.contract.service.manager,model_contract_service,base.group_system,1,1,1,1
+access_subscription_closure,access.subscription_closure,model_subscription_closure,base.group_user,1,1,1,1
+access_subscription_problem,access.subscription_problem,model_subscription_problem,base.group_user,1,1,1,1
+access_subscription_competitor,access.subscription_competitor,model_subscription_competitor,base.group_user,1,1,1,1
+access_subscription_closure,access.subscription_closure,model_subscription_closure,base.group_user,1,1,1,1
+access_sale_terms_conditions,access.sale.terms.conditions,model_sale_terms_conditions,base.group_user,1,0,0,0
+access_sale_cover_letter,access.sale.cover.letter,model_sale_cover_letter,base.group_user,1,0,0,0
+access_contract_clause,access.contract_clause,model_contract_clause,base.group_user,1,0,0,0
+access_contract_upload_wizard,access.contract.upload.wizard,model_contract_upload_wizard,base.group_user,1,0,0,0

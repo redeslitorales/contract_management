@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_contract_management_form" model="ir.ui.view">
+        <field name="name">contract.management.form</field>
+        <field name="model">contract.management</field>
+        <field name="arch" type="xml">
+            <form string="Contract Management">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="partner_id"/>
+                        <field readonly = "1" name="subscription_id"/>
+                        <field readonly = "1" name="docusign_id"/>
+                        <field name="contract_term"/>
+                        <field name="start_date"/>
+                        <field name="end_date"/>
+                        <field name="state"/>
+                        <field name="contract_template"/>
+                        <field name="early_termination_fee"/>
+                        <field name="late_charge"/>
+                        <field name="service_pause_count"/>
+                        <field name="max_service_pause_duration"/>
+                        <field name="total_amount" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="service_ids">
+                            <tree string="Services">
+                                <field name="name"/>
+                                <field name="price"/>
+                                <field name="product_id"/>
+                            </tree>
+                        </field>
+                    </group>
+                </sheet>
+                <footer>
+<!--                    <button string="Send for Signature" type="object" name="action_send_for_signature" class="btn-primary"/>  -->
+                    <button string="Activate" type="object" name="action_activate" class="btn-primary"/>
+                    <button string="Terminate" type="object" name="action_terminate" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <record id="view_contract_management_tree" model="ir.ui.view">
+        <field name="name">contract.management.tree</field>
+        <field name="model">contract.management</field>
+        <field name="arch" type="xml">
+            <tree string="Contract Management">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="subscription_id"/>
+                <field name="start_date"/>
+                <field name="end_date"/>
+                <field name="state"/>
+                <field name="total_amount"/>
+            </tree>
+        </field>
+    </record>    
+
+</odoo>

@@ -1,0 +1,18 @@
+<odoo>
+    <record id="view_contract_upload_wizard_form" model="ir.ui.view">
+        <field name="name">contract.upload.wizard.form</field>
+        <field name="model">contract.upload.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Upload Contract">
+                <group>
+                    <field name="contract_file" filename="contract_filename"/>
+                    <field name="subscription_id"/>
+                </group>
+                <footer>
+                    <button string="Upload" type="object" name="upload_contract" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

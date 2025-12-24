@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="model_subscription_competitor" model="ir.model">
+            <field name="name">Competitors</field>
+            <field name="model">subscription.competitor</field>
+        </record>
+        <!-- Example record for payment.custom -->
+        <record id="subscription_competitor_record" model="subscription.competitor">
+            <field name="competitor"/>
+            <!-- Add other fields and their values here -->
+        </record>
+    </data>
+    <data>
+        <record id="action_subscription_competitor_tree" model="ir.actions.act_window">
+            <field name="name">Competitors</field>
+            <field name="res_model">subscription.competitor</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <!--  Define the tree view for competitor Config  -->
+        <record id="view_subscription_competitor" model="ir.ui.view">
+            <field name="name">subscription.competitor.tree</field>
+            <field name="model">subscription.competitor</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="competitor"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_subscription_competitor_form" model="ir.ui.view">
+            <field name="name">subscription.competitor.form</field>
+            <field name="model">subscription.competitor</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                    <header>
+                    </header>
+                    <group>
+                        <group>
+                            <!-- <field name="name"/> -->
+                            <field name="competitor"/>
+                        </group>
+                    </group>
+                    <notebook>
+                    </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+		<!-- Define the search views -->
+        <record id="subscription_competitor_view_search" model="ir.ui.view">
+           <field name="name">service.view.search.subscription.competitor</field>
+           <field name="model">subscription.competitor</field>
+           <field name="arch" type="xml">
+               <search>
+                    <field name="competitor"/>
+               </search>
+           </field>
+        </record>
+
+        <menuitem id="subscription_competitor_menu"
+            name="Competitors"
+            action="action_subscription_competitor_tree"
+            parent="menu_sub_closure_config" 
+            groups="base.group_system"
+            sequence="2"/>
+
+    </data>
+</odoo>

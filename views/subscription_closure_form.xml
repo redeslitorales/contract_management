@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action to open the subscription closure list view -->
+    <record id="action_subscription_closure" model="ir.actions.act_window">
+        <field name="name">Subscription Closures</field>
+        <field name="res_model">subscription.closure</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Tree view for subscription closures -->
+    <record id="view_subscription_closure_tree" model="ir.ui.view">
+        <field name="name">subscription.closure.tree</field>
+        <field name="model">subscription.closure</field>
+        <field name="arch" type="xml">
+            <tree string="Subscription Closures">
+                <field name="partner_id"/>
+                <field name="reason"/>
+                <field name="accepted_better_offer"/>
+                <field name="carrier"/>
+                <field name="bandwidth"/>
+                <field name="upload"/>
+                <field name="tv_included"/>
+                <field name="telephone_included"/>
+                <field name="monthly_payment"/>
+                <field name="service_rating"/>
+                <field name="closure_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form view for subscription closures -->
+    <record id="view_subscription_closure_form" model="ir.ui.view">
+        <field name="name">subscription.closure.form</field>
+        <field name="model">subscription.closure</field>
+        <field name="arch" type="xml">
+            <form string="Subscription Closure">
+                <sheet>
+                    <group>
+                        <group string="Reason">
+                            <field name="partner_id"/>
+                            <field name="reason"/>
+                            <field name="notes"/>
+                            <field name="accepted_better_offer"/>
+                        </group>
+                        <group string="Details">
+                            <field name="carrier"/>
+                            <field name="bandwidth"/>
+                            <field name="upload"/>
+                            <field name="tv_included"/>
+                            <field name="telephone_included"/>
+                            <field name="monthly_payment"/>
+                        </group>
+                        <group string="Other Info">
+                            <field name="service_rating"/>
+                            <field name="problems_experienced" widget="many2many_tags"/>
+                            <field name="closure_date"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Menu item for subscription closures -->
+    <menuitem id="menu_subscription_closure_root" name="Subscription Management" sequence="10"/>
+    <menuitem id="menu_sub_closure" name="Closures" parent="menu_subscription_closure_root" action="action_subscription_closure" sequence="10"/>
+    <menuitem id="menu_sub_closure_config" name="Configuration" parent="menu_subscription_closure_root" sequence="10"/>
+</odoo>

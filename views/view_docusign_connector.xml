@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_view_docusign_connector_inherit" model="ir.ui.view">
+            <field name="name">docusign.connector.form.inherit</field>
+            <field name="model">docusign.connector</field>
+			<field name="inherit_id" ref="odoo_docusign.docusign_connector_res_partner_form"/>
+			<field name="arch" type="xml">
+            <!--  Docusign poilicies do not allow checking status after a document as reached the completed state  -->
+                <xpath expr="//button[@name='status_docs']" position="attributes">
+                    <attribute name="invisible">state == "completed"</attribute>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,21 @@
+<odoo>
+    <data>
+        <template id="confirmation_success">
+            <t t-call="website.layout">
+                <div class="container">
+                    <h1>Sale Order Confirmed</h1>
+                    <p>Your sale order has been successfully confirmed.</p>
+                </div>
+            </t>
+        </template>
+
+        <template id="confirmation_error">
+            <t t-call="website.layout">
+                <div class="container">
+                    <h1>Error</h1>
+                    <p><t t-esc="error_message"/></p>
+                </div>
+            </t>
+        </template>
+    </data>
+</odoo>

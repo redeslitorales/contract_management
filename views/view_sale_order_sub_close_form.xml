@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_subscription_order_primary_form_close" model="ir.ui.view">
+        <field name="name">sale.subscription.order.docusign.inherit</field>
+        <field name="model">sale.order</field>
+		<field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_quotation_send']" position="before">
+                    <button name="action_open_closure_wizard" string="Close Subscription" type="object" class="btn-primary"/>
+            </xpath>
+            <xpath expr="//button[@name='action_open_closure_wizard']" position="before">
+                    <button name="action_pause_subscription_wizard" string="Pause Subscription" type="object" class="oe_highlight"/> 
+            </xpath>
+            <xpath expr="//button[@name='action_open_closure_wizard']" position="before">
+                    <button name="action_reactivate_subscription_wizard" string="Reactivate Subscription" type="object" class="oe_highlight"/> 
+            </xpath>
+            <xpath expr="//button[@name='action_open_closure_wizard']" position="attributes">
+                <attribute name="invisible">state != "sale" and subscription_state not in ["3_progress", "4_paused"] or not id</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_pause_subscription_wizard']" position="attributes">
+                <attribute name="invisible">contract_term != 4 or not id</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_reactivate_subscription_wizard']" position="attributes">
+                <attribute name="invisible">subscription_state != '4_paused' or not id</attribute>
+            </xpath>
+<!--            <xpath expr="//button[@name='activate_onu']" position="attributes">
+                <attribute name="invisible">cpe_unit_state != 'unconfigured' or not id</attribute>
+            </xpath>
+-->            <xpath expr="//button[@name='317']" position="attributes">
+                <attribute name="invisible">subscription_state == '4_paused' or not id</attribute>
+            </xpath>
+            <xpath expr="//button[@name='574']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+            <xpath expr="//button[@name='resume_subscription']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_open_contract_send_method_wizard"
+                        string="Send Contract"
+                        type="object"
+                        class="btn-primary"/>
+            </xpath> 
+            <xpath expr="//group[@name='sale_header']" position="after">
+                <field name="contract_ids" invisible="True"/>
+                <field name="contract_term" invisible="True"/>
+            </xpath>
+            <xpath expr="//button[@name='action_open_contract_send_method_wizard']" position="attributes">
+                <attribute name="invisible">contract_ids != False</attribute>
+            </xpath>
+              <field name="state" position="attributes">
+                <attribute name="widget">statusbar</attribute>
+                <attribute name="statusbar_visible">draft,open,close,1a_pending,1b_install</attribute>
+            </field>
+            <xpath expr="//form[1]/sheet[1]/group[@name='sale_header']/group[@name='order_details']/div[@name='plan_block']/field[@name='end_date']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
