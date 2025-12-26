@@ -74,7 +74,7 @@ class ContractManagement(models.Model):
     service_pause_count = fields.Integer(string='Number of Service Pauses', default=0)
     max_service_pause_duration = fields.Integer(string='Maximum Duration of Service Pauses (days)', default=0)
     contract_term = fields.Many2one(related='subscription_id.contract_term', string='Contract Term')
-    clause_ids = fields.Many2many('contract.clause', string='Clauses', order='sequence')
+    clause_ids = fields.Many2many('contract.clause', string='Clauses')
     contract_file = fields.Binary(string='Contract File')
 
     @api.depends('service_ids.price')
@@ -147,6 +147,7 @@ class ContractService(models.Model):
 class ContractClause(models.Model):
     _name = 'contract.clause'
     _description = 'Contract Clause'
+    _order = "sequence, id"
 
     active = fields.Boolean(string='Active', required=True, default=True)
     inactive_date = fields.Datetime(string='Inactive Date')
