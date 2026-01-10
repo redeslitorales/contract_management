@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Portal: Contract Details View -->
+    <template id="portal_my_contract" name="Portal My Contract">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Contract Details</t>
+            </t>
+            
+            <div class="container my-4">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4 class="mb-0">
+                                        <i class="fa fa-file-text-o me-2"/>
+                                        Contract: <t t-esc="contract.name"/>
+                                    </h4>
+                                    <a href="/my/services" class="btn btn-sm btn-light">
+                                        <i class="fa fa-arrow-left"/> Back to Services
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <!-- Contract Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <h5 class="text-primary mb-3">Contract Information</h5>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td class="text-muted"><strong>Contract Number:</strong></td>
+                                                <td><t t-esc="contract.name"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Customer:</strong></td>
+                                                <td><t t-esc="contract.partner_id.name"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Start Date:</strong></td>
+                                                <td><t t-esc="contract.start_date" t-options='{"widget": "date"}'/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>End Date:</strong></td>
+                                                <td><t t-esc="contract.end_date" t-options='{"widget": "date"}'/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Contract Term:</strong></td>
+                                                <td>
+                                                    <t t-if="contract.contract_term">
+                                                        <t t-esc="contract.contract_term.term"/> months
+                                                    </t>
+                                                    <t t-else="">N/A</t>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Status:</strong></td>
+                                                <td>
+                                                    <span t-attf-class="badge bg-#{contract.state == 'active' and 'success' or contract.state == 'signed' and 'info' or 'secondary'}">
+                                                        <t t-esc="dict(contract._fields['state'].selection).get(contract.state)"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h5 class="text-primary mb-3">Financial Details</h5>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td class="text-muted"><strong>Monthly Payment:</strong></td>
+                                                <td>
+                                                    <t t-if="contract.monthly_payment">
+                                                        $<t t-esc="'%.2f' % contract.monthly_payment"/>
+                                                    </t>
+                                                    <t t-else="">N/A</t>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Contract Value:</strong></td>
+                                                <td>
+                                                    <t t-if="contract.contract_value">
+                                                        $<t t-esc="'%.2f' % contract.contract_value"/>
+                                                    </t>
+                                                    <t t-else="">N/A</t>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted"><strong>Total Paid:</strong></td>
+                                                <td>
+                                                    <t t-if="contract.total_paid">
+                                                        $<t t-esc="'%.2f' % contract.total_paid"/>
+                                                    </t>
+                                                    <t t-else="">$0.00</t>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="contract.docusign_status">
+                                                <td class="text-muted"><strong>Signature Status:</strong></td>
+                                                <td>
+                                                    <span t-attf-class="badge bg-#{contract.docusign_status == 'completed' and 'success' or contract.docusign_status == 'sent' and 'warning' or 'secondary'}">
+                                                        <t t-esc="dict(contract.docusign_id._fields['state'].selection).get(contract.docusign_status)"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Signed Documents Section -->
+                                <t t-if="contract.signed_document_ids">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h5 class="text-primary mb-3">
+                                                <i class="fa fa-file-pdf-o me-2"/>
+                                                Signed Documents
+                                            </h5>
+                                            <div class="list-group">
+                                                <t t-foreach="contract.signed_document_ids" t-as="document">
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <i class="fa fa-file-pdf-o text-danger me-2"/>
+                                                            <strong><t t-esc="document.name"/></strong>
+                                                            <t t-if="document.create_date">
+                                                                <br/>
+                                                                <small class="text-muted">
+                                                                    Signed on: <t t-esc="document.create_date" t-options='{"widget": "datetime"}'/>
+                                                                </small>
+                                                            </t>
+                                                        </div>
+                                                        <a t-attf-href="/my/contract/#{contract.id}/download/#{document.id}" 
+                                                           class="btn btn-sm btn-primary" 
+                                                           target="_blank">
+                                                            <i class="fa fa-download"/> Download
+                                                        </a>
+                                                    </div>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <div class="alert alert-info">
+                                        <i class="fa fa-info-circle"/> No signed documents available yet.
+                                    </div>
+                                </t>
+                            </div>
+                            
+                            <div class="card-footer text-end">
+                                <a href="/my/services" class="btn btn-secondary">
+                                    <i class="fa fa-arrow-left"/> Back to My Services
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

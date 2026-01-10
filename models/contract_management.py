@@ -48,7 +48,7 @@ platform_type = {
 class ContractManagement(models.Model):
     _name = 'contract.management'
     _description = 'Contract Management'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'portal.mixin']
 
     name = fields.Char(related="subscription_id.cabal_sequence", string='Contract Number', readonly=True)
     partner_id = fields.Many2one(related='subscription_id.partner_id', string='Customer', required=True)
@@ -90,6 +90,7 @@ class ContractManagement(models.Model):
     document_count = fields.Integer(string='Document Count', compute='_compute_document_count')
     monthly_payment = fields.Float(string='Monthly Payment', digits=(16, 2), help="Monthly payment amount from DocuSign envelope")
     contract_value = fields.Float(string='Contract Value', digits=(16, 2), help="Total contract value from DocuSign envelope")
+    has_signed_documents = fields.Boolean(string='Has Signed Documents', compute='_compute_has_signed_documents', store=False)
 
     def _compute_total_paid(self):
         for contract in self:
@@ -151,6 +152,11 @@ class ContractManagement(models.Model):
     def _compute_document_count(self):
         for contract in self:
             contract.document_count = len(contract.signed_document_ids)
+    
+    @api.depends('signed_document_ids')
+    def _compute_has_signed_documents(self):
+        for contract in self:
+            contract.has_signed_documents = bool(contract.signed_document_ids)
     
     def action_view_documents(self):
         """Smart button action to view signed documents"""
@@ -222,6 +228,17 @@ class ContractManagement(models.Model):
         renewal_due_contracts = self.search([('end_date', '<=', renewal_due_date), ('state', '=', 'active')])
         for contract in renewal_due_contracts:
             contract.state = 'renewal_due'
+    
+    def _compute_access_url(self):
+        """Compute portal URL for contract records."""
+        super(ContractManagement, self)._compute_access_url()
+        for contract in self:
+            contract.access_url = '/my/contract/%s' % contract.id
+    
+    def _get_portal_return_action(self):
+        """Return action for portal after viewing contract."""
+        self.ensure_one()
+        return '/my/services'
 
 class ContractService(models.Model):
     _name = 'contract.service'

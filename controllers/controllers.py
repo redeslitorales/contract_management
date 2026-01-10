@@ -4,7 +4,8 @@ import time
 import requests
 from odoo import http, models, fields, _
 from odoo.http import request
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, AccessError
+from odoo.addons.portal.controllers.portal import CustomerPortal, pager as portal_pager
 
 # DEPRECATED: This webhook controller has been disabled in favor of the odoo_docusign webhook
 # which includes HMAC signature verification for improved security.
@@ -81,3 +82,67 @@ from odoo.exceptions import ValidationError
 #                     docusign_connector.download_documents()
 #         
 #         return {'status': 'success'}
+
+
+class ContractPortal(CustomerPortal):
+    \"\"\"Portal controller for contract management customer portal views.\"\"\"
+
+    def _prepare_home_portal_values(self, counters):
+        \"\"\"Add contract counts to portal home.\"\"\"
+        values = super()._prepare_home_portal_values(counters)
+        partner = request.env.user.partner_id
+        
+        ContractManagement = request.env['contract.management']
+        
+        if 'contract_count' in counters:
+            # Count contracts with completed signatures and signed documents
+            values['contract_count'] = ContractManagement.search_count([
+                ('partner_id', '=', partner.id),
+                ('docusign_status', '=', 'completed'),
+                ('has_signed_documents', '=', True)
+            ])
+        
+        return values
+
+    @http.route(['/my/contract/<int:contract_id>'], type='http', auth='user', website=True, sitemap=False)
+    def portal_my_contract(self, contract_id=None, access_token=None, **kw):
+        \"\"\"Display contract details in customer portal.\"\"\"
+        try:
+            contract_sudo = self._document_check_access('contract.management', contract_id, access_token)
+        except (AccessError, ValidationError):
+            return request.redirect('/my')
+        
+        # Verify contract belongs to current user's partner
+        if contract_sudo.partner_id != request.env.user.partner_id:
+            return request.redirect('/my')
+        
+        # Verify signature is completed and documents exist
+        if contract_sudo.docusign_status != 'completed' or not contract_sudo.has_signed_documents:
+            return request.redirect('/my/services')
+        
+        values = {
+            'contract': contract_sudo,
+            'page_name': 'contract',
+        }
+        
+        return request.render('contract_management.portal_my_contract', values)
+    
+    @http.route(['/my/contract/<int:contract_id>/download/<int:attachment_id>'], type='http', auth='user', website=True, sitemap=False)
+    def portal_contract_download_document(self, contract_id=None, attachment_id=None, access_token=None, **kw):
+        \"\"\"Download signed contract document from portal.\"\"\"
+        try:
+            contract_sudo = self._document_check_access('contract.management', contract_id, access_token)
+        except (AccessError, ValidationError):
+            return request.redirect('/my')
+        
+        # Verify contract belongs to current user's partner
+        if contract_sudo.partner_id != request.env.user.partner_id:
+            return request.redirect('/my')
+        
+        # Verify attachment belongs to this contract
+        attachment = request.env['ir.attachment'].sudo().browse(attachment_id)
+        if attachment not in contract_sudo.signed_document_ids:
+            return request.redirect('/my/contract/%s' % contract_id)
+        
+        # Return the file
+        return request.redirect('/web/content/%s?download=true' % attachment_id)

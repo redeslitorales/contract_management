@@ -1,6 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_contract_management_user,access.contract.management.user,model_contract_management,base.group_user,1,1,1,1
 access_contract_management_manager,access.contract.management.manager,model_contract_management,base.group_system,1,1,1,1
+access_contract_management_portal,access.contract.management.portal,model_contract_management,base.group_portal,1,0,0,0
 access_contract_service_manager,access.contract.service.manager,model_contract_service,base.group_system,1,1,1,1
 access_contract_dashboard_user,access.contract.dashboard.user,model_contract_dashboard,base.group_user,1,1,1,1
 access_contract_dashboard_manager,access.contract.dashboard.manager,model_contract_dashboard,base.group_system,1,1,1,1

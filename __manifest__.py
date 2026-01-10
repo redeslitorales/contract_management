@@ -1,12 +1,12 @@
 {
     'name': 'Cabal Contract Management',
     'author': 'Redes Litorales SA de CV',
-    "version": "17.0.1.1.22",
+    "version": "17.0.1.1.23",
     'category': 'Sales Management',
     'sequence': -100,
     'summary': 'Contract Management',
     'description': """contract_management""",
-    'depends': ['base', 'account', 'contacts', 'sale', 'odoo_docusign'],
+    'depends': ['base', 'account', 'contacts', 'sale', 'odoo_docusign', 'portal'],
     'data': [
         'security/contract_management_security.xml',
         'security/ir.model.access.csv',
@@ -39,6 +39,7 @@
         'views/contract_management_menus.xml',
         'views/res_users_views.xml',
         'views/res_config_settings_views.xml',
+        'views/portal_contract_templates.xml',
     ],
     'demo': [],
     'application': True,
