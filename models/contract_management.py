@@ -9,7 +9,7 @@ import re
 import json
 import jwt
 import requests
-from odoo.addons.contract_management.models import docu_client
+from odoo.addons.odoo_docusign.models import docu_client
 
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
 
@@ -48,6 +48,7 @@ platform_type = {
 class ContractManagement(models.Model):
     _name = 'contract.management'
     _description = 'Contract Management'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(related="subscription_id.cabal_sequence", string='Contract Number', readonly=True)
     partner_id = fields.Many2one(related='subscription_id.partner_id', string='Customer', required=True)
@@ -61,9 +62,9 @@ class ContractManagement(models.Model):
         ('renewal_due', 'Renewal Due'),
         ('signature_in_process', 'Signature In Process'),
         ('signed', 'Signed')
-    ], string='Status', default='draft')
+    ], string='Status', default='draft', tracking=True)
     service_ids = fields.One2many('contract.service', 'contract_id', string='Services')
-    total_amount = fields.Float(string='Total Amount', compute='_compute_total_amount', store=True)
+    total_paid = fields.Float(string='Total Paid', compute='_compute_total_paid', store=False, help="Sum of paid monthly invoices (tax-inclusive) linked to this subscription")
     subscription_id = fields.Many2one('sale.order', string='Subscription')
     contract_template = fields.Many2one(related='subscription_id.contract_template', string='Contract Template')
     docusign_id = fields.Many2one('docusign.connector', string='Docusign Record')
@@ -76,11 +77,56 @@ class ContractManagement(models.Model):
     contract_term = fields.Many2one(related='subscription_id.contract_term', string='Contract Term')
     clause_ids = fields.Many2many('contract.clause', string='Clauses')
     contract_file = fields.Binary(string='Contract File')
+    contract_filename = fields.Char(string='Contract Filename')
+    signed_document_ids = fields.Many2many(
+        'ir.attachment',
+        relation='contract_management_signed_document_rel',
+        column1='contract_id',
+        column2='attachment_id',
+        string='Signed Documents',
+        compute='_compute_signed_documents',
+        store=False
+    )
+    document_count = fields.Integer(string='Document Count', compute='_compute_document_count')
+    monthly_payment = fields.Float(string='Monthly Payment', digits=(16, 2), help="Monthly payment amount from DocuSign envelope")
+    contract_value = fields.Float(string='Contract Value', digits=(16, 2), help="Total contract value from DocuSign envelope")
 
-    @api.depends('service_ids.price')
-    def _compute_total_amount(self):
+    def _compute_total_paid(self):
         for contract in self:
-            contract.total_amount = sum(service.price for service in contract.service_ids)
+            total = 0.0
+            subscription = contract.subscription_id
+            if subscription:
+                # Consider posted customer invoices that are fully paid
+                invoices = subscription.invoice_ids.filtered(
+                    lambda inv: getattr(inv, 'move_type', 'out_invoice') == 'out_invoice'
+                    and inv.state == 'posted'
+                    and inv.payment_state == 'paid'
+                )
+                for inv in invoices:
+                    # Prefer summing only recurring lines; fallback to whole invoice if not detectable
+                    recurring_lines = inv.invoice_line_ids.filtered(
+                        lambda l: any(sl.product_id.recurring_invoice for sl in l.sale_line_ids)
+                    )
+                    if recurring_lines:
+                        total += sum(recurring_lines.mapped('price_total'))
+                    else:
+                        total += inv.amount_total
+            contract.total_paid = total
+
+    def action_recompute_total_paid(self):
+        """Manually recompute the non-stored field `total_paid` and refresh the view.
+        Useful when invoice/payment state changes and a quick UI refresh is desired.
+        """
+        # Re-run the compute on current records
+        self._compute_total_paid()
+        # Post a small note per record for auditability
+        for contract in self:
+            contract.message_post(body=_('Total Paid recomputed: %0.2f') % (contract.total_paid or 0.0))
+        # Reload the form/list to reflect the recomputed value
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }
 
     @api.depends('start_date', 'contract_term')
     def _compute_end_date(self):
@@ -89,6 +135,48 @@ class ContractManagement(models.Model):
                 contract.end_date = contract.start_date + relativedelta(months=contract.contract_term.term)
             else:
                 contract.end_date = False
+    
+    @api.depends('docusign_id', 'docusign_id.connector_line_ids.signed_attachment_ids')
+    def _compute_signed_documents(self):
+        """Get all signed documents from related DocuSign envelopes"""
+        for contract in self:
+            if contract.docusign_id:
+                # Get all signed attachments from all recipients
+                signed_attachments = contract.docusign_id.connector_line_ids.mapped('signed_attachment_ids')
+                contract.signed_document_ids = signed_attachments
+            else:
+                contract.signed_document_ids = False
+    
+    @api.depends('signed_document_ids')
+    def _compute_document_count(self):
+        for contract in self:
+            contract.document_count = len(contract.signed_document_ids)
+    
+    def action_view_documents(self):
+        """Smart button action to view signed documents"""
+        self.ensure_one()
+        return {
+            'name': _('Signed Documents'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ir.attachment',
+            'view_mode': 'kanban,tree,form',
+            'domain': [('id', 'in', self.signed_document_ids.ids)],
+            'context': {'create': False}
+        }
+    
+    def action_view_docusign(self):
+        """Open the related DocuSign envelope"""
+        self.ensure_one()
+        if not self.docusign_id:
+            raise ValidationError(_('No DocuSign envelope associated with this contract.'))
+        return {
+            'name': _('DocuSign Envelope'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'docusign.connector',
+            'view_mode': 'form',
+            'res_id': self.docusign_id.id,
+            'target': 'current'
+        }
 
     def action_activate(self):
         for contract in self:
@@ -227,14 +315,17 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'recipient-completed':
                         connector.state = 'customer'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        subscription.subscription_state = '1b_install'
+                        subscription.subscription_state = '1d_internal'  # Customer signed, awaiting Cabal signature
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-#                       if subscription.subscription_state not in ['3_progress']:
-#                       if not subscription.cpe_unit_state and not subscription.cpe_unit_asset and not subscription.cpe_onu_status:
-#                          subscription.subscription_state = '1b_install'
-                        docu_client.download_documents(current_user, envelope_id)
+                        subscription.subscription_state = '1b_install'  # All signatures complete, ready for install
+                        
+                        # Auto-download signed documents
+                        try:
+                            connector.download_docs()
+                        except Exception as e:
+                            _logger.error("[DocuSign Webhook] Failed to auto-download documents: %s", str(e))
                     if connector.state != 'completed':
                         connector.status_docs()
         

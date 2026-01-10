@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_contract_management" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.contract.management</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="90"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Contract Management" name="contract_management">
+                    <block title="DocuSign Settings">
+                        <setting>
+                            <label for="docusign_company_signer_email" string="Company Signer Email"/>
+                            <div class="text-muted">
+                                Email address of the company representative who signs contracts after the customer
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="docusign_company_signer_email" placeholder="contratos@company.com"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="docusign_company_stamp_base64" string="Company Stamp Image"/>
+                            <div class="text-muted">
+                                Base64-encoded PNG image of company stamp to appear on signed documents
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="docusign_company_stamp_base64" placeholder="iVBORw0KGgoAAAANSUhEUgAA..."/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

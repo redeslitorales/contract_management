@@ -3,6 +3,9 @@ from odoo.exceptions import UserError, ValidationError
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import time, base64, uuid, re, json, jwt, requests
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
@@ -79,6 +82,7 @@ class SaleSubscription(models.Model):
         compute='_compute_subscription_state', store=True, tracking=True, group_expand='_group_expand_states',
     )
     contract_ids = fields.One2many('contract.management', 'subscription_id', string="Contracts")
+    contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
     docusign_ids = fields.One2many('docusign.connector', 'sale_id', string="DocuSign Envelopes")
     transfer_date = fields.Date(string="Date of Transfer")
     transfer_reason = fields.Selection(string="Transfer Reason", selection=TRANSFER_REASONS)
@@ -140,6 +144,24 @@ class SaleSubscription(models.Model):
             order.terms_conditions_ids = [(6, 0, terms_conditions.ids)]
             language = order.partner_id.lang or 'en_US'
             order.clause_ids = self.env['contract.clause'].get_applicable_clauses(order.contract_template.id)
+
+    @api.depends('contract_ids')
+    def _compute_contract_count(self):
+        for order in self:
+            order.contract_count = len(order.contract_ids)
+    
+    def action_view_contracts(self):
+        """Smart button action to view contracts"""
+        self.ensure_one()
+        action = self.env.ref('contract_management.action_contract_management').sudo().read()[0]
+        contracts = self.contract_ids
+        if len(contracts) == 1:
+            action['views'] = [(self.env.ref('contract_management.view_contract_management_form').id, 'form')]
+            action['res_id'] = contracts.id
+        else:
+            action['domain'] = [('id', 'in', contracts.ids)]
+        action['context'] = {'default_subscription_id': self.id}
+        return action
 
     @api.model
     def _get_cabal_sequence(self):
@@ -251,9 +273,9 @@ class SaleSubscription(models.Model):
         }
 
     def action_confirm_via_uuid(self):
-        # Set use to contratos@cabal.sv
-        user = self.env['res.users'].browse(196)
+        # Authenticate using hardcoded user 196 (contratos@cabal.sv) for token consistency
         authenticated = self.authenicate_jwt()
+        user = self.env['res.users'].browse(196)
         if authenticated:
             res = super(SaleSubscription, self).action_confirm()
             if self.is_subscription:
@@ -303,40 +325,109 @@ class SaleSubscription(models.Model):
 
 
     def action_send_for_signature(self):
+        _logger.info("[DocuSign] action_send_for_signature called for %d contract(s)", len(self))
         for contract in self:
+            _logger.info("[DocuSign] Processing contract ID=%s, name=%s, send_method=%s", 
+                        contract.id, contract.name, contract.contract_send_method)
+            
+            # Calculate monthly_payment (tax-inclusive) and contract_value from recurring order lines
+            monthly_payment = 0.0
+            contract_value = 0.0
+            recurring_lines = contract.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+            for line in recurring_lines:
+                # price_total includes taxes; use it for monthly_payment per requirements
+                monthly_payment += line.price_total
+            
+            # Calculate contract value based on contract term and billing period
+            # duration = contract_term_months / billing_period_months
+            if contract.contract_term and contract.plan_id:
+                contract_term_months = contract.contract_term.term
+                # Get billing period in months from the plan
+                billing_period_months = contract.plan_id.billing_period_value if contract.plan_id.billing_period_unit == 'month' else 1
+                if billing_period_months > 0:
+                    duration = contract_term_months / billing_period_months
+                    contract_value = monthly_payment * duration
+                else:
+                    contract_value = monthly_payment * 12  # Fallback to 12 if calculation fails
+            else:
+                contract_value = monthly_payment * 12  # Default to 12 if no contract term/plan
+            
+            _logger.info("[DocuSign] Calculated values for contract ID=%s: monthly_payment=%.2f, contract_value=%.2f", 
+                        contract.id, monthly_payment, contract_value)
+            
             # Step 1: Generate contract number
             if contract.is_subscription and not contract.cabal_sequence:
                 contract.cabal_sequence = contract._get_cabal_sequence()
+                _logger.info("[DocuSign] Generated contract sequence: %s", contract.cabal_sequence)
             # Step2 - Fetch the contract template
             if not contract.contract_template:
+                _logger.error("[DocuSign] Contract template not specified for contract ID=%s", contract.id)
                 raise UserError('Contract template not specified.')
             # Step 3: Create the document to be signed using the template
+            _logger.info("[DocuSign] Creating document for contract ID=%s with template=%s", 
+                        contract.id, contract.contract_template.name)
             document = self._create_document_to_be_signed(contract, contract.contract_template)
+            _logger.info("[DocuSign] Document created: ID=%s, name=%s", document.id, document.name)
+            
             if contract.contract_send_method != 'physical':
                 # Step 4: Create the connector and connector line records
+                _logger.info("[DocuSign] Sending document to DocuSign for contract ID=%s", contract.id)
                 connector_id = self._send_document_to_docusign(contract, document)
+                _logger.info("[DocuSign] DocuSign connector created: ID=%s, name=%s", 
+                            connector_id.id, connector_id.name)
+                
                 # Send document from Docusign
+                _logger.info("[DocuSign] Calling send_docs() with method=%s for connector ID=%s", 
+                            contract.contract_send_method, connector_id.id)
                 send_contract_result = connector_id.send_docs(contract.contract_send_method)
+                _logger.info("[DocuSign] send_docs() result: %s", send_contract_result)
                 msg_text = "sent to customer."
                 if send_contract_result['name'] == "Successful":
-                    contract.message_post(body=f'SUCCESS: Contract {document.name} '+msg_text, attachment_ids=[document.id])
+                    _logger.info("[DocuSign] SUCCESS: Contract sent successfully for contract ID=%s", contract.id)
+                    
+                    # Get envelope ID from first connector line
+                    envelope_id = connector_id.connector_line_ids[0].envelope_id if connector_id.connector_line_ids else None
+                    
+                    # Format method for display
+                    if contract.contract_send_method in ['whatsapp', 'email']:
+                        method_display = f"DocuSign ({contract.contract_send_method.capitalize()})"
+                    else:
+                        method_display = contract.contract_send_method.capitalize()
+                    
+                    # Construct message with envelope ID
+                    msg_body = f'SUCCESS: Contract {document.name} {msg_text} via {method_display}'
+                    if envelope_id:
+                        msg_body += f' - Envelope ID: {envelope_id}'
+                    
+                    contract.message_post(body=msg_body, attachment_ids=[document.id])
                     contract.write({'state': 'sale', 'subscription_state': '1a_pending'})
+                    _logger.info("[DocuSign] Contract state updated to 'sale', subscription_state='1a_pending'")
                 else:
+                    _logger.error("[DocuSign] Failed to send contract ID=%s. Result: %s", 
+                                 contract.id, send_contract_result)
                     raise ValidationError(str(send_contract_result))
             else:
+                    _logger.info("[DocuSign] Physical contract method - creating print activity for contract ID=%s", 
+                                contract.id)
                     contract.message_post(body=f'Contract {document.name} is ready to be printed and signed.', attachment_ids=[document.id])
                     contract.write({'state': 'sale', 'subscription_state': '1a_pending'})
                     contract.create_print_sign_activity()
 
 
             # Step 5 Create the contract management record
+            _logger.info("[DocuSign] Creating contract.management record for subscription ID=%s", contract.id)
             k_management = self.env['contract.management'].create({
                 'subscription_id': contract.id,
                 "contract_send_method": contract.contract_send_method,
                 'state': 'signature_in_process',
+                'monthly_payment': monthly_payment,
+                'contract_value': contract_value,
             })
+            _logger.info("[DocuSign] contract.management created: ID=%s with monthly_payment=%.2f, contract_value=%.2f", 
+                        k_management.id, monthly_payment, contract_value)
             if contract.contract_send_method != 'physical':
                 k_management.write({'docusign_id': connector_id.id})
+                _logger.info("[DocuSign] contract.management updated with docusign_id=%s", connector_id.id)
     #            contract.write({'contract_management_id': k_management.id})
                 # Update the contract with the DocuSign envelope ID
     #            contract.docusign_envelope_id = envelope_id
@@ -346,39 +437,101 @@ class SaleSubscription(models.Model):
     def _create_document_to_be_signed(self, subscription, report_template):
         # Render the report as PDF
         # Check to make sure that the contract template has been specified
+        _logger.info("[DocuSign] _create_document_to_be_signed called for subscription ID=%s", subscription.id)
         if not report_template:
+            _logger.error("[DocuSign] No contract template specified for subscription ID=%s", subscription.id)
             raise ValueError("No contract template specified.")
         # Fetch report action
+        _logger.info("[DocuSign] Fetching report action for template ID=%s", report_template.id)
         report_action = report_template.sudo().read()[0]
         # Generate the attachment
+        _logger.info("[DocuSign] Rendering PDF for subscription ID=%s using report ID=%s", 
+                    subscription.id, report_action['id'])
         pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(report_action['id'], [subscription.id])
+        pdf_size = len(pdf_content)
+        _logger.info("[DocuSign] PDF generated successfully, size=%d bytes", pdf_size)
         # Create an attachment for the generated PDF
+        attachment_name = f'{subscription.cabal_sequence}_{subscription.name}_customer_contract.pdf'
+        _logger.info("[DocuSign] Creating attachment: %s", attachment_name)
         attachment = self.env['ir.attachment'].create({
-            'name': f'{subscription.cabal_sequence}_{subscription.name}_customer_contract.pdf',
+            'name': attachment_name,
             'type': 'binary',
             'datas': base64.b64encode(pdf_content),
             'res_model': 'sale.order',
             'res_id': subscription.id,
             'mimetype': 'application/pdf'
         })
+        _logger.info("[DocuSign] Attachment created successfully: ID=%s", attachment.id)
         return attachment
 
     def _send_document_to_docusign(self, contract, document):
         # Retrieve DocuSign credentials from the custom model
-        user = self.env['res.users'].browse(196)
+        _logger.info("[DocuSign] _send_document_to_docusign called for contract ID=%s, document ID=%s", 
+                    contract.id, document.id)
+        
+        # Get company signer email from settings
+        company_signer_email = self.env['ir.config_parameter'].sudo().get_param(
+            'contract_management.docusign_company_signer_email'
+        )
+        
+        if not company_signer_email:
+            _logger.error("[DocuSign] Company signer email not configured in settings")
+            raise UserError("DocuSign company signer email is not configured. Please configure it in Settings > General Settings > Contract Management.")
+        
+        # Look up user by email
+        user = self.env['res.users'].search([('email', '=', company_signer_email)], limit=1)
+        if not user:
+            _logger.error("[DocuSign] No user found with email=%s", company_signer_email)
+            raise UserError(f"No user found with email {company_signer_email}. Please check the DocuSign company signer email in settings.")
+        
+        _logger.info("[DocuSign] Retrieved DocuSign user ID=%s, name=%s, email=%s", user.id, user.name, user.email)
+        
         if not user.access_token or not user.account_id:
-            raise UserError("DocuSign credentials are not configured.")
+            _logger.error("[DocuSign] DocuSign credentials not configured for user ID=%s (email=%s). "
+                         "access_token=%s, account_id=%s", 
+                         user.id, user.email, bool(user.access_token), user.account_id)
+            raise UserError(f"DocuSign credentials are not configured for user {user.email}.")
+        
+        # Calculate custom fields for DocuSign envelope
+        # Monthly payment = sum of recurring order lines with taxes
+        recurring_lines = contract.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        monthly_payment = sum(recurring_lines.mapped('price_total'))
+
+        # Contract value based on contract term and billing period
+        # duration = contract_term_months / billing_period_months
+        contract_value = 0.0
+        if contract.contract_term and contract.plan_id:
+            contract_term_months = contract.contract_term.term
+            billing_period_months = contract.plan_id.billing_period_value if contract.plan_id.billing_period_unit == 'month' else 1
+            if billing_period_months > 0:
+                duration = contract_term_months / billing_period_months
+                contract_value = monthly_payment * duration
+            else:
+                contract_value = monthly_payment * 12  # Fallback to 12 if calculation fails
+        else:
+            contract_value = monthly_payment * 12  # Default to 12 if no contract term/plan
+
+        _logger.info("[DocuSign] Creating docusign.connector record with name=%s, sale_id=%s", 
+                    contract.cabal_sequence, contract.id)
+        _logger.info("[DocuSign] Custom fields: monthly_payment=%.2f, contract_value=%.2f", monthly_payment, contract_value)
         connector_record = self.env['docusign.connector'].create({
             'name': contract.cabal_sequence,
             'responsible_id': user.id,
             'state': 'new',
-            'send_docs_in_hierarchy': True,
             'docs_policy': 'in',
             'model': 'sale',
             'sale_id': contract.id,
-            'attachment_ids': [(6, 0, [document.id])]
+            'attachment_ids': [(6, 0, [document.id])],
+            'monthly_payment': monthly_payment,
+            'contract_value': contract_value
         })
-        connector_line_record = self.env['docusign.connector.lines'].create({
+        _logger.info("[DocuSign] docusign.connector created: ID=%s, name=%s", 
+                    connector_record.id, connector_record.name)
+        
+        # Create connector line for customer (first signer)
+        _logger.info("[DocuSign] Creating docusign.connector.lines for customer: partner_id=%s, email=%s", 
+                    contract.partner_id.id, contract.partner_id.email_normalized)
+        customer_line = self.env['docusign.connector.lines'].create({
             'partner_id': contract.partner_id.id,
             'email': contract.partner_id.email_normalized,
             'status': 'draft',
@@ -386,6 +539,22 @@ class SaleSubscription(models.Model):
             'record_id': connector_record.id,
             'name': document.name
         })
+        _logger.info("[DocuSign] Customer connector line created: ID=%s", customer_line.id)
+        
+        # Create connector line for company signer (second signer)
+        _logger.info("[DocuSign] Creating docusign.connector.lines for company signer: user_id=%s, email=%s", 
+                    user.id, user.email)
+        company_line = self.env['docusign.connector.lines'].create({
+            'partner_id': user.partner_id.id,
+            'email': user.email,
+            'status': 'draft',
+            'un_signed_attachment_ids':  [(6, 0, [document.id])],
+            'record_id': connector_record.id,
+            'name': document.name
+        })
+        _logger.info("[DocuSign] Company connector line created: ID=%s", company_line.id)
+        
+        _logger.info("[DocuSign] Returning connector_record ID=%s with 2 recipients", connector_record.id)
         return connector_record
 
     def create_print_sign_activity(self):
@@ -532,9 +701,14 @@ class ContractSendMethodWizard(models.TransientModel):
             else:
                 raise ValidationError("The customer does not have a valid WhatsApp number.")
         contract.contract_send_method = self.send_method
+        _logger.info("[DocuSign] ContractSendMethodWizard: contract_id=%s, send_method=%s", 
+                    contract.id, self.send_method)
         if self.send_method != 'donotsend':
+            _logger.info("[DocuSign] Calling action_send_for_signature for contract ID=%s", contract.id)
             return contract.action_send_for_signature()
         else:
+            _logger.warning("[DocuSign] Contract NOT SENT - donotsend method selected for contract ID=%s", 
+                           contract.id)
             raise UserError('Contract NOT SENT!')
 
 class SubscriptionTransferWizard(models.TransientModel):

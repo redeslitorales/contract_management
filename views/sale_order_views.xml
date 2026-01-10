@@ -4,6 +4,14 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <!-- Add smart button for contracts -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object" name="action_view_contracts"
+                        icon="fa-file-contract" invisible="contract_count == 0">
+                    <field string="Contracts" name="contract_count" widget="statinfo"/>
+                </button>
+            </xpath>
+            
             <xpath expr="//form[1]/header[1]/button[@name='action_confirm'][2]" position="attributes">
                 <attribute name="invisible">subscription_state != "1e_confirm"</attribute>
             </xpath>

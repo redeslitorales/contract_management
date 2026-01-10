@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <!-- Default Contract Dashboard -->
+        <record id="contract_dashboard_default" model="contract.dashboard">
+            <field name="name">Contract Overview</field>
+            <field name="partner_id" eval="False"/>
+            <field name="contract_term_id" eval="False"/>
+            <field name="state" eval="False"/>
+            <field name="date_from" eval="False"/>
+            <field name="date_to" eval="False"/>
+        </record>
+    </data>
+</odoo>

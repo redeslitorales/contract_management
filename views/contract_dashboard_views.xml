@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Contract Dashboard Form View -->
+    <record id="view_contract_dashboard_form" model="ir.ui.view">
+        <field name="name">contract.dashboard.form</field>
+        <field name="model">contract.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Contract Dashboard">
+                <header>
+                    <button name="action_refresh_statistics" type="object" string="Refresh" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Dashboard Name"/>
+                        </h1>
+                    </div>
+                    
+                    <group name="filters" string="Filters">
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="contract_term_id"/>
+                            <field name="state"/>
+                        </group>
+                    </group>
+                    
+                    <group name="summary" string="Summary Statistics">
+                        <group>
+                            <field name="total_contracts" widget="statinfo"/>
+                            <field name="total_contract_value" widget="monetary"/>
+                            <field name="avg_contract_value" widget="monetary"/>
+                        </group>
+                    </group>
+                    
+                    <group name="status_buttons" string="Contracts by Status">
+                        <button name="action_view_draft_contracts" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <field name="total_draft" widget="statinfo" string="Draft"/>
+                        </button>
+                        <button name="action_view_active_contracts" type="object" class="oe_stat_button" icon="fa-check-circle">
+                            <field name="total_active" widget="statinfo" string="Active"/>
+                        </button>
+                        <button name="action_view_signed_contracts" type="object" class="oe_stat_button" icon="fa-pencil-square-o">
+                            <field name="total_signed" widget="statinfo" string="Signed"/>
+                        </button>
+                        <button name="action_view_expired_contracts" type="object" class="oe_stat_button" icon="fa-calendar-times-o">
+                            <field name="total_expired" widget="statinfo" string="Expired"/>
+                        </button>
+                        <button name="action_view_renewal_due_contracts" type="object" class="oe_stat_button" icon="fa-refresh">
+                            <field name="total_renewal_due" widget="statinfo" string="Renewal Due"/>
+                        </button>
+                        <field name="total_signature_in_process" invisible="1"/>
+                        <field name="total_terminated" invisible="1"/>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Expiring in 30 Days" name="expiration_30">
+                            <group>
+                                <button name="action_view_expiring_30_days" type="object" class="oe_stat_button" icon="fa-exclamation-triangle">
+                                    <field name="expiring_30_days" widget="statinfo" string="Total Count"/>
+                                </button>
+                            </group>
+                            <group>
+                                <field name="expiring_30_days_list" widget="text" nolabel="1" placeholder="No contracts expiring in 30 days"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Expiring in 60 Days" name="expiration_60">
+                            <group>
+                                <button name="action_view_expiring_60_days" type="object" class="oe_stat_button" icon="fa-calendar">
+                                    <field name="expiring_60_days" widget="statinfo" string="Total Count"/>
+                                </button>
+                            </group>
+                            <group>
+                                <field name="expiring_60_days_list" widget="text" nolabel="1" placeholder="No contracts expiring in 60 days"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Expiring in 90 Days" name="expiration_90">
+                            <group>
+                                <button name="action_view_expiring_90_days" type="object" class="oe_stat_button" icon="fa-calendar-o">
+                                    <field name="expiring_90_days" widget="statinfo" string="Total Count"/>
+                                </button>
+                            </group>
+                            <group>
+                                <field name="expiring_90_days_list" widget="text" nolabel="1" placeholder="No contracts expiring in 90 days"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Top Partners" name="partners">
+                            <group>
+                                <field name="top_partners_summary" widget="text" nolabel="1"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Contract Term Distribution" name="terms">
+                            <group>
+                                <field name="term_distribution" widget="text" nolabel="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Contract Dashboard Kanban View -->
+    <record id="view_contract_dashboard_kanban" model="ir.ui.view">
+        <field name="name">contract.dashboard.kanban</field>
+        <field name="model">contract.dashboard</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_dashboard" create="false">
+                <field name="name"/>
+                <field name="total_contracts"/>
+                <field name="total_active"/>
+                <field name="total_signed"/>
+                <field name="total_expired"/>
+                <field name="total_renewal_due"/>
+                <field name="total_contract_value"/>
+                <field name="avg_contract_value"/>
+                <field name="expiring_30_days"/>
+                <field name="expiring_60_days"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="o_kanban_card_header">
+                                <div class="o_kanban_card_header_title">
+                                    <div class="o_primary"><field name="name"/></div>
+                                </div>
+                            </div>
+                            <div class="container o_kanban_card_content">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <button class="btn btn-primary" name="action_view_active_contracts" type="object">
+                                            <span><t t-esc="record.total_active.value"/> Active</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-info" name="action_view_signed_contracts" type="object">
+                                            <span><t t-esc="record.total_signed.value"/> Signed</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-6">
+                                        <button class="btn btn-warning" name="action_view_renewal_due_contracts" type="object">
+                                            <span><t t-esc="record.total_renewal_due.value"/> Renewal Due</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-danger" name="action_view_expired_contracts" type="object">
+                                            <span><t t-esc="record.total_expired.value"/> Expired</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <strong>Total Contracts:</strong> <t t-esc="record.total_contracts.value"/>
+                                    </div>
+                                    <div class="col-12">
+                                        <strong>Total Value:</strong> $<t t-esc="Math.round(record.total_contract_value.value * 100) / 100"/>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <button class="btn btn-sm btn-outline-warning" name="action_view_expiring_30_days" type="object">
+                                            <i class="fa fa-exclamation-triangle"/> <t t-esc="record.expiring_30_days.value"/> Expiring in 30 Days
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Contract Dashboard Action -->
+    <record id="action_contract_dashboard" model="ir.actions.act_window">
+        <field name="name">Contract Dashboard</field>
+        <field name="res_model">contract.dashboard</field>
+        <field name="view_mode">kanban,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{'default_name': 'Contract Overview'}</field>
+        <field name="target">current</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Contract Management Dashboard
+            </p>
+            <p>
+                View contract statistics by status, partner, term, and expiration date.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_contract_dashboard"
+              name="Dashboard"
+              parent="menu_contract_management_root"
+              action="action_contract_dashboard"
+              sequence="1"/>
+</odoo>

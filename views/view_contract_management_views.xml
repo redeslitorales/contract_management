@@ -1,60 +1,186 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="view_contract_management_form" model="ir.ui.view">
         <field name="name">contract.management.form</field>
         <field name="model">contract.management</field>
         <field name="arch" type="xml">
             <form string="Contract Management">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,signature_in_process,signed,active" clickable="1"/>
+                    <button string="Activate Contract" type="object" name="action_activate" 
+                            class="btn-primary" invisible="state not in ['draft', 'signed']"
+                            icon="fa-check-circle"/>
+                    <button string="Terminate Contract" type="object" name="action_terminate" 
+                            class="btn-danger" invisible="state not in ['active', 'renewal_due']"
+                            icon="fa-times-circle" confirm="Are you sure you want to terminate this contract?"/>
+                    <button string="View DocuSign Envelope" type="object" name="action_view_docusign"
+                            class="btn-secondary" invisible="not docusign_id"
+                            icon="fa-file-signature"/>
+                </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object" name="action_view_documents"
+                                icon="fa-file-pdf-o" invisible="document_count == 0">
+                            <field string="Documents" name="document_count" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1" class="oe_inline"/>
+                        </h1>
+                        <h3>
+                            <field name="partner_id" readonly="1" class="oe_inline"/>
+                        </h3>
+                    </div>
                     <group>
-                        <field name="name"/>
-                        <field name="partner_id"/>
-                        <field readonly = "1" name="subscription_id"/>
-                        <field readonly = "1" name="docusign_id"/>
-                        <field name="contract_term"/>
-                        <field name="start_date"/>
-                        <field name="end_date"/>
-                        <field name="state"/>
-                        <field name="contract_template"/>
-                        <field name="early_termination_fee"/>
-                        <field name="late_charge"/>
-                        <field name="service_pause_count"/>
-                        <field name="max_service_pause_duration"/>
-                        <field name="total_amount" readonly="1"/>
+                        <group string="Contract Information" name="contract_info">
+                            <field name="subscription_id" readonly="1" 
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <field name="contract_template" readonly="1"/>
+                            <field name="contract_term" readonly="1"/>
+                            <field name="start_date" readonly="1"/>
+                            <field name="end_date" readonly="1"/>
+                            <field name="total_paid" readonly="1" widget="monetary"/>
+                            <field name="monthly_payment" readonly="1" widget="monetary"/>
+                            <field name="contract_value" readonly="1" widget="monetary"/>
+                        </group>
+                        <group string="Signature Information" name="signature_info">
+                            <field name="docusign_id" readonly="1"
+                                   options="{'no_create': True}"/>
+                            <field name="docusign_status" readonly="1" widget="badge"
+                                   decoration-success="docusign_status == 'completed'"
+                                   decoration-info="docusign_status == 'sent'"
+                                   decoration-warning="docusign_status in ['new', 'open']"/>
+                            <field name="contract_send_method"/>
+                        </group>
                     </group>
-                    <group>
-                        <field name="service_ids">
-                            <tree string="Services">
-                                <field name="name"/>
-                                <field name="price"/>
-                                <field name="product_id"/>
-                            </tree>
-                        </field>
-                    </group>
+                    
+                    <notebook>
+                        <page string="Services" name="services">
+                            <field name="service_ids">
+                                <tree string="Services" editable="bottom">
+                                    <field name="name"/>
+                                    <field name="product_id"/>
+                                    <field name="price" widget="monetary"/>
+                                </tree>
+                            </field>
+                        </page>
+                        
+                        <page string="Documents" name="documents">
+                            <group string="Contract Documents">
+                                <field name="contract_file" filename="contract_filename"/>
+                                <field name="contract_filename" invisible="1"/>
+                            </group>
+                            <group string="Signed Documents" invisible="document_count == 0">
+                                <field name="signed_document_ids" widget="many2many_binary" nolabel="1"/>
+                            </group>
+                            <div class="alert alert-info" role="alert" invisible="document_count != 0">
+                                <p><i class="fa fa-info-circle"/> No signed documents available yet. Documents will appear here once all parties have signed via DocuSign.</p>
+                            </div>
+                        </page>
+                        
+                        <page string="Terms &amp; Fees" name="terms_fees">
+                            <group>
+                                <group string="Fees">
+                                    <field name="early_termination_fee" widget="monetary"/>
+                                    <field name="late_charge" widget="monetary"/>
+                                </group>
+                                <group string="Service Pauses">
+                                    <field name="service_pause_count"/>
+                                    <field name="max_service_pause_duration"/>
+                                </group>
+                            </group>
+                            <group string="Contract Clauses">
+                                <field name="clause_ids" nolabel="1">
+                                    <tree>
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="name"/>
+                                        <field name="version"/>
+                                        <field name="active"/>
+                                    </tree>
+                                </field>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
-                <footer>
-<!--                    <button string="Send for Signature" type="object" name="action_send_for_signature" class="btn-primary"/>  -->
-                    <button string="Activate" type="object" name="action_activate" class="btn-primary"/>
-                    <button string="Terminate" type="object" name="action_terminate" class="btn-secondary"/>
-                </footer>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="activity_ids" widget="mail_activity"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
             </form>
         </field>
     </record>
-    
+
     <record id="view_contract_management_tree" model="ir.ui.view">
         <field name="name">contract.management.tree</field>
         <field name="model">contract.management</field>
         <field name="arch" type="xml">
-            <tree string="Contract Management">
+            <tree string="Contract Management" decoration-success="state == 'active'" 
+                  decoration-warning="state == 'renewal_due'" 
+                  decoration-danger="state == 'terminated'"
+                  decoration-muted="state == 'expired'"
+                  decoration-info="state == 'signature_in_process'">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="subscription_id"/>
+                <field name="contract_template"/>
                 <field name="start_date"/>
                 <field name="end_date"/>
-                <field name="state"/>
-                <field name="total_amount"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'active'"
+                       decoration-warning="state == 'renewal_due'"
+                       decoration-danger="state == 'terminated'"
+                       decoration-muted="state == 'expired'"
+                       decoration-info="state in ['signature_in_process', 'signed']"/>
+                <field name="docusign_status" widget="badge" optional="show"
+                       decoration-success="docusign_status == 'completed'"
+                       decoration-info="docusign_status == 'sent'"
+                       decoration-warning="docusign_status in ['new', 'open']"/>
+                <field name="document_count" optional="show"/>
+                <field name="total_paid" widget="monetary" sum="Total"/>
             </tree>
         </field>
-    </record>    
+    </record>
+
+    <record id="view_contract_management_search" model="ir.ui.view">
+        <field name="name">contract.management.search</field>
+        <field name="model">contract.management</field>
+        <field name="arch" type="xml">
+            <search string="Contracts">
+                <field name="name" string="Contract Number" filter_domain="[('name','ilike',self)]"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="subscription_id" string="Subscription"/>
+                <field name="state"/>
+                <field name="contract_template"/>
+                <field name="docusign_id"/>
+                <field name="contract_term"/>
+                <separator/>
+                <filter string="Draft" name="filter_draft" domain="[('state','=','draft')]"/>
+                <filter string="Signature In Process" name="filter_signature" domain="[('state','=','signature_in_process')]"/>
+                <filter string="Signed" name="filter_signed" domain="[('state','=','signed')]"/>
+                <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
+                <filter string="Renewal Due" name="filter_renewal" domain="[('state','=','renewal_due')]"/>
+                <filter string="Expired" name="filter_expired" domain="[('state','=','expired')]"/>
+                <filter string="Terminated" name="filter_terminated" domain="[('state','=','terminated')]"/>
+                <separator/>
+                <filter string="Has DocuSign" name="filter_has_docusign" domain="[('docusign_id','!=',False)]"/>
+                <filter string="Missing DocuSign" name="filter_no_docusign" domain="[('docusign_id','=',False)]"/>
+                <separator/>
+                <filter string="Start Date" name="filter_start_date" date="start_date"/>
+                <filter string="End Date" name="filter_end_date" date="end_date"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_customer" context="{'group_by':'partner_id'}"/>
+                    <filter string="State" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="Contract Template" name="group_template" context="{'group_by':'contract_template'}"/>
+                    <filter string="Contract Term" name="group_term" context="{'group_by':'contract_term'}"/>
+                    <filter string="DocuSign Status" name="group_docusign_status" context="{'group_by':'docusign_status'}"/>
+                    <filter string="Start Date" name="group_start_date" context="{'group_by':'start_date'}"/>
+                    <filter string="End Date" name="group_end_date" context="{'group_by':'end_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
 
 </odoo>
