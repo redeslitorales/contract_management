@@ -1,22 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <record id="view_product_category_contract" model="ir.ui.view">
-            <field name="name">product.category.contract.inherit</field>
-            <field name="model">product.category</field>
-			<field name="inherit_id" ref="product.product_category_form_view"/>
-			<field name="arch" type="xml">
-                  <xpath expr="//group[@name='account_property']" position="after">
-                    <group name="studio_group_24u_1ij3s0f6r">
-                      <group name="studio_group_24u_left" string="Contract Properties">
-                        <field name="contract_template"/>
-                      </group>
-                      <group name="studio_group_24u_right" string="CPE Properties">
-                        <field name="cpe_type"/>
-                      </group>
-                    </group>
-                  </xpath>
-            </field>
-        </record>
+        <!-- View moved to cpe_assets module to avoid circular dependency -->
     </data>
 </odoo>

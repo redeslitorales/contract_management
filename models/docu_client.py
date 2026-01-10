@@ -141,7 +141,18 @@ def send_docusign_file(user, file_name, file_contents, receiver1_name, receiver1
             }
             response = requests.request('POST', url, headers=headers, data=json.dumps(envelope_data))
             if response.status_code != 201:
-                raise ValidationError((str(response.text)))
+                # Try to parse the error message from DocuSign
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('message', str(response.text))
+                except:
+                    error_message = str(response.text)
+                
+                # Check for common token expiration issues
+                if response.status_code == 401:
+                    raise ValidationError(_("DocuSign authentication has expired. Please ask an administrator to refresh the DocuSign credentials in Settings > Users > DocuSign Account."))
+                else:
+                    raise ValidationError(_("DocuSign Error: %s") % error_message)
             data = response.json()
             envelope_id = data.get('envelopeId')
             return envelope_id
