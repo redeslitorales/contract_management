@@ -425,6 +425,22 @@ class SaleSubscription(models.Model):
             })
             _logger.info("[DocuSign] contract.management created: ID=%s with monthly_payment=%.2f, contract_value=%.2f", 
                         k_management.id, monthly_payment, contract_value)
+            
+            # Step 5a: Create contract service lines from subscription order lines
+            _logger.info("[DocuSign] Creating contract service lines for contract.management ID=%s", k_management.id)
+            service_lines_created = 0
+            for line in contract.order_line:
+                if line.product_id and not line.display_type:
+                    self.env['contract.service'].create({
+                        'contract_id': k_management.id,
+                        'product_id': line.product_id.id,
+                        'name': line.name or line.product_id.name,
+                        'price': line.price_total,  # Use price_total to include taxes
+                    })
+                    service_lines_created += 1
+            _logger.info("[DocuSign] Created %d service lines for contract.management ID=%s", 
+                        service_lines_created, k_management.id)
+            
             if contract.contract_send_method != 'physical':
                 k_management.write({'docusign_id': connector_id.id})
                 _logger.info("[DocuSign] contract.management updated with docusign_id=%s", connector_id.id)
@@ -691,14 +707,10 @@ class ContractSendMethodWizard(models.TransientModel):
         contract = self.env['sale.order'].browse(contract_id)
 
         # Validation for WhatsApp send method
-        if self.send_method == 'whatsapp' and not contract.partner_id.whatsapp:
-            raise ValidationError("The customer does not have a valid WhatsApp number.")
-        else:
-            match = re.match(r'^\+(\d{1,3})(\d+)$', contract.partner_id.whatsapp)
-            if match:
-                country_code = match.group(1)
-                phone_number = match.group(2)
-            else:
+        if self.send_method == 'whatsapp':
+            phone_raw = contract.partner_id.whatsapp or ''
+            match = re.match(r'^\+(\d{1,3})(\d+)$', phone_raw)
+            if not match:
                 raise ValidationError("The customer does not have a valid WhatsApp number.")
         contract.contract_send_method = self.send_method
         _logger.info("[DocuSign] ContractSendMethodWizard: contract_id=%s, send_method=%s", 

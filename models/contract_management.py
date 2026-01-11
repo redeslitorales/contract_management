@@ -9,7 +9,10 @@ import re
 import json
 import jwt
 import requests
+import logging
 from odoo.addons.odoo_docusign.models import docu_client
+
+_logger = logging.getLogger(__name__)
 
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
 
@@ -91,6 +94,7 @@ class ContractManagement(models.Model):
     monthly_payment = fields.Float(string='Monthly Payment', digits=(16, 2), help="Monthly payment amount from DocuSign envelope")
     contract_value = fields.Float(string='Contract Value', digits=(16, 2), help="Total contract value from DocuSign envelope")
     has_signed_documents = fields.Boolean(string='Has Signed Documents', compute='_compute_has_signed_documents', store=False)
+    early_termination_cost = fields.Float(string='Early Termination Cost', compute='_compute_early_termination_cost', store=False, digits=(16, 2), help="Contract value - Total paid + Early termination fee")
 
     def _compute_total_paid(self):
         for contract in self:
@@ -113,6 +117,14 @@ class ContractManagement(models.Model):
                     else:
                         total += inv.amount_total
             contract.total_paid = total
+
+    def _compute_early_termination_cost(self):
+        """Calculate early termination cost: contract_value - total_paid + early_termination_fee"""
+        for contract in self:
+            contract_value = contract.contract_value or 0.0
+            total_paid = contract.total_paid or 0.0
+            early_fee = contract.early_termination_fee or 0.0
+            contract.early_termination_cost = contract_value - total_paid + early_fee
 
     def action_recompute_total_paid(self):
         """Manually recompute the non-stored field `total_paid` and refresh the view.
@@ -239,6 +251,471 @@ class ContractManagement(models.Model):
         """Return action for portal after viewing contract."""
         self.ensure_one()
         return '/my/services'
+    
+    def _get_docusign_headers(self, access_token):
+        """Return headers for DocuSign API calls."""
+        return {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    
+    def _get_docusign_api_url(self, env):
+        """Get DocuSign API base URL based on environment."""
+        config = docu_client._get_docusign_config(env)
+        return f"{config['base_uri']}/restapi/v2.1/accounts/{config['account_id']}"
+    
+    def _get_envelope_status(self, envelope_id):
+        """Get current status of DocuSign envelope.
+        
+        Returns:
+            str: Envelope status (created, sent, delivered, signed, completed, voided, etc.)
+        """
+        self.ensure_one()
+        
+        _logger.info("[DocuSign] Getting status for envelope %s", envelope_id)
+        
+        try:
+            # Get access token
+            user = self.env['res.users'].browse(196)
+            access_token = docu_client._get_cached_access_token(self.env, user)
+            
+            # Build API URL
+            api_base = self._get_docusign_api_url(self.env)
+            url = f"{api_base}/envelopes/{envelope_id}"
+            
+            # Make GET request
+            response = requests.get(
+                url,
+                headers=self._get_docusign_headers(access_token)
+            )
+            
+            if response.status_code != 200:
+                _logger.error("[DocuSign] Failed to get envelope status: %s", response.text)
+                return None
+            
+            result = response.json()
+            status = result.get('status')
+            _logger.info("[DocuSign] Envelope %s status: %s", envelope_id, status)
+            
+            return status
+            
+        except Exception as e:
+            _logger.exception("[DocuSign] Error getting envelope status: %s", str(e))
+            return None
+    
+    def _update_envelope_recipient(self, envelope_id, recipient_id, new_email=None, new_phone=None, resend_envelope=False):
+        """Update DocuSign envelope recipient information.
+        
+        Args:
+            envelope_id: DocuSign envelope ID
+            recipient_id: Recipient ID within envelope
+            new_email: New email address (optional)
+            new_phone: New phone number (optional)
+            resend_envelope: If True, DocuSign will resend notification after update
+        """
+        self.ensure_one()
+        
+        try:
+            # Get access token
+            user = self.env['res.users'].browse(196)  # contratos@cabal.sv
+            access_token = docu_client._get_cached_access_token(self.env, user)
+            
+            # Build API URL with resend_envelope parameter
+            api_base = self._get_docusign_api_url(self.env)
+            url = f"{api_base}/envelopes/{envelope_id}/recipients"
+            if resend_envelope:
+                url += "?resend_envelope=true"
+            
+            # Prepare recipient update payload
+            recipient_update = {
+                'signers': [{
+                    'recipientId': recipient_id,
+                }]
+            }
+            
+            if new_email:
+                # Switching to email delivery (default DocuSign method)
+                recipient_update['signers'][0]['email'] = new_email
+                # Remove SMS delivery method if previously set
+                recipient_update['signers'][0]['deliveryMethod'] = None
+            elif new_phone:
+                # Switching to SMS delivery
+                # Parse phone number to extract country code and number
+                # Expected format: +503XXXXXXXX or +1XXXXXXXXXX
+                phone_cleaned = new_phone.lstrip('+')
+                
+                # Determine country code (503 for El Salvador, 1 for USA, etc.)
+                if phone_cleaned.startswith('503'):
+                    country_code = '503'
+                    number = phone_cleaned[3:]
+                elif phone_cleaned.startswith('1') and len(phone_cleaned) == 11:
+                    country_code = '1'
+                    number = phone_cleaned[1:]
+                elif phone_cleaned.startswith('56'):  # Chile
+                    country_code = '56'
+                    number = phone_cleaned[2:]
+                else:
+                    # Fallback: assume first 1-3 digits are country code
+                    country_code = phone_cleaned[:3]
+                    number = phone_cleaned[3:]
+                
+                # Include email for recipient identity, but deliver via WhatsApp
+                if self.partner_id.email:
+                    recipient_update['signers'][0]['email'] = self.partner_id.email
+                
+                recipient_update['signers'][0]['deliveryMethod'] = 'WhatsApp'
+                recipient_update['signers'][0]['phoneNumber'] = {
+                    'countryCode': country_code,
+                    'number': number
+                }
+                
+                _logger.info("[DocuSign] WhatsApp delivery: email=%s, phone=+%s%s", 
+                           self.partner_id.email, country_code, number)
+            
+            # Make PUT request to update recipient
+            response = requests.put(
+                url,
+                headers=self._get_docusign_headers(access_token),
+                json=recipient_update
+            )
+            
+            if response.status_code not in [200, 201]:
+                _logger.error("[DocuSign] Failed to update recipient: %s", response.text)
+                raise ValidationError(_(f"Failed to update recipient: {response.text}"))
+            
+            _logger.info("[DocuSign] Successfully updated recipient %s on envelope %s", recipient_id, envelope_id)
+            return True
+            
+        except Exception as e:
+            _logger.exception("[DocuSign] Error updating envelope recipient: %s", str(e))
+            raise ValidationError(_(f"Error updating envelope recipient: {str(e)}"))
+    
+    def _send_envelope_notification(self, envelope_id, recipient_id):
+        """Send DocuSign notification to recipient (for unsigned envelopes after updating)."""
+        self.ensure_one()
+        
+        _logger.info("[DocuSign] _send_envelope_notification called for envelope %s, recipient %s", envelope_id, recipient_id)
+        
+        try:
+            # Get access token
+            user = self.env['res.users'].browse(196)  # contratos@cabal.sv
+            _logger.info("[DocuSign] Getting access token for user %s", user.login)
+            access_token = docu_client._get_cached_access_token(self.env, user)
+            _logger.info("[DocuSign] Access token obtained: %s...", access_token[:20] if access_token else 'None')
+            
+            # Build API URL for sending notification
+            api_base = self._get_docusign_api_url(self.env)
+            url = f"{api_base}/envelopes/{envelope_id}/notification"
+            _logger.info("[DocuSign] Sending notification to URL: %s", url)
+            
+            # Make PUT request with recipient details to send notification
+            payload = {
+                "recipients": {
+                    "signers": [{
+                        "recipientId": recipient_id
+                    }]
+                }
+            }
+            _logger.info("[DocuSign] Payload: %s", payload)
+            
+            response = requests.put(
+                url,
+                headers=self._get_docusign_headers(access_token),
+                json=payload
+            )
+            
+            _logger.info("[DocuSign] Response status: %s", response.status_code)
+            _logger.info("[DocuSign] Response body: %s", response.text)
+            
+            if response.status_code not in [200, 201]:
+                _logger.error("[DocuSign] Failed to send notification: %s - %s", response.status_code, response.text)
+                raise ValidationError(_(f"Failed to send notification: {response.text}"))
+            
+            _logger.info("[DocuSign] Successfully sent notification to recipient %s on envelope %s", recipient_id, envelope_id)
+            return True
+            
+        except Exception as e:
+            _logger.exception("[DocuSign] Error sending envelope notification: %s", str(e))
+            raise ValidationError(_(f"Error sending envelope notification: {str(e)}"))
+    
+    def _resend_envelope_notification(self, envelope_id, recipient_id):
+        """Resend DocuSign notification to recipient (for signed envelopes only)."""
+        self.ensure_one()
+        
+        _logger.info("[DocuSign] _resend_envelope_notification called for envelope %s, recipient %s", envelope_id, recipient_id)
+        
+        try:
+            # Get access token
+            user = self.env['res.users'].browse(196)  # contratos@cabal.sv
+            _logger.info("[DocuSign] Getting access token for user %s", user.login)
+            access_token = docu_client._get_cached_access_token(self.env, user)
+            _logger.info("[DocuSign] Access token obtained: %s...", access_token[:20] if access_token else 'None')
+            
+            # Build API URL for resend notification
+            api_base = self._get_docusign_api_url(self.env)
+            url = f"{api_base}/envelopes/{envelope_id}/recipients/{recipient_id}/resend_envelope"
+            _logger.info("[DocuSign] Resending notification to URL: %s", url)
+            
+            # Make PUT request to resend notification (DocuSign uses PUT with empty body)
+            response = requests.put(
+                url,
+                headers=self._get_docusign_headers(access_token),
+                json={}
+            )
+            
+            _logger.info("[DocuSign] Response status: %s", response.status_code)
+            _logger.info("[DocuSign] Response body: %s", response.text)
+            
+            if response.status_code not in [200, 201]:
+                _logger.error("[DocuSign] Failed to resend notification: %s", response.text)
+                raise ValidationError(_(f"Failed to resend notification: {response.text}"))
+            
+            _logger.info("[DocuSign] Successfully resent notification to recipient %s on envelope %s", recipient_id, envelope_id)
+            return True
+            
+        except Exception as e:
+            _logger.exception("[DocuSign] Error resending envelope notification: %s", str(e))
+            raise ValidationError(_(f"Error resending envelope notification: {str(e)}"))
+    
+    def action_resend_via_whatsapp(self):
+        """Resend DocuSign envelope via WhatsApp - updates contact if not signed, resends if signed."""
+        self.ensure_one()
+        
+        _logger.info("[DocuSign] action_resend_via_whatsapp called for contract %s", self.id)
+        _logger.info("[DocuSign] Partner: %s, WhatsApp: %s", self.partner_id.name, self.partner_id.whatsapp)
+        
+        if not self.docusign_id:
+            raise UserError(_("No DocuSign envelope found for this contract."))
+        
+        if not self.partner_id.whatsapp:
+            raise UserError(_("Customer does not have a WhatsApp number configured."))
+        
+        # Validate WhatsApp format
+        match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
+        if not match:
+            raise UserError(_("Customer WhatsApp number is not in valid format (+country_code phone_number)."))
+        
+        # Get first connector line (customer signer)
+        customer_line = self.docusign_id.connector_line_ids.filtered(
+            lambda l: l.partner_id.id == self.partner_id.id
+        )[:1]
+        
+        _logger.info("[DocuSign] Found %d connector lines for partner", len(customer_line))
+        
+        if not customer_line:
+            raise UserError(_("No customer signer found in DocuSign envelope."))
+        
+        if not customer_line.envelope_id:
+            raise UserError(_("No envelope ID found. Cannot resend."))
+        
+        # Check if customer has already signed (sign_status is Boolean)
+        customer_signed = customer_line.sign_status == True
+        
+        envelope_id = customer_line.envelope_id
+        recipient_id = customer_line.recipient_id or '1'  # Default to '1' if not set
+        
+        _logger.info("[DocuSign] Envelope ID: %s, Recipient ID: %s, Customer signed: %s", envelope_id, recipient_id, customer_signed)
+        
+        try:
+            # Get envelope status to determine how to proceed
+            envelope_status = self._get_envelope_status(envelope_id)
+            _logger.info("[DocuSign] Envelope status: %s", envelope_status)
+            
+            if not envelope_status:
+                raise UserError(_("Failed to get envelope status from DocuSign"))
+            
+            if envelope_status in ['voided', 'declined']:
+                # Envelope was voided or declined - create and send new envelope
+                _logger.info("[DocuSign] Envelope status is '%s' - creating new envelope", envelope_status)
+                if not self.subscription_id:
+                    raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
+                
+                # Call subscription's send_docs to create new envelope
+                try:
+                    self.subscription_id.send_docs()
+                    # Update send method after successful creation
+                    self.subscription_id.write({'contract_send_method': 'whatsapp'})
+                    msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via WhatsApp to {self.partner_id.whatsapp}."
+                except Exception as create_error:
+                    _logger.error("[DocuSign] Failed to create new envelope: %s", str(create_error))
+                    raise UserError(_(f"Failed to create new envelope: {str(create_error)}"))
+            elif envelope_status == 'completed':
+                # Envelope is completed - just resend notification (reminder of signed document)
+                _logger.info("[DocuSign] Envelope status is 'completed' - resending notification")
+                self._resend_envelope_notification(envelope_id, recipient_id)
+                msg = f"DocuSign notification resent for completed envelope (reminder sent via WhatsApp)."
+            elif envelope_status == 'created':
+                # Envelope was created but never sent - send it now
+                _logger.info("[DocuSign] Envelope status is 'created' - sending envelope")
+                # Update delivery method to WhatsApp and send
+                self._update_envelope_recipient(
+                    envelope_id,
+                    recipient_id,
+                    new_phone=self.partner_id.whatsapp,
+                    resend_envelope=True
+                )
+                msg = f"DocuSign envelope sent via WhatsApp to {self.partner_id.whatsapp}."
+            elif envelope_status == 'sent':
+                # Envelope was sent - update recipient and resend
+                _logger.info("[DocuSign] Envelope status is 'sent' - updating and resending")
+                self._update_envelope_recipient(
+                    envelope_id,
+                    recipient_id,
+                    new_phone=self.partner_id.whatsapp,
+                    resend_envelope=True
+                )
+                msg = f"DocuSign notification resent via WhatsApp to {self.partner_id.whatsapp}."
+            else:
+                # Other statuses (delivered, signed, etc.)
+                _logger.info("[DocuSign] Envelope status is '%s' - resending notification", envelope_status)
+                self._resend_envelope_notification(envelope_id, recipient_id)
+                msg = f"DocuSign notification resent (envelope status: {envelope_status})."
+            
+            # Update send method
+            self.write({'contract_send_method': 'whatsapp'})
+            
+            # Log to chatter
+            self.message_post(
+                body=msg,
+                subject="DocuSign Resent via WhatsApp"
+            )
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Success'),
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.message_post(
+                body=f"Failed to resend via WhatsApp: {error_msg}",
+                subject="DocuSign Resend Failed"
+            )
+            raise
+    
+    def action_resend_via_email(self):
+        """Resend DocuSign envelope via Email - updates contact if not signed, resends if signed."""
+        self.ensure_one()
+        
+        _logger.info("[DocuSign] action_resend_via_email called for contract %s", self.id)
+        _logger.info("[DocuSign] Partner: %s, Email: %s", self.partner_id.name, self.partner_id.email)
+        
+        if not self.docusign_id:
+            raise UserError(_("No DocuSign envelope found for this contract."))
+        
+        if not self.partner_id.email:
+            raise UserError(_("Customer does not have an email address configured."))
+        
+        # Get first connector line (customer signer)
+        customer_line = self.docusign_id.connector_line_ids.filtered(
+            lambda l: l.partner_id.id == self.partner_id.id
+        )[:1]
+        
+        _logger.info("[DocuSign] Found %d connector lines for partner", len(customer_line))
+        
+        if not customer_line:
+            raise UserError(_("No customer signer found in DocuSign envelope."))
+        
+        if not customer_line.envelope_id:
+            raise UserError(_("No envelope ID found. Cannot resend."))
+        
+        # Check if customer has already signed (sign_status is Boolean)
+        customer_signed = customer_line.sign_status == True
+        
+        envelope_id = customer_line.envelope_id
+        recipient_id = customer_line.recipient_id or '1'  # Default to '1' if not set
+        
+        _logger.info("[DocuSign] Envelope ID: %s, Recipient ID: %s, Customer signed: %s", envelope_id, recipient_id, customer_signed)
+        
+        try:
+            # Get envelope status to determine how to proceed
+            envelope_status = self._get_envelope_status(envelope_id)
+            _logger.info("[DocuSign] Envelope status: %s", envelope_status)
+            
+            if not envelope_status:
+                raise UserError(_("Failed to get envelope status from DocuSign"))
+            
+            if envelope_status in ['voided', 'declined']:
+                # Envelope was voided or declined - create and send new envelope
+                _logger.info("[DocuSign] Envelope status is '%s' - creating new envelope", envelope_status)
+                if not self.subscription_id:
+                    raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
+                
+                # Call subscription's send_docs to create new envelope
+                try:
+                    self.subscription_id.send_docs()
+                    # Update send method after successful creation
+                    self.subscription_id.write({'contract_send_method': 'email'})
+                    msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via Email to {self.partner_id.email}."
+                except Exception as create_error:
+                    _logger.error("[DocuSign] Failed to create new envelope: %s", str(create_error))
+                    raise UserError(_(f"Failed to create new envelope: {str(create_error)}"))
+            elif envelope_status == 'completed':
+                # Envelope is completed - just resend notification (reminder of signed document)
+                _logger.info("[DocuSign] Envelope status is 'completed' - resending notification")
+                self._resend_envelope_notification(envelope_id, recipient_id)
+                msg = f"DocuSign notification resent for completed envelope (reminder sent via Email)."
+            elif envelope_status == 'created':
+                # Envelope was created but never sent - send it now
+                _logger.info("[DocuSign] Envelope status is 'created' - sending envelope")
+                # Update delivery method to email and send
+                self._update_envelope_recipient(
+                    envelope_id,
+                    recipient_id,
+                    new_email=self.partner_id.email,
+                    resend_envelope=True
+                )
+                msg = f"DocuSign envelope sent via Email to {self.partner_id.email}."
+            elif envelope_status == 'sent':
+                # Envelope was sent - update recipient and resend
+                _logger.info("[DocuSign] Envelope status is 'sent' - updating and resending")
+                self._update_envelope_recipient(
+                    envelope_id,
+                    recipient_id,
+                    new_email=self.partner_id.email,
+                    resend_envelope=True
+                )
+                msg = f"DocuSign notification resent via Email to {self.partner_id.email}."
+            else:
+                # Other statuses (delivered, signed, etc.)
+                _logger.info("[DocuSign] Envelope status is '%s' - resending notification", envelope_status)
+                self._resend_envelope_notification(envelope_id, recipient_id)
+                msg = f"DocuSign notification resent (envelope status: {envelope_status})."
+            
+            # Update send method
+            self.write({'contract_send_method': 'email'})
+            
+            # Log to chatter
+            self.message_post(
+                body=msg,
+                subject="DocuSign Resent via Email"
+            )
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Success'),
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.message_post(
+                body=f"Failed to resend via Email: {error_msg}",
+                subject="DocuSign Resend Failed"
+            )
+            raise
 
 class ContractService(models.Model):
     _name = 'contract.service'

@@ -10,6 +10,10 @@
                 <xpath expr="//button[@name='status_docs']" position="attributes">
                     <attribute name="invisible">state == "completed"</attribute>
                 </xpath>
+                <xpath expr="//button[@name='download_docs']" position="attributes">
+                    <attribute name="invisible">state != "completed"</attribute>
+                </xpath>
+                <xpath expr="//button[@name='send_docs']" position="replace"/>
             </field>
         </record>
     </data>

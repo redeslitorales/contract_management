@@ -79,7 +79,7 @@
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td class="text-muted"><strong>Contract Value:</strong></td>
+                                                <td class="text-muted"><strong>Pagare Value:</strong></td>
                                                 <td>
                                                     <t t-if="contract.contract_value">
                                                         $<t t-esc="'%.2f' % contract.contract_value"/>
@@ -88,7 +88,7 @@
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td class="text-muted"><strong>Total Paid:</strong></td>
+                                                <td class="text-muted"><strong>Paid to Date:</strong></td>
                                                 <td>
                                                     <t t-if="contract.total_paid">
                                                         $<t t-esc="'%.2f' % contract.total_paid"/>
@@ -96,12 +96,13 @@
                                                     <t t-else="">$0.00</t>
                                                 </td>
                                             </tr>
-                                            <tr t-if="contract.docusign_status">
-                                                <td class="text-muted"><strong>Signature Status:</strong></td>
+                                            <tr>
+                                                <td class="text-muted"><strong>Early Termination Cost (est):</strong></td>
                                                 <td>
-                                                    <span t-attf-class="badge bg-#{contract.docusign_status == 'completed' and 'success' or contract.docusign_status == 'sent' and 'warning' or 'secondary'}">
-                                                        <t t-esc="dict(contract.docusign_id._fields['state'].selection).get(contract.docusign_status)"/>
-                                                    </span>
+                                                    <t t-if="contract.early_termination_cost">
+                                                        $<t t-esc="'%.2f' % contract.early_termination_cost"/>
+                                                    </t>
+                                                    <t t-else="">$0.00</t>
                                                 </td>
                                             </tr>
                                         </table>

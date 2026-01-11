@@ -30,13 +30,6 @@
                 </group>
                 </page>
             </xpath>
-            <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
-                <page string="Docusign Envelopes" name="docusign_connector">
-                <group name="ds_group_2ca">
-                    <field name="docusign_ids" readonly="1"/>
-                </group>
-                </page>
-            </xpath>
         </field>
     </record>
 </odoo>

@@ -85,10 +85,10 @@ from odoo.addons.portal.controllers.portal import CustomerPortal, pager as porta
 
 
 class ContractPortal(CustomerPortal):
-    \"\"\"Portal controller for contract management customer portal views.\"\"\"
+    """Portal controller for contract management customer portal views."""
 
     def _prepare_home_portal_values(self, counters):
-        \"\"\"Add contract counts to portal home.\"\"\"
+        """Add contract counts to portal home."""
         values = super()._prepare_home_portal_values(counters)
         partner = request.env.user.partner_id
         
@@ -106,7 +106,7 @@ class ContractPortal(CustomerPortal):
 
     @http.route(['/my/contract/<int:contract_id>'], type='http', auth='user', website=True, sitemap=False)
     def portal_my_contract(self, contract_id=None, access_token=None, **kw):
-        \"\"\"Display contract details in customer portal.\"\"\"
+        """Display contract details in customer portal."""
         try:
             contract_sudo = self._document_check_access('contract.management', contract_id, access_token)
         except (AccessError, ValidationError):
@@ -127,9 +127,9 @@ class ContractPortal(CustomerPortal):
         
         return request.render('contract_management.portal_my_contract', values)
     
-    @http.route(['/my/contract/<int:contract_id>/download/<int:attachment_id>'], type='http', auth='user', website=True, sitemap=False)
+    @http.route(['/my/contract/<int:contract_id>/download/<int:attachment_id>'], type='http', auth='user', website=True)
     def portal_contract_download_document(self, contract_id=None, attachment_id=None, access_token=None, **kw):
-        \"\"\"Download signed contract document from portal.\"\"\"
+        """Download signed contract document from portal."""
         try:
             contract_sudo = self._document_check_access('contract.management', contract_id, access_token)
         except (AccessError, ValidationError):
@@ -144,5 +144,8 @@ class ContractPortal(CustomerPortal):
         if attachment not in contract_sudo.signed_document_ids:
             return request.redirect('/my/contract/%s' % contract_id)
         
-        # Return the file
-        return request.redirect('/web/content/%s?download=true' % attachment_id)
+        # Stream the file directly
+        if not attachment.exists():
+            return request.redirect('/my/contract/%s' % contract_id)
+            
+        return http.Stream.from_attachment(attachment).get_response()

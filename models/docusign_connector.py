@@ -8,7 +8,7 @@ import requests
 import json
 import re
 import logging
-from docusign_esign import ApiClient, EnvelopesApi, OAuth
+from docusign_esign import ApiClient, EnvelopesApi, OAuth, Signer, RecipientPhoneNumber, Tabs, SignHere
 from odoo.addons.odoo_docusign.models import docu_client
 
 _logger = logging.getLogger(__name__)
@@ -27,8 +27,6 @@ class OverrideDocumentStatus(models.Model):
 
     def send_docs(self, send_method):
         try:
-            country_code = ''
-            phone_number = ''
             user = self.env['res.users'].browse(196)
 #           user = self.env.user
             if not self.attachment_ids:
@@ -38,6 +36,8 @@ class OverrideDocumentStatus(models.Model):
 
             company_email = self.env['res.users'].sudo().browse(196).email
             company_name = self.env['res.users'].sudo().browse(196).name
+            
+            _logger.info("[DocuSign Send] send_method=%s", send_method)
             
             if self.docs_policy == 'in':
                 # Check if this is the first send (no lines have envelope_id yet)
@@ -56,16 +56,70 @@ class OverrideDocumentStatus(models.Model):
                     # Build signers list from all connector lines
                     signers_list = []
                     for idx, line in enumerate(self.connector_line_ids.sorted(key=lambda l: l.id), 1):
+                        # All signers need email for identity
                         if not line.email:
                             raise ValidationError(_(f"Email not set for recipient: {line.partner_id.name}"))
-                        signers_list.append({
-                            'name': line.partner_id.name,
-                            'email': line.email,
-                            'routing_order': idx,
-                            'partner': line.partner_id
-                        })
-                        _logger.info("[DocuSign Send] Signer %d: %s (%s)", idx, line.partner_id.name, line.email)
-                    
+                        
+                        # First signer uses the send_method from wizard, others always use email
+                        current_send_method = send_method
+                        if idx != 1:
+                            current_send_method = 'email'  # Company signer always email delivery
+
+                        phone_obj = None
+                        country_code = None
+                        number = None
+
+                        if current_send_method.lower() == 'whatsapp':
+                            current_send_method = 'WhatsApp'
+                            if not line.partner_id.whatsapp:
+                                raise ValidationError(_(
+                                    f"WhatsApp number not set for customer: {line.partner_id.name}"
+                                ))
+
+                            phone_cleaned = line.partner_id.whatsapp.lstrip('+')
+
+                            if phone_cleaned.startswith('503'):
+                                country_code = '503'
+                                number = phone_cleaned[3:]
+                            elif phone_cleaned.startswith('1') and len(phone_cleaned) == 11:
+                                country_code = '1'
+                                number = phone_cleaned[1:]
+                            elif phone_cleaned.startswith('56'):  # Chile
+                                country_code = '56'
+                                number = phone_cleaned[2:]
+                            else:
+                                # fallback - you may want to improve this
+                                country_code = phone_cleaned[:3]
+                                number = phone_cleaned[3:]
+
+                            phone_obj = RecipientPhoneNumber(
+                                country_code=country_code,
+                                number=number
+                            )
+
+                        signer = Signer(
+                            name=line.partner_id.name,
+                            email=line.email,
+                            recipient_id=str(idx),
+                            routing_order=str(idx),
+                            delivery_method=current_send_method,
+                            **({"phone_number": phone_obj} if phone_obj else {})
+                        )
+
+                        signer.partner = line.partner_id
+                        signers_list.append(signer)
+
+                        if send_method == "whatsapp":
+                            _logger.info(
+                                "[DocuSign Send] Signer %d (WhatsApp): %s (%s, +%s %s)",
+                                idx, line.partner_id.name, line.email, country_code, number
+                            )
+                        else:
+                            _logger.info(
+                                "[DocuSign Send] Signer %d (Email): %s (%s)",
+                                idx, line.partner_id.name, line.email
+                            )
+                   
                     # Prepare custom fields for DocuSign envelope
                     custom_fields = None
                     if self.monthly_payment or self.contract_value:
@@ -99,6 +153,7 @@ class OverrideDocumentStatus(models.Model):
                             'name': attach_file.name,
                             'envelope_id': envelope_id,  # Same envelope ID for all!
                             'send_status': True,
+                            'recipient_id': str(idx),
                         })
                         _logger.info("[DocuSign Send] Set envelope_id=%s on line %d (%s)",
                                     envelope_id, line.id, line.email)
@@ -128,12 +183,6 @@ class OverrideDocumentStatus(models.Model):
             _logger.info("[DocuSign Download] Docs policy: %s", self.docs_policy)
             
             if self.docs_policy == 'in':
-                not_all_recipients_signed = self.connector_line_ids.filtered(lambda r: r.send_status and not r.sign_status)
-                if not_all_recipients_signed:
-                    _logger.warning("[DocuSign Download] Not all recipients signed: %s", 
-                                  [line.partner_id.name for line in not_all_recipients_signed])
-                    raise ValidationError(_('Document download failed: Not all recipients have signed the document.'))
-                
                 last_recipient = self.connector_line_ids.filtered(lambda r: r.send_status and r.sign_status)
                 if not last_recipient:
                     _logger.error("[DocuSign Download] No signed recipients found")

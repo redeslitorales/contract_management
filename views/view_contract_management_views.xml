@@ -10,6 +10,14 @@
                     <button string="Recompute Total Paid" type="object" name="action_recompute_total_paid" 
                             class="btn-primary"
                             icon="fa-refresh"/>
+                    <button string="Resend via WhatsApp" type="object" name="action_resend_via_whatsapp"
+                            class="btn-info" invisible="not docusign_id or docusign_status not in ['sent', 'open', 'new', 'customer']"
+                            icon="fa-whatsapp"
+                            confirm="This will resend the DocuSign notification via WhatsApp using the current partner contact information. Continue?"/>
+                    <button string="Resend via Email" type="object" name="action_resend_via_email"
+                            class="btn-info" invisible="not docusign_id or docusign_status not in ['sent', 'open', 'new', 'customer']"
+                            icon="fa-envelope"
+                            confirm="This will resend the DocuSign notification via Email using the current partner contact information. Continue?"/>
                     <button string="Terminate Contract" type="object" name="action_terminate" 
                             class="btn-danger" invisible="state not in ['active', 'renewal_due']"
                             icon="fa-times-circle" confirm="Are you sure you want to terminate this contract?"/>
@@ -83,6 +91,7 @@
                             <group>
                                 <group string="Fees">
                                     <field name="early_termination_fee" widget="monetary"/>
+                                    <field name="early_termination_cost" readonly="1" widget="monetary"/>
                                     <field name="late_charge" widget="monetary"/>
                                 </group>
                                 <group string="Service Pauses">
