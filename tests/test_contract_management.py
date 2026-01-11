@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo.tests.common import TransactionCase
+from odoo.exceptions import ValidationError
 from datetime import date
 
 
@@ -43,3 +44,38 @@ class TestContractManagementSecurity(TransactionCase):
         
         model_exists = 'docusign.connector.lines' in self.env
         self.assertTrue(model_exists)
+
+
+class TestContractManagementStateFlow(TransactionCase):
+    """Validate the enforced contract state lifecycle."""
+
+    def setUp(self):
+        super().setUp()
+        self.partner = self.env['res.partner'].create({'name': 'Contract State Customer'})
+        self.subscription = self.env['sale.order'].create({'partner_id': self.partner.id})
+        self.contract = self.env['contract.management'].create({
+            'subscription_id': self.subscription.id,
+        })
+
+    def test_invalid_jump_skipped(self):
+        # Draft cannot jump directly to Expired
+        with self.assertRaises(ValidationError):
+            self.contract.write({'state': 'expired'})
+
+    def test_forward_progression(self):
+        # Happy path through the required lifecycle
+        self.contract.write({'state': 'active'})
+        self.contract.write({'state': 'renewal_due'})
+        self.contract.write({'state': 'expired'})
+        self.contract.write({'state': 'terminated'})
+        self.assertEqual(self.contract.state, 'terminated')
+
+    def test_active_cannot_revert_to_draft(self):
+        self.contract.write({'state': 'active'})
+        with self.assertRaises(ValidationError):
+            self.contract.write({'state': 'draft'})
+
+    def test_subscription_progress_activates_contract(self):
+        # Writing subscription_state to 3_progress should activate linked contracts
+        self.subscription.write({'subscription_state': '3_progress'})
+        self.assertEqual(self.contract.state, 'active')

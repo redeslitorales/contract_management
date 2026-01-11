@@ -58,7 +58,7 @@
                                             <tr>
                                                 <td class="text-muted"><strong>Status:</strong></td>
                                                 <td>
-                                                    <span t-attf-class="badge bg-#{contract.state == 'active' and 'success' or contract.state == 'signed' and 'info' or 'secondary'}">
+                                                    <span t-attf-class="badge bg-#{contract.state == 'active' and 'success' or contract.state == 'renewal_due' and 'warning' or contract.state == 'terminated' and 'danger' or contract.state == 'expired' and 'secondary' or 'secondary'}">
                                                         <t t-esc="dict(contract._fields['state'].selection).get(contract.state)"/>
                                                     </span>
                                                 </td>

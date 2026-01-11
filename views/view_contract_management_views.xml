@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <form string="Contract Management">
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,signature_in_process,signed,active" clickable="1"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,renewal_due,expired,terminated" clickable="1"/>
                     <button string="Recompute Total Paid" type="object" name="action_recompute_total_paid" 
                             class="btn-primary"
                             icon="fa-refresh"/>
@@ -126,22 +126,20 @@
         <field name="model">contract.management</field>
         <field name="arch" type="xml">
             <tree string="Contract Management" decoration-success="state == 'active'" 
-                  decoration-warning="state == 'renewal_due'" 
-                  decoration-danger="state == 'terminated'"
-                  decoration-muted="state == 'expired'"
-                  decoration-info="state == 'signature_in_process'">
+                decoration-warning="state == 'renewal_due'" 
+                decoration-danger="state == 'terminated'"
+                decoration-muted="state == 'expired'">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="subscription_id"/>
                 <field name="contract_template"/>
                 <field name="start_date"/>
                 <field name="end_date"/>
-                <field name="state" widget="badge"
-                       decoration-success="state == 'active'"
-                       decoration-warning="state == 'renewal_due'"
-                       decoration-danger="state == 'terminated'"
-                       decoration-muted="state == 'expired'"
-                       decoration-info="state in ['signature_in_process', 'signed']"/>
+                    <field name="state" widget="badge"
+                        decoration-success="state == 'active'"
+                        decoration-warning="state == 'renewal_due'"
+                        decoration-danger="state == 'terminated'"
+                        decoration-muted="state == 'expired'"/>
                 <field name="docusign_status" widget="badge" optional="show"
                        decoration-success="docusign_status == 'completed'"
                        decoration-info="docusign_status == 'sent'"
@@ -166,8 +164,6 @@
                 <field name="contract_term"/>
                 <separator/>
                 <filter string="Draft" name="filter_draft" domain="[('state','=','draft')]"/>
-                <filter string="Signature In Process" name="filter_signature" domain="[('state','=','signature_in_process')]"/>
-                <filter string="Signed" name="filter_signed" domain="[('state','=','signed')]"/>
                 <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
                 <filter string="Renewal Due" name="filter_renewal" domain="[('state','=','renewal_due')]"/>
                 <filter string="Expired" name="filter_expired" domain="[('state','=','expired')]"/>

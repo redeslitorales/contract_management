@@ -93,7 +93,9 @@ class SaleSubscription(models.Model):
     confirmation_url = fields.Char(string='Confirmation URL', compute='_compute_confirmation_url')
     clause_ids = fields.Many2many('contract.clause', string='Clauses')
     quote_confirmed = fields.Boolean(string='Quote Confirmed', default=False)
-
+    contract_term = fields.Many2one('dte.base.contract', string="Contract Term")
+    contract_value = fields.Float(string = "Contract Value")
+    
     @api.depends('confirmation_uuid')
     def _compute_confirmation_url(self):
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
@@ -193,6 +195,13 @@ class SaleSubscription(models.Model):
     def return_to_progress(self):
         if self.subscription_state in ['1d_internal', '1b_install'] and (self.invoice_ids or self.origin_order_id) :
             self.write({'subscription_state': '3_progress'})
+
+    def _activate_contracts_on_progress(self):
+        """Promote linked contracts to Active when subscription enters progress."""
+        for order in self:
+            for contract in order.contract_ids:
+                if contract.state not in ['active', 'terminated', 'expired']:
+                    contract.write({'state': 'active'})
     
 #    def generate_cover_letter(self):
 #        for order in self:
@@ -204,6 +213,12 @@ class SaleSubscription(models.Model):
 
     def manually_signed(self):
         self.write({'state': 'sale', 'subscription_state': '1b_install'})
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'subscription_state' in vals and vals['subscription_state'] == '3_progress':
+            self._activate_contracts_on_progress()
+        return res
 
     def authenicate_jwt(self):
         # Create the JWT assertion
@@ -354,6 +369,9 @@ class SaleSubscription(models.Model):
             
             _logger.info("[DocuSign] Calculated values for contract ID=%s: monthly_payment=%.2f, contract_value=%.2f", 
                         contract.id, monthly_payment, contract_value)
+
+            # Persist contract_value so QWeb reports (contract PDFs) render the correct amount
+            contract.write({'contract_value': contract_value})
             
             # Step 1: Generate contract number
             if contract.is_subscription and not contract.cabal_sequence:
@@ -419,7 +437,6 @@ class SaleSubscription(models.Model):
             k_management = self.env['contract.management'].create({
                 'subscription_id': contract.id,
                 "contract_send_method": contract.contract_send_method,
-                'state': 'signature_in_process',
                 'monthly_payment': monthly_payment,
                 'contract_value': contract_value,
             })

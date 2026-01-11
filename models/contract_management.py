@@ -15,6 +15,8 @@ from odoo.addons.odoo_docusign.models import docu_client
 _logger = logging.getLogger(__name__)
 
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
+SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 
 SUBSCRIPTION_STATES = [
     ('1_draft', 'Quotation'),  # Quotation for a new subscription
@@ -40,6 +42,22 @@ CONTRACT_SEND_METHODS = [
 #        ('sms', 'SMS')
 ]
 
+STATE_FLOW = [
+    'draft',
+    'active',
+    'renewal_due',
+    'expired',
+    'terminated',
+]
+
+ALLOWED_STATE_TRANSITIONS = {
+    'draft': ['active'],
+    'active': ['renewal_due', 'expired', 'terminated'],
+    'renewal_due': ['active', 'expired', 'terminated'],
+    'expired': ['terminated'],
+    'terminated': [],
+}
+
 DOCUSIGN_LIVE = True
 
 platform_type = {
@@ -60,11 +78,9 @@ class ContractManagement(models.Model):
     state = fields.Selection([
         ('draft', 'Draft'),
         ('active', 'Active'),
-        ('expired', 'Expired'),
-        ('terminated', 'Terminated'),
         ('renewal_due', 'Renewal Due'),
-        ('signature_in_process', 'Signature In Process'),
-        ('signed', 'Signed')
+        ('expired', 'Expired'),
+        ('terminated', 'Terminated')
     ], string='Status', default='draft', tracking=True)
     service_ids = fields.One2many('contract.service', 'contract_id', string='Services')
     total_paid = fields.Float(string='Total Paid', compute='_compute_total_paid', store=False, help="Sum of paid monthly invoices (tax-inclusive) linked to this subscription")
@@ -196,9 +212,42 @@ class ContractManagement(models.Model):
             'target': 'current'
         }
 
+    def _allowed_next_states(self, current_state):
+        """Return the allowed next states for the current state."""
+        return ALLOWED_STATE_TRANSITIONS.get(current_state or 'draft', [])
+
+    def _get_state_label(self, state_value):
+        state_dict = dict(self._fields['state'].selection)
+        return state_dict.get(state_value, state_value)
+
+    def _validate_state_change(self, target_state):
+        for contract in self:
+            current_state = contract.state or 'draft'
+            if target_state == current_state:
+                continue
+            allowed = contract._allowed_next_states(current_state)
+            if target_state not in allowed:
+                allowed_labels = ', '.join(contract._get_state_label(s) for s in allowed) or _('none')
+                raise ValidationError(
+                    _('Invalid state transition from %(current)s to %(target)s. Allowed next states: %(allowed)s') % {
+                        'current': contract._get_state_label(current_state),
+                        'target': contract._get_state_label(target_state),
+                        'allowed': allowed_labels,
+                    }
+                )
+
+    def write(self, vals):
+        if 'state' in vals:
+            target_state = vals.get('state')
+            self._validate_state_change(target_state)
+        return super().write(vals)
+
     def action_activate(self):
         for contract in self:
-            contract.state = 'active'
+            if contract.state != 'active':
+                # Validate transition before promoting to active
+                contract._validate_state_change('active')
+                contract.state = 'active'
             if not contract.subscription_id:
                 subscription = self.env['sale.order'].create({
                     'name': contract.name,
@@ -214,7 +263,9 @@ class ContractManagement(models.Model):
 
     def action_terminate(self):
         for contract in self:
-            contract.state = 'terminated'
+            if contract.state != 'terminated':
+                contract._validate_state_change('terminated')
+                contract.state = 'terminated'
             if contract.subscription_id:
                 contract.subscription_id.action_cancel()
             if contract.early_termination_fee:
@@ -224,7 +275,10 @@ class ContractManagement(models.Model):
     @api.model
     def check_expired_contracts(self):
         today = date.today()
-        expired_contracts = self.search([('end_date', '<', today), ('state', '=', 'active')])
+        expired_contracts = self.search([
+            ('end_date', '<', today),
+            ('state', 'in', ['active', 'renewal_due'])
+        ])
         for contract in expired_contracts:
             contract.state = 'expired'
             if contract.subscription_id:
@@ -809,15 +863,38 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'recipient-completed':
                         connector.state = 'customer'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        subscription.subscription_state = '1d_internal'  # Customer signed, awaiting Cabal signature
+                        if subscription.subscription_state == '1a_pending':  # Was awaiting customer signature
+                            subscription.subscription_state = '1d_internal'  # Customer signed, awaiting Cabal signature
+                        else:
+                            # Post warning to subscription chatter
+                            subscription.message_post(
+                                body=_("Could not update subscription state. Current state is '%s' but should have been '1a_pending' (Pending Signature) for recipient-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
+                                subject=_('DocuSign State Mismatch Warning'),
+                                message_type='notification',
+                                subtype_xmlid='mail.mt_note'
+                            )
+                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current=%s, expected=1a_pending", subscription.id, subscription.subscription_state)
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        subscription.subscription_state = '1b_install'  # All signatures complete, ready for install
+                        if subscription.subscription_state == '1d_internal':  # Customer signed, awaiting Cabal signature
+                            subscription.subscription_state = '1b_install'  # All signatures complete, ready for install
+                        else:
+                            # Post warning to subscription chatter
+                            subscription.message_post(
+                                body=_("Could not update subscription state. Current state is '%s' but should have been '1d_internal' (Pending Cabal Signature) for envelope-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
+                                subject=_('DocuSign State Mismatch Warning'),
+                                message_type='notification',
+                                subtype_xmlid='mail.mt_note'
+                            )
+                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current=%s, expected=1d_internal", subscription.id, subscription.subscription_state)
                         
-                        # Auto-download signed documents
+                        # Auto-download signed documents (skip if already present to avoid duplicates)
                         try:
-                            connector.download_docs()
+                            if not any(connector.connector_line_ids.mapped('signed_attachment_ids')):
+                                connector.download_docs()
+                            else:
+                                _logger.info("[DocuSign Webhook] Signed attachments already present; skipping download for envelope %s", envelope_id)
                         except Exception as e:
                             _logger.error("[DocuSign Webhook] Failed to auto-download documents: %s", str(e))
                     if connector.state != 'completed':

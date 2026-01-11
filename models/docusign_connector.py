@@ -370,13 +370,6 @@ class OverrideDocumentStatus(models.Model):
                     if cm:
                         cm[0].write({'state':'signed'})
                     _logger.info("[DocuSign Status Check] Subscription %s updated to 1b_install (Pending Install)", sub.id)
-                
-                # Auto-download signed documents when completed
-                _logger.info("[DocuSign Status Check] Triggering automatic document download for envelope %s", self.connector_line_ids[0].envelope_id if self.connector_line_ids else 'N/A')
-                try:
-                    self.download_docs()
-                except Exception as e:
-                    _logger.error("[DocuSign Status Check] Failed to auto-download documents: %s", str(e))
             
             # Return notification instead of popup
             return {
