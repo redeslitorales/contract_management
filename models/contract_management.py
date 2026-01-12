@@ -145,6 +145,7 @@ class ContractManagement(models.Model):
     @api.model
     def cron_expire_contracts(self):
         """Move contracts to expired when end_date has passed."""
+        # IMPORTANT: Contract expiration must NOT cancel subscription (MTM policy)
         today = fields.Date.context_today(self)
         contracts = self.search([
             ('end_date', '!=', False),
@@ -315,21 +316,6 @@ class ContractManagement(models.Model):
                 'default_contract_id': self.id,
             },
         }
-
-    @api.model
-    def check_expired_contracts(self):
-        today = date.today()
-        expired_contracts = self.search([
-            ('end_date', '<', today),
-            ('state', 'in', ['active', 'renewal_due'])
-        ])
-        for contract in expired_contracts:
-            contract.state = 'expired'
-            if contract.subscription_id:
-                contract.subscription_id.action_cancel()
-            if contract.late_charge:
-                # Logic to apply late charge
-                pass
 
     @api.model
     def check_renewal_due_contracts(self):
