@@ -18,9 +18,9 @@
                             class="btn-info" invisible="not docusign_id or docusign_status not in ['sent', 'open', 'new', 'customer']"
                             icon="fa-envelope"
                             confirm="This will resend the DocuSign notification via Email using the current partner contact information. Continue?"/>
-                    <button string="Terminate Contract" type="object" name="action_terminate" 
+                        <button string="Terminate Contract" type="object" name="action_open_termination_wizard" 
                             class="btn-danger" invisible="state not in ['active', 'renewal_due']"
-                            icon="fa-times-circle" confirm="Are you sure you want to terminate this contract?"/>
+                            icon="fa-times-circle"/>
                     <button string="View DocuSign Envelope" type="object" name="action_view_docusign"
                             class="btn-secondary" invisible="not docusign_id"
                             icon="fa-file-signature"/>

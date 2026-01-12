@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_contract_termination_wizard" model="ir.ui.view">
+        <field name="name">contract.termination.wizard.form</field>
+        <field name="model">contract.termination.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Terminate Contract" create="0" class="o_form_nosave">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="cost,approval,equipment,closure"/>
+                </header>
+
+                <sheet>
+                    <group>
+                        <field name="contract_id" invisible="1"/>
+                        <field name="subscription_id" invisible="1"/>
+                        <field name="requires_manager_approval" invisible="1"/>
+                        <field name="manager_approved" invisible="1"/>
+                    </group>
+
+                    <!-- Step 1: Early Termination Cost -->
+                    <group invisible="state != 'cost'" col="1" class="o_colspan_2">
+                        <group string="Early Termination Fee">
+                            <field name="early_termination_cost" readonly="1" widget="monetary"/>
+                            <label for="payment_confirmed" class="o_form_label" string="Confirm the customer has paid the early termination cost."/>
+                            <field name="payment_confirmed"/>
+                            <field name="partner_id" invisible="1"/>
+                            <field name="payment_id" domain="[('partner_id', '=', partner_id)]"/>
+                        </group>
+                    </group>
+
+                    <!-- Step 2: Manager Approval -->
+                    <group invisible="state != 'approval'" col="1" class="o_colspan_2">
+                        <group string="Manager Approval">
+                            <label for="manager_approved" class="o_form_label" string="Early termination cost is under $100. Manager approval required."/>
+                            <field name="manager_approved" readonly="1"/>
+                            <field name="manager_user_id" readonly="1"/>
+                            <button string="Approve &amp; Continue" type="object" name="action_manager_approve" class="btn-primary" groups="contract_management.group_contract_management_manager" invisible="manager_approved"/>
+                        </group>
+                    </group>
+
+                    <!-- Step 3: Equipment Return -->
+                    <group invisible="state != 'equipment'" col="1" class="o_colspan_2">
+                        <group string="Equipment Return">
+                            <label for="equipment_returned" class="o_form_label" string="Confirm the customer returned all issued equipment."/>
+                            <field name="equipment_returned"/>
+                        </group>
+                    </group>
+
+                    <!-- Step 4: Information Collection -->
+                    <group invisible="state != 'closure'" col="1" class="o_colspan_2">
+                        <group string="Closure Information">
+                            <field name="reason"/>
+                            <field name="notes"/>
+                            <field name="other_reason"/>
+                            <field name="service_rating"/>
+                            <field name="problems_experienced" widget="many2many_tags"/>
+                        </group>
+                        <group string="Competitor Offer">
+                            <field name="accepted_better_offer"/>
+                            <field name="carrier" invisible="not accepted_better_offer"/>
+                            <field name="bandwidth" invisible="not accepted_better_offer"/>
+                            <field name="upload" invisible="not accepted_better_offer"/>
+                            <field name="tv_included" invisible="not accepted_better_offer"/>
+                            <field name="telephone_included" invisible="not accepted_better_offer"/>
+                            <field name="monthly_payment" invisible="not accepted_better_offer"/>
+                        </group>
+                    </group>
+                </sheet>
+
+                <footer>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button string="Back" type="object" name="action_back_to_cost" class="btn-secondary" invisible="state == 'cost'"/>
+                    <button string="Next" type="object" name="action_next_step" class="btn-primary" invisible="state == 'closure'"/>
+                    <button string="Confirm Termination" type="object" name="action_confirm_termination" class="btn-danger" invisible="state != 'closure'"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

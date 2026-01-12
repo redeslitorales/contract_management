@@ -142,6 +142,24 @@ class ContractManagement(models.Model):
             early_fee = contract.early_termination_fee or 0.0
             contract.early_termination_cost = contract_value - total_paid + early_fee
 
+    @api.model
+    def cron_expire_contracts(self):
+        """Move contracts to expired when end_date has passed."""
+        today = fields.Date.context_today(self)
+        contracts = self.search([
+            ('end_date', '!=', False),
+            ('end_date', '<', today),
+            ('state', 'not in', ['expired', 'terminated']),
+        ])
+        if not contracts:
+            return
+
+        for contract in contracts:
+            contract.state = 'expired'
+            contract.message_post(body=_('Contract auto-expired (end date passed).'))
+
+        _logger.info("cron_expire_contracts: expired %s contracts", len(contracts))
+
     def action_recompute_total_paid(self):
         """Manually recompute the non-stored field `total_paid` and refresh the view.
         Useful when invoice/payment state changes and a quick UI refresh is desired.
@@ -261,16 +279,42 @@ class ContractManagement(models.Model):
                 })
                 contract.subscription_id = subscription
 
-    def action_terminate(self):
+    def _terminate_with_checks(self, payment_confirmed=False, equipment_returned=False, via_wizard=False, payment=None):
         for contract in self:
             if contract.state != 'terminated':
                 contract._validate_state_change('terminated')
                 contract.state = 'terminated'
+
             if contract.subscription_id:
                 contract.subscription_id.action_cancel()
-            if contract.early_termination_fee:
-                # Logic to apply early termination fee
-                pass
+
+            # Log the termination context for auditability
+            payment_label = payment.display_name if payment else _('None')
+            contract.message_post(body=_('Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. (via wizard: %s)') % (
+                _('Yes') if payment_confirmed else _('No'),
+                _('Yes') if equipment_returned else _('No'),
+                payment_label,
+                _('Yes') if via_wizard else _('No'),
+            ))
+
+    def action_terminate(self):
+        # Keep as compatibility entry point; will be replaced by wizard button
+        return self._terminate_with_checks()
+
+    def action_open_termination_wizard(self):
+        self.ensure_one()
+        if self.state not in ['active', 'renewal_due']:
+            raise UserError(_('Only active or renewal-due contracts can be terminated.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Terminate Contract'),
+            'res_model': 'contract.termination.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_contract_id': self.id,
+            },
+        }
 
     @api.model
     def check_expired_contracts(self):

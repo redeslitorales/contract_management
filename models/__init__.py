@@ -6,3 +6,4 @@ from . import docusign_connector
 from . import res_users
 from . import product_category
 from . import res_config_settings
+from . import contract_termination_wizard

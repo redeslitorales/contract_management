@@ -396,27 +396,93 @@ class ContractDashboard(models.Model):
         if not contracts:
             return '<p>No non compliant contracts</p>'
 
+        state_selection = dict(self.env['contract.management']._fields['state'].selection)
+        subscription_selection = dict(self.env['sale.order']._fields['subscription_state'].selection)
+        signature_selection = dict(self.env['docusign.connector']._fields['state'].selection)
+
+        def _label(value, selection_map):
+            if not value:
+                return 'N/A'
+            return selection_map.get(value, value)
+
+        def _badge(label, color):
+            return (
+                "<span style='display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;"
+                "font-weight:600;background:" + color + ";color:#fff;'>" + label + "</span>"
+            )
+
+        def _pill_for_contract_state(value):
+            label = _label(value, state_selection)
+            color_map = {
+                'draft': '#7f8c8d',
+                'active': '#27ae60',
+                'renewal_due': '#2980b9',
+                'expired': '#8e44ad',
+                'terminated': '#c0392b',
+            }
+            return _badge(label, color_map.get(value, '#7f8c8d'))
+
+        def _pill_for_subscription_state(value):
+            label = _label(value, subscription_selection)
+            color_map = {
+                '1_draft': '#7f8c8d',
+                '1a_pending': '#3498db',
+                '1b_install': '#3498db',
+                '1c_nocontract': '#3498db',
+                '1d_internal': '#3498db',
+                '1e_confirm': '#3498db',
+                '2_renewal': '#2980b9',
+                '3_progress': '#27ae60',
+                '4_paused': '#e67e22',
+                '5_renewed': '#16a085',
+                '6_churn': '#c0392b',
+                '7_upsell': '#9b59b6',
+                '8_suspend': '#d35400',
+            }
+            return _badge(label, color_map.get(value, '#7f8c8d'))
+
+        def _pill_for_signature_state(value):
+            label = _label(value, signature_selection)
+            color_map = {
+                'new': '#7f8c8d',
+                'open': '#2980b9',
+                'sent': '#8e44ad',
+                'customer': '#e67e22',
+                'completed': '#27ae60',
+            }
+            return _badge(label, color_map.get(value, '#7f8c8d'))
+
+        def _link(model, rec_id, label):
+            if not rec_id:
+                return label
+            url = f"/web#id={rec_id}&model={model}&view_type=form"
+            return f"<a href='{url}' target='_blank'>{label}</a>"
+
         rows = []
         for contract in contracts.sorted(key=lambda c: (c.partner_id.name or '', c.name or '')):
             partner_name = contract.partner_id.name if contract.partner_id else 'Unknown'
             contract_name = contract.name or f"Contract #{contract.id}"
+            end_date = contract.end_date.strftime('%Y-%m-%d') if contract.end_date else 'N/A'
             contract_state = contract.state or 'N/A'
             subscription_state = contract.subscription_id.subscription_state or 'N/A'
             signature_state = contract.docusign_status or 'N/A'
+            partner_cell = _link('res.partner', contract.partner_id.id if contract.partner_id else False, partner_name)
+            contract_cell = _link('contract.management', contract.id, contract_name)
             rows.append(
                 "<tr>"
-                f"<td>{partner_name}</td>"
-                f"<td>{contract_name}</td>"
-                f"<td>{contract_state}</td>"
-                f"<td>{subscription_state}</td>"
-                f"<td>{signature_state}</td>"
+                f"<td>{partner_cell}</td>"
+                f"<td>{contract_cell}</td>"
+                f"<td>{end_date}</td>"
+                f"<td>{_pill_for_contract_state(contract_state)}</td>"
+                f"<td>{_pill_for_subscription_state(subscription_state)}</td>"
+                f"<td>{_pill_for_signature_state(signature_state)}</td>"
                 "</tr>"
             )
 
         header = (
             "<div style='width:100%;overflow-x:auto;'>"
-            "<table class='o_table o_list_view o_contract_table' style='width:100%;table-layout:auto;min-width:1000px;'>"
-            "<thead><tr><th>Partner</th><th>Contract</th><th>Contract State</th><th>Subscription State</th><th>Signature State</th></tr></thead>"
+            "<table class='o_table o_list_view o_contract_table' style='width:100%;table-layout:auto;min-width:1100px;'>"
+            "<thead><tr><th>Partner</th><th>Contract</th><th>End Date</th><th>Contract State</th><th>Subscription State</th><th>Signature State</th></tr></thead>"
             "<tbody>"
         )
         return header + ''.join(rows) + "</tbody></table></div>"

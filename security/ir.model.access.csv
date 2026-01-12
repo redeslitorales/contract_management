@@ -13,3 +13,4 @@ access_sale_terms_conditions,access.sale.terms.conditions,model_sale_terms_condi
 access_sale_cover_letter,access.sale.cover.letter,model_sale_cover_letter,base.group_user,1,0,0,0
 access_contract_clause,access.contract_clause,model_contract_clause,base.group_user,1,0,0,0
 access_contract_upload_wizard,access.contract.upload.wizard,model_contract_upload_wizard,base.group_user,1,0,0,0
+access_contract_termination_wizard_user,access.contract.termination.wizard.user,model_contract_termination_wizard,base.group_user,1,1,1,0

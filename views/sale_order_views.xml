@@ -7,7 +7,7 @@
             <!-- Add smart button for contracts -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button class="oe_stat_button" type="object" name="action_view_contracts"
-                        icon="fa-file-contract" invisible="contract_count == 0">
+                        icon="fa-briefcase" invisible="contract_count == 0">
                     <field string="Contracts" name="contract_count" widget="statinfo"/>
                 </button>
             </xpath>
