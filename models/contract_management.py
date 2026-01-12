@@ -119,10 +119,21 @@ class ContractManagement(models.Model):
         ('expired_mtm', 'Expired (Month-to-Month)'),
         ('lost', 'Lost'),
     ], string='Renewal State', default='not_started', tracking=True)
-    renewal_opportunity_id = fields.Many2one('crm.lead', string='Renewal Opportunity', tracking=True)
+    renewal_lead_id = fields.Many2one('crm.lead', string='Renewal Opportunity', copy=False, tracking=True)
     renewal_owner_id = fields.Many2one('res.users', string='Renewal Owner', tracking=True)
-    mtm_start_date = fields.Date(string='MTM Start Date', tracking=True)
-    mtm_age_days = fields.Integer(string='MTM Age (days)', compute='_compute_mtm_age_days', store=True)
+    mtm_start_date = fields.Date(string='MTM Start Date', copy=False, tracking=True)
+    mtm_bucket = fields.Selection([
+        ('mtm_0_30', 'MTM 0-30'),
+        ('mtm_31_60', 'MTM 31-60'),
+        ('mtm_61_90', 'MTM 61-90'),
+        ('mtm_90_plus', 'MTM 90+'),
+    ], string='MTM Bucket', copy=False, tracking=True)
+    mtm_age_days = fields.Integer(string='MTM Age (days)', compute='_compute_mtm_age', store=True)
+    renewal_notice_days = fields.Integer(
+        string='Renewal Notice Days',
+        default=60,
+        help='How many days before end_date a contract should be flagged as renewal_due and pushed into CRM.'
+    )
 
     def _compute_total_paid(self):
         for contract in self:
@@ -154,20 +165,24 @@ class ContractManagement(models.Model):
             early_fee = contract.early_termination_fee or 0.0
             contract.early_termination_cost = contract_value - total_paid + early_fee
 
-    @api.depends('mtm_start_date')
-    def _compute_mtm_age_days(self):
+    @api.depends('end_date', 'state', 'mtm_start_date')
+    def _compute_mtm_age(self):
         today = fields.Date.context_today(self)
         for contract in self:
-            contract.mtm_age_days = (today - contract.mtm_start_date).days if contract.mtm_start_date else 0
+            if contract.state != 'expired':
+                contract.mtm_age_days = 0
+                continue
+            start = contract.mtm_start_date or (contract.end_date + timedelta(days=1) if contract.end_date else None)
+            contract.mtm_age_days = (today - start).days if start else 0
 
     def _get_or_create_renewal_opportunity(self):
         """Ensure a single open renewal opportunity per contract."""
         self.ensure_one()
         Lead = self.env['crm.lead'].sudo()
 
-        if self.renewal_opportunity_id and self.renewal_opportunity_id.active:
-            if self.renewal_opportunity_id.probability < 100 and not self.renewal_opportunity_id.stage_id.is_won:
-                return self.renewal_opportunity_id
+        if self.renewal_lead_id and self.renewal_lead_id.active:
+            if self.renewal_lead_id.probability < 100 and not self.renewal_lead_id.stage_id.is_won:
+                return self.renewal_lead_id
 
         existing = Lead.search([
             ('type', '=', 'opportunity'),
@@ -178,7 +193,7 @@ class ContractManagement(models.Model):
             ('name', 'ilike', f"Renewal - {self.name or ''}".strip()),
         ], limit=1)
         if existing:
-            self.renewal_opportunity_id = existing.id
+            self.renewal_lead_id = existing.id
             return existing
 
         owner_id = (
@@ -193,7 +208,7 @@ class ContractManagement(models.Model):
             'partner_id': self.partner_id.id,
             'user_id': owner_id,
         })
-        self.renewal_opportunity_id = opp.id
+        self.renewal_lead_id = opp.id
         return opp
 
     def _schedule_renewal_activities(self, opp, days_to_end):
@@ -233,6 +248,122 @@ class ContractManagement(models.Model):
             ensure('Send WhatsApp final notice (7d)', 0)
 
     @api.model
+    def cron_push_renewals_to_crm(self):
+        today = fields.Date.context_today(self)
+
+        contracts = self.search([
+            ('state', '=', 'active'),
+            ('end_date', '!=', False),
+        ])
+
+        for contract in contracts:
+            days_to_end = (contract.end_date - today).days
+            notice_days = contract.renewal_notice_days or 60
+
+            if 0 <= days_to_end <= notice_days:
+                contract.write({'state': 'renewal_due'})
+                contract.message_post(body=_("Renewal due (within %s days of end date).") % notice_days)
+
+                contract.action_create_or_update_renewal_opportunity()
+
+                lead = contract.renewal_lead_id
+                if lead:
+                    Activity = self.env['mail.activity'].sudo()
+                    model_id = self.env['ir.model']._get_id('crm.lead')
+                    summary = "Renewal follow-up"
+
+                    exists = Activity.search([
+                        ('res_model_id', '=', model_id),
+                        ('res_id', '=', lead.id),
+                        ('summary', '=', summary),
+                        ('state', '=', 'planned'),
+                    ], limit=1)
+
+                    if not exists:
+                        Activity.create({
+                            'res_model_id': model_id,
+                            'res_id': lead.id,
+                            'activity_type_id': self.env.ref('mail.mail_activity_data_call').id,
+                            'summary': summary,
+                            'note': f"Contract ends on {contract.end_date}. Contact customer and propose renewal.",
+                            'user_id': lead.user_id.id or self.env.user.id,
+                            'date_deadline': today,
+                        })
+
+    @api.model
+    def cron_update_mtm_aging(self):
+        today = fields.Date.context_today(self)
+        expired = self.search([
+            ('state', '=', 'expired'),
+            ('end_date', '!=', False),
+        ])
+
+        for contract in expired:
+            if not contract.mtm_start_date:
+                contract.mtm_start_date = contract.end_date + timedelta(days=1)
+
+            age = (today - contract.mtm_start_date).days
+            if age < 0:
+                continue
+
+            if age <= 30:
+                bucket = 'mtm_0_30'
+            elif age <= 60:
+                bucket = 'mtm_31_60'
+            elif age <= 90:
+                bucket = 'mtm_61_90'
+            else:
+                bucket = 'mtm_90_plus'
+
+            if contract.mtm_bucket != bucket:
+                contract.mtm_bucket = bucket
+                contract.message_post(body=_("MTM aging updated: %s (age=%s days).") % (bucket, age))
+
+                contract.action_create_or_update_renewal_opportunity()
+
+    def action_open_renewal_opportunity(self):
+        self.ensure_one()
+        if not self.renewal_lead_id:
+            return self.action_create_or_update_renewal_opportunity()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Renewal Opportunity'),
+            'res_model': 'crm.lead',
+            'view_mode': 'form',
+            'res_id': self.renewal_lead_id.id,
+            'target': 'current',
+        }
+
+    def action_create_or_update_renewal_opportunity(self):
+        self.ensure_one()
+        Lead = self.env['crm.lead'].sudo()
+
+        if self.renewal_lead_id and self.renewal_lead_id.active:
+            lead = self.renewal_lead_id
+        else:
+            lead = Lead.create({
+                'type': 'opportunity',
+                'name': f"Renewal - {self.partner_id.name} - {self.name}",
+                'partner_id': self.partner_id.id,
+                'user_id': self.env.user.id,
+            })
+            self.renewal_lead_id = lead.id
+
+        lead.write({
+            'partner_id': self.partner_id.id,
+            'name': f"Renewal - {self.partner_id.name} - {self.name}",
+        })
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Renewal Opportunity'),
+            'res_model': 'crm.lead',
+            'view_mode': 'form',
+            'res_id': lead.id,
+            'target': 'current',
+        }
+
+    @api.model
     def cron_manage_contract_renewals(self):
         """
         Daily cron to:
@@ -270,8 +401,8 @@ class ContractManagement(models.Model):
             contract.renewal_state = 'expired_mtm'
             if contract.state != 'expired':
                 contract.state = 'expired'
-            if contract.renewal_opportunity_id:
-                contract.renewal_opportunity_id.message_post(
+            if contract.renewal_lead_id:
+                contract.renewal_lead_id.message_post(
                     body=_('Contract expired; customer is now Month-to-Month (service continues).')
                 )
 

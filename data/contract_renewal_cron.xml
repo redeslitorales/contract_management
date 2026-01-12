@@ -10,5 +10,29 @@
       <field name="numbercall">-1</field>
       <field name="active">True</field>
     </record>
+
+    <record id="ir_cron_contract_renewals_to_crm" model="ir.cron">
+      <field name="name">Contract: Push Renewals to CRM</field>
+      <field name="model_id" ref="model_contract_management"/>
+      <field name="state">code</field>
+      <field name="code">model.cron_push_renewals_to_crm()</field>
+      <field name="interval_number">1</field>
+      <field name="interval_type">days</field>
+      <field name="numbercall">-1</field>
+      <field name="doall">False</field>
+      <field name="active">True</field>
+    </record>
+
+    <record id="ir_cron_contract_update_mtm_aging" model="ir.cron">
+      <field name="name">Contract: Update MTM Aging</field>
+      <field name="model_id" ref="model_contract_management"/>
+      <field name="state">code</field>
+      <field name="code">model.cron_update_mtm_aging()</field>
+      <field name="interval_number">1</field>
+      <field name="interval_type">days</field>
+      <field name="numbercall">-1</field>
+      <field name="doall">False</field>
+      <field name="active">True</field>
+    </record>
   </data>
 </odoo>

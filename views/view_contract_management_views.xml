@@ -31,6 +31,18 @@
                                 icon="fa-file-pdf-o" invisible="document_count == 0">
                             <field string="Documents" name="document_count" widget="statinfo"/>
                         </button>
+
+                        <button class="oe_stat_button" type="object" name="action_open_renewal_opportunity"
+                                icon="fa-handshake-o" invisible="not renewal_lead_id">
+                            <field string="Renewal" name="renewal_lead_id" widget="statinfo"/>
+                        </button>
+
+                        <button class="oe_stat_button" type="object" name="action_create_or_update_renewal_opportunity"
+                                icon="fa-plus-square" invisible="renewal_lead_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Create Renewal</span>
+                            </div>
+                        </button>
                     </div>
                     <div class="oe_title">
                         <h1>
@@ -60,6 +72,11 @@
                                    decoration-info="docusign_status == 'sent'"
                                    decoration-warning="docusign_status in ['new', 'open']"/>
                             <field name="contract_send_method"/>
+                        </group>
+                        <group string="MTM" invisible="state != 'expired'">
+                            <field name="mtm_start_date" readonly="1"/>
+                            <field name="mtm_age_days" readonly="1"/>
+                            <field name="mtm_bucket" readonly="1"/>
                         </group>
                     </group>
                     
