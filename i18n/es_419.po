@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e-20231127\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-23 10:28+0000\n"
-"PO-Revision-Date: 2025-02-23 04:30-0600\n"
+"POT-Creation-Date: 2026-01-12 09:04+0000\n"
+"PO-Revision-Date: 2026-01-12 03:07-0600\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -15,7 +15,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 3.5\n"
+"X-Generator: Poedit 3.8\n"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "$0.00"
+msgstr "$0.00"
 
 #. module: contract_management
 #: model:ir.actions.report,print_report_name:contract_management.action_business_contract
@@ -30,7 +35,6 @@ msgstr "'Contrato - %s' % (object.name)"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "(no forma parte del contrato - solo para información)"
 msgstr "(no forma parte del contrato - solo para información)"
 
@@ -38,7 +42,6 @@ msgstr "(no forma parte del contrato - solo para información)"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid ""
 ", \n"
 "                                más el interés convencional del UNO PUNTO CERO CERO por ciento mensual, calculados a partir de la fecha de suscripción \n"
@@ -63,30 +66,35 @@ msgid "/sn2/"
 msgstr "/sn2/"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__1
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__1
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__1
 msgid "1 - Very Poor"
 msgstr "1 - Muy  mal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__2
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__2
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__2
 msgid "2 - Poor"
 msgstr "2- Mal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__3
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__3
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__3
 msgid "3 - Average"
 msgstr "3 - Normal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__4
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__4
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__4
 msgid "4 - Good"
 msgstr "4- Buena"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__5
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__5
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__5
 msgid "5 - Excellent"
@@ -100,10 +108,59 @@ msgid ""
 msgstr "<b>Aquí puedes conectar tu cuenta de Docusign para usarla con Odoo.</b><br/>Puede iniciar sesión directamente en Docusign a través de"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<i class=\"fa fa-arrow-left\"/> Back to My Services"
+msgstr "<i class=\"fa fa-arrow-left\"/>  De vuelta a mis servicios"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<i class=\"fa fa-arrow-left\"/> Back to Services"
+msgstr "<i class=\"fa fa-arrow-left\"/>  De vuelta a los servicios"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<i class=\"fa fa-download\"/> Download"
+msgstr "<i class=\"fa fa-download\"/> Descargar"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid ""
+"<i class=\"fa fa-file-pdf-o me-2\"/>\n"
+"                                                Signed Documents"
+msgstr ""
+"<i class=\"fa fa-file-pdf-o me-2\"/>\n"
+"Documentos firmados"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid ""
+"<i class=\"fa fa-file-text-o me-2\"/>\n"
+"                                        Contract:"
+msgstr ""
+"<i class=\"fa fa-file-text-o me-2\"/>\n"
+"Contrato:"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<i class=\"fa fa-info-circle\"/> No signed documents available yet."
+msgstr "<i class=\"fa fa-info-circle\"/> Aún no hay documentos firmados disponibles."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "<i class=\"fa fa-info-circle\"/> No signed documents available yet. Documents will appear here once all parties have signed via DocuSign."
+msgstr ""
+"<i class=\"fa fa-info-circle\"/>  Aún no hay documentos firmados disponibles. Los documentos aparecerán aquí una vez que todas las partes hayan firmado a través "
+"de DocuSign."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "<span class=\"o_stat_text\">Create Renewal</span>"
+msgstr "<span class=\"o_stat_text\">Crear Renovación</span>"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Cargo por Morosidad:</strong> 5%"
 msgstr "<strong>Cargo por Morosidad:</strong> 5%"
 
@@ -118,23 +175,35 @@ msgstr "<strong>Contacto</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Contacto</strong>"
 msgstr "<strong>Contacto</strong>"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
-#: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
-#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
-msgid "<strong>Contrato No. </strong>"
-msgstr "<strong>Contrato No. </strong>"
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Contract Number:</strong>"
+msgstr "<strong>Número de contrato:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Contract Term:</strong>"
+msgstr "<strong>Plazo del contrato:</strong>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
+msgid "<strong>Contrato No. </strong>"
+msgstr "<strong>Contrato nº </strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Customer:</strong>"
+msgstr "<strong>Cliente:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "<strong>Código del cliente </strong>"
 msgstr "<strong>Código del cliente </strong>"
 
@@ -142,7 +211,6 @@ msgstr "<strong>Código del cliente </strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Detalles del Cliente</strong>"
 msgstr "<strong>Detalles del Cliente</strong>"
 
@@ -150,7 +218,6 @@ msgstr "<strong>Detalles del Cliente</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Dirección de Facturación/Cobro</strong>"
 msgstr "<strong>Dirección de Facturación/Cobro</strong>"
 
@@ -165,7 +232,6 @@ msgstr "<strong>Dirección de Servicio</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Dirección de Servicio</strong>"
 msgstr "<strong>Dirección de Servicio</strong>"
 
@@ -173,15 +239,23 @@ msgstr "<strong>Dirección de Servicio</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Duración del Contrato:</strong>"
 msgstr "<strong>Duración del Contrato:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Early Termination Cost (est):</strong>"
+msgstr "<strong>Coste de terminación anticipada (estimado):</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>End Date:</strong>"
+msgstr "<strong>Fecha Fin:</strong>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Firma del Cliente</strong>"
 msgstr "<strong>Firma del Cliente</strong>"
 
@@ -189,7 +263,6 @@ msgstr "<strong>Firma del Cliente</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Firma del Vendedor</strong>"
 msgstr "<strong>Firma del Vendedor</strong>"
 
@@ -197,27 +270,67 @@ msgstr "<strong>Firma del Vendedor</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Mensualidad:</strong>"
 msgstr "<strong>Mensualidad:</strong>"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Monthly Payment:</strong>"
+msgstr "<strong>Pago mensual:</strong>"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Nombre:</strong>"
 msgstr "<strong>Nombre:</strong>"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Pagare Value:</strong>"
+msgstr "<strong>Valor de Pagare:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Paid to Date:</strong>"
+msgstr "<strong>Pagado hasta la fecha:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Start Date:</strong>"
+msgstr "<strong>Fecha Inicio:</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "<strong>Status:</strong>"
+msgstr "<strong>Estado:</strong>"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "<strong>Tipo de facturación </strong>"
 msgstr "<strong>Tipo de facturación </strong>"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+msgid "<strong>Total Contracts</strong><br/>"
+msgstr "<strong>Total de contratos</strong><br/>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+msgid "<strong>Total Value</strong><br/>"
+msgstr "<strong>Valor total</strong><br/>"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "A contract manager must approve because the early termination cost is under $100."
+msgstr "Un gestor de contratos debe aprobarlo porque el coste de la terminación anticipada es inferior a 100 dólares."
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__accepted_better_offer
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__accepted_better_offer
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__accepted_better_offer
 msgid "Accepted a Better Offer?"
@@ -227,6 +340,11 @@ msgstr "Acepto mejor oferta?"
 #: model:ir.model.fields,field_description:contract_management.field_res_users__access_token
 msgid "Access Token"
 msgstr "Token de Acceso"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__access_warning
+msgid "Access warning"
+msgstr "Advertencia de acceso"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__account_id
@@ -246,22 +364,54 @@ msgid "Account type can't be empty!"
 msgstr "¡El tipo de cuenta no puede estar vacío!"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Action Failed! Docusign envelope is missing."
-msgstr "¡Acción fallida! Falta el sobre de Docusign."
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
-msgid "Activate"
-msgstr "Activar"
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_needaction
+msgid "Action Needed"
+msgstr "Acción requerida"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__active
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_active
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_dashboard__state__active
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__active
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Active"
 msgstr "Activo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_active
+msgid "Active Avg Value"
+msgstr "Valor promedio activo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_active
+msgid "Active Total Value"
+msgstr "Valor Total Activo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_ids
+msgid "Activities"
+msgstr "Actividades"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "Decoración de Actividad  de Excepción"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_state
+msgid "Activity State"
+msgstr "Estado de la actividad"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "Ícono de tipo de actividad"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__equipment_returned
+msgid "All equipment returned"
+msgstr "Todo el equipo devuelto"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__sub_pause_end_date
@@ -270,9 +420,23 @@ msgstr "Fecha de reactivación anticipada"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__contract_template_ids
-#, fuzzy
 msgid "Applicable Contract Templates"
 msgstr "Plantillas de contratos aplicables"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Approve & Continue"
+msgstr "Aprobar y continuar"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__manager_user_id
+msgid "Approved by"
+msgstr "Aprobado por"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_attachment_count
+msgid "Attachment Count"
+msgstr "Nº de archivos adjuntos"
 
 #. module: contract_management
 #. odoo-python
@@ -282,16 +446,19 @@ msgid "Attachment(s) not found."
 msgstr "Adjunto(s) no encontrado(s)."
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Authentication failed: Invalid credentials."
-msgstr "Error de autenticación: credenciales no válidas."
-
-#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_users_form_preferences
 msgid "Auto Refresh Access Token"
 msgstr "Token de acceso de actualización automática"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_contract_value
+msgid "Average Contract Value"
+msgstr "Valor medio del contrato"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Back"
+msgstr "Volver"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__base_uri
@@ -299,14 +466,15 @@ msgid "Base URI"
 msgstr "Base URI"
 
 #. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_res_config_settings__docusign_company_stamp_base64
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Base64-encoded PNG image of company stamp to appear on signed documents"
+msgstr "Imagen PNG codificada en Base64 del sello de la empresa que aparecerá en documentos firmados"
+
+#. module: contract_management
 #: model:ir.actions.report,name:contract_management.action_business_contract
 msgid "Business Contract"
 msgstr "Contrato Empresarial"
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_product_category_contract
-msgid "CPE Properties"
-msgstr "Propiedades de CPE"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__tv_included
@@ -315,6 +483,7 @@ msgstr "TV Cable"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_send_method_wizard_form
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_pause_subscription_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_reactivate_subscription_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_closure_wizard_form
@@ -326,7 +495,6 @@ msgstr "Cancelar"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Cantidad:"
 msgstr "Cantidad:"
 
@@ -357,14 +525,19 @@ msgid "Client"
 msgstr "Cliente"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_sale_subscription_order_primary_form_close
-msgid "Close Subscription"
-msgstr "Cerrar suscripción"
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__payment_confirmed
+msgid "Client paid early termination cost"
+msgstr "El cliente pagó el coste de la terminación anticipada"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__closure_date
 msgid "Closure Date"
 msgstr "Fecha de Cierre"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Closure Information"
+msgstr "Información sobre el cierre"
 
 #. module: contract_management
 #: model:ir.ui.menu,name:contract_management.menu_sub_closure
@@ -375,7 +548,6 @@ msgstr "Cierres"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Cobro por morosidad en el pago - 5%"
 msgstr "Cobro por morosidad en el pago - 5%"
 
@@ -392,11 +564,27 @@ msgid "Company Logo"
 msgstr "Logo de la empresa"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Company Signer Email"
+msgstr "Correo electrónico del firmante de la empresa"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Company Stamp Image"
+msgstr "Imagen del sello de la empresa"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__carrier
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__carrier
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__carrier
 #: model:ir.model.fields,field_description:contract_management.field_subscription_competitor__competitor
 msgid "Competitor"
 msgstr "Competidor"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Competitor Offer"
+msgstr "Oferta del competidor"
 
 #. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_subscription_competitor_tree model:ir.ui.menu,name:contract_management.subscription_competitor_menu
@@ -412,9 +600,13 @@ msgstr "Completado"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Condiciones"
 msgstr "Condiciones"
+
+#. module: contract_management
+#: model:ir.model,name:contract_management.model_res_config_settings
+msgid "Config Settings"
+msgstr "Ajustes de configuración"
 
 #. module: contract_management
 #: model:ir.ui.menu,name:contract_management.menu_sub_closure_config
@@ -428,12 +620,43 @@ msgid "Confirm"
 msgstr "Confirmar"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Confirm Termination"
+msgstr "Confirmar terminación"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__payment_confirmed
+msgid "Confirm the client has paid the early termination cost shown above."
+msgstr "Confirma que el cliente ha pagado el coste de terminación anticipada que se muestra arriba."
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__equipment_returned
+msgid "Confirm the client returned all issued equipment."
+msgstr "Confirma que el cliente devolvió todo el equipo entregado."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Confirm the customer has paid the early termination cost."
+msgstr "Confirma que el cliente ha pagado el coste de cancelación anticipada."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Confirm the customer returned all issued equipment."
+msgstr "Confirma que el cliente devolvió todo el equipo entregado."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__confirmation_url
 msgid "Confirmation URL"
 msgstr "URL de confirmación"
 
 #. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_contacted
+msgid "Contacted"
+msgstr "Contactado"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__contract_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__contract_id
 msgid "Contract"
 msgstr "Contrato"
 
@@ -444,16 +667,60 @@ msgstr "Cláusula del contrato"
 
 #. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_contract_clause model:ir.ui.menu,name:contract_management.menu_contract_clause
-#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_clause_tree
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_clause_tree model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 msgid "Contract Clauses"
 msgstr "Cláusulas contractuales"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__contract_count
+msgid "Contract Count"
+msgstr "Recuento de contratos"
+
+#. module: contract_management
+#: model:ir.actions.act_window,name:contract_management.action_contract_dashboard model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Contract Dashboard"
+msgstr "Panel de Contrato"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "Contract Details"
+msgstr "Detalles del contrato"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Contract Documents"
+msgstr "Documentos contractuales"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__contract_file
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__contract_file
+msgid "Contract File"
+msgstr "Archivo de Contratos"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__contract_filename
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__contract_filename
+msgid "Contract Filename"
+msgstr "Nombre de archivo del contrato"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Contract Information"
+msgstr "Información de contrato"
+
+#. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_contract_management model:ir.model,name:contract_management.model_contract_management
-#: model:ir.ui.menu,name:contract_management.menu_contract_management_root model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+#: model:ir.ui.menu,name:contract_management.menu_contract_management_root
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_tree
 msgid "Contract Management"
 msgstr "Gestión de Contratos"
+
+#. module: contract_management
+#: model:ir.model,name:contract_management.model_contract_dashboard model_terms:ir.actions.act_window,help:contract_management.action_contract_dashboard
+msgid "Contract Management Dashboard"
+msgstr "Panel de Gestión de Contratos"
 
 #. module: contract_management
 #: model:res.groups,name:contract_management.group_contract_management_manager
@@ -467,6 +734,7 @@ msgstr "Gestión de contratos de usuario"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__name
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Contract Number"
 msgstr "Número de contrato"
 
@@ -476,9 +744,9 @@ msgid "Contract Option"
 msgstr "Opción de contrato"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_product_category_contract
-msgid "Contract Properties"
-msgstr "Propiedades del contrato"
+#: model:ir.actions.server,name:contract_management.ir_cron_manage_contract_renewals_ir_actions_server
+msgid "Contract Renewals + MTM Aging"
+msgstr "Renovaciones de contrato + envejecimiento MTM"
 
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_contract_send_method_wizard
@@ -496,16 +764,36 @@ msgid "Contract Service Manager"
 msgstr "Gerente de Servicios por Contrato"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__state_summary_html
+msgid "Contract Summary Table"
+msgstr "Tabla resumen de contratos"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__contract_template
 #: model:ir.model.fields,field_description:contract_management.field_product_category__contract_template
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Contract Template"
 msgstr "Plantilla de contrato"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__contract_term_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__contract_term
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__contract_term
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Contract Term"
 msgstr "Plazo del contrato"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__term_distribution
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Contract Term Distribution"
+msgstr "Distribución por Plazo de Contrato"
+
+#. module: contract_management
+#: model:ir.model,name:contract_management.model_contract_termination_wizard
+msgid "Contract Termination Wizard"
+msgstr "Asistente de Terminación de Contratos"
 
 #. module: contract_management
 #: model:ir.ui.menu,name:contract_management.menu_contract_terms
@@ -518,9 +806,83 @@ msgid "Contract Terms Management"
 msgstr "Gestión de los términos del contrato"
 
 #. module: contract_management
+#: model:ir.model,name:contract_management.model_contract_upload_wizard
+msgid "Contract Upload Wizard"
+msgstr "Asistente de subida de contratos"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__contract_value
+#: model:ir.model.fields,field_description:contract_management.field_docusign_connector__contract_value
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__contract_value
+msgid "Contract Value"
+msgstr "Valor del contrato"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Contract auto-expired (end date passed)."
+msgstr "El contrato expiró automáticamente (fecha de finalización ya pasada)."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Contract expired; customer is now Month-to-Month (service continues)."
+msgstr "Contrato expirado; el cliente ahora es mes a mes (el servicio continúa)."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. (via wizard: %s)"
+msgstr "Contrato rescindido. Pago confirmado: %s. Equipo devuelto: %s. Pago: %s. (vía asistente: %s)"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__early_termination_cost
+msgid "Contract value - Total paid + Early termination fee"
+msgstr "Valor del contrato - Total pagado + Penalización por cancelación anticipada"
+
+#. module: contract_management
+#: model:ir.actions.server,name:contract_management.ir_cron_contract_expiration_ir_actions_server
+msgid "Contract: Auto-expire past end date"
+msgstr "Contrato: Expira automáticamente después de la fecha de finalización"
+
+#. module: contract_management
+#: model:ir.actions.server,name:contract_management.ir_cron_contract_mtm_aging_ir_actions_server
+msgid "Contract: MTM Aging Buckets"
+msgstr "Contrato: Cubos de Envejecimiento MTM"
+
+#. module: contract_management
+#: model:ir.actions.server,name:contract_management.ir_cron_contract_renewals_to_crm_ir_actions_server
+msgid "Contract: Push Renewals to CRM"
+msgstr "Contrato: Enviar renovaciones a CRM"
+
+#. module: contract_management
+#: model:ir.actions.server,name:contract_management.ir_cron_contract_update_mtm_aging_ir_actions_server
+msgid "Contract: Update MTM Aging"
+msgstr "Contrato: Actualización del envejecimiento de MTM"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__contract_ids model:ir.ui.menu,name:contract_management.menu_contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
 msgid "Contracts"
 msgstr "Contratos"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_30_days_list
+msgid "Contracts Expiring in 30 Days"
+msgstr "Contratos que expiran en 30 días"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_60_days_list
+msgid "Contracts Expiring in 60 Days"
+msgstr "Contratos que expiran en 60 días"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_90_days_list
+msgid "Contracts Expiring in 90 Days"
+msgstr "Contratos que expiran en 90 días"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -543,9 +905,12 @@ msgstr "Cartas de presentación"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__create_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__create_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__create_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__create_uid
@@ -560,9 +925,12 @@ msgstr "Creado por"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__create_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__create_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__create_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__create_date
@@ -576,9 +944,16 @@ msgid "Created on"
 msgstr "Creado el"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__partner_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__partner_id
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Customer"
 msgstr "Cliente"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__access_url
+msgid "Customer Portal URL"
+msgstr "URL para cliente"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__docusign_connector__state__customer
@@ -589,7 +964,6 @@ msgstr "Firmado por el cliente"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "DE LOS ESTADOS UNIDOS DE AMÉRICA"
 msgstr "DE LOS ESTADOS UNIDOS DE AMÉRICA"
 
@@ -599,6 +973,17 @@ msgstr "DE LOS ESTADOS UNIDOS DE AMÉRICA"
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "DUI:"
 msgstr "DUI:"
+
+#. module: contract_management
+#: model:ir.ui.menu,name:contract_management.menu_contract_dashboard
+msgid "Dashboard"
+msgstr "Escritorio"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__name
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Dashboard Name"
+msgstr "Nombre del tablero"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__transfer_date
@@ -615,7 +1000,6 @@ msgstr "Muerte"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid ""
 "Declaro que mi información personal es cierta y autorizo a las empresas a comprobar su autenticidad, previo a dar trámite a la solicitud de los servicios. \n"
 "                            Acepto que la documentación donde conste la información proporcionada para efectos de este contrato, será resguardada por la "
@@ -640,7 +1024,6 @@ msgstr "Por defecto"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Derechos y Responsabilidades del Cliente"
 msgstr "Derechos y Responsabilidades del Cliente"
 
@@ -666,9 +1049,12 @@ msgstr "Desarrollador"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__display_name
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__display_name
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__display_name
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__display_name
@@ -689,40 +1075,56 @@ msgid "Do Not Send"
 msgstr "No enviar"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_res_config_settings__docusign_company_signer_email
+msgid "DocuSign Company Signer Email"
+msgstr "Correo electrónico de firmante de la empresa DocuSign"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_res_config_settings__docusign_company_stamp_base64
+msgid "DocuSign Company Stamp (Base64 PNG)"
+msgstr "Sello de la empresa DocuSign (Base64 PNG)"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "DocuSign Envelope"
+msgstr "Sobre de DocuSign"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__docusign_ids
 msgid "DocuSign Envelopes"
 msgstr "Sobres DocuSign"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Document download failed: Missing Docusign envelope."
-msgstr "Error en la descarga del documento: Falta el sobre de Docusign."
+#: model:crm.stage,name:contract_management.crm_stage_docusign_sent
+msgid "DocuSign Sent"
+msgstr "DocuSign enviado"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Document download failed: Not all recipients have signed the document."
-msgstr "Error en la descarga del documento: no todos los destinatarios han firmado el documento."
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "DocuSign Settings"
+msgstr "Configuración de DocuSign"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Document sent to all recipients."
-msgstr "Documento enviado a todos los destinatarios."
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
+msgid "DocuSign Status"
+msgstr "Estado de DocuSign"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__document_count
+msgid "Document Count"
+msgstr "Número de documentos"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Documents"
+msgstr "Documentos"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_users_form_preferences
 msgid "Docusign"
 msgstr "Docusign"
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid "Docusign Envelopes"
-msgstr "Sobres DocuSign"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_users_form_preferences
@@ -745,6 +1147,7 @@ msgid "Docusign Settings"
 msgstr "Configuración de Docusign"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__bandwidth
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__bandwidth
 msgid "Download Speed"
 msgstr "Velocidad de Descarga"
@@ -755,9 +1158,23 @@ msgid "Download Speed (Mbps)"
 msgstr "Velocidad de descarga (Mbps)"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_draft
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_dashboard__state__draft
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__draft
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Draft"
 msgstr "Borrador"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_draft
+msgid "Draft Avg Value"
+msgstr "Valor medio del draft"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_draft
+msgid "Draft Total Value"
+msgstr "Valor Total del Draft"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order_close_reason__early_termination
@@ -765,9 +1182,27 @@ msgid "Early Termination"
 msgstr "Terminación anticipada"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__early_termination_cost
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__early_termination_cost
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__cost
+msgid "Early Termination Cost"
+msgstr "Coste de terminación anticipada"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__early_termination_fee
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Early Termination Fee"
 msgstr "Cargo por cancelación anticipada"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__early_termination_cost
+msgid "Early termination cost displayed as a positive amount for customer clarity."
+msgstr "El coste de terminación anticipada se muestra como una cantidad positiva para mayor claridad del cliente."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Early termination cost is under $100. Manager approval required."
+msgstr "El coste de la terminación anticipada es inferior a 100 dólares. Se requiere aprobación del manager."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__date
@@ -798,21 +1233,46 @@ msgid "Email"
 msgstr "Email"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "Email has not been defined for recipient: "
-msgstr "El correo electrónico no se ha definido para el destinatario: "
+#: model:ir.model.fields,help:contract_management.field_res_config_settings__docusign_company_signer_email
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Email address of the company representative who signs contracts after the customer"
+msgstr "Dirección de correo electrónico del representante de la empresa que firma los contratos después del cliente"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__end_date
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "End Date"
 msgstr "Fecha de finalización"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__equipment
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Equipment Return"
+msgstr "Retorno de Equipos"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_expired
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_dashboard__state__expired
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__expired
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Expired"
 msgstr "Expirado"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__expired_mtm
+msgid "Expired (Month-to-Month)"
+msgstr "Caducado (mes a mes)"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_expired
+msgid "Expired Avg Value"
+msgstr "Valor medio caducado"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_expired
+msgid "Expired Total Value"
+msgstr "Valor Total Caducado"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__expiry_time
@@ -820,8 +1280,26 @@ msgid "Expires In"
 msgstr "Expira en"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_30_days
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+msgid "Expiring in 30 Days"
+msgstr "Caduca en 30 días"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_60_days
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Expiring in 60 Days"
+msgstr "Caduca en 60 días"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__expiring_90_days
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Expiring in 90 Days"
+msgstr "Caduca en 90 días"
+
+#. module: contract_management
 #. odoo-python
-#: code:addons/contract_management/controllers/controllers.py:0 code:addons/contract_management/models/contract_management.py:0
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
 msgid "Failed to obtain access token from DocuSign"
@@ -833,8 +1311,37 @@ msgid "Feedback for Cabal"
 msgstr "Comentarios para Cabal"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Fees"
+msgstr "Tarifas"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Filters"
+msgstr "Filtros"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "Financial Details"
+msgstr "Detalles financieros"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_follower_ids
+msgid "Followers"
+msgstr "Seguidores"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "Seguidores (Contactos)"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "Icono de Font Awesome ej. fa-tasks"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__friendly_clause
-#, fuzzy
 msgid "Friendly Clause Language"
 msgstr "Lenguaje de la cláusula amistosa"
 
@@ -854,15 +1361,43 @@ msgid "Grant Docusign Consent"
 msgstr "Otorgar el consentimiento de Docusign"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
+msgid "Group By"
+msgstr "Agrupar por"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
+msgid "Has DocuSign"
+msgstr "Tiene DocuSign"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__has_message
+msgid "Has Message"
+msgstr "Tiene mensaje"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__has_signed_documents
+msgid "Has Signed Documents"
+msgstr "Ha firmado documentos"
+
+#. module: contract_management
 #: model:ir.actions.report,name:contract_management.action_hotel_contract
 msgid "Hotel Contract"
 msgstr "Contrato de Servicio Para Hotel"
 
 #. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__renewal_notice_days
+msgid "How many days before end_date a contract should be flagged as renewal_due and pushed into CRM."
+msgstr "¿Cuántos días antes de end_date un contrato debería marcarse como renewal_due y empujarlo a CRM?"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__id
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__id
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__id
@@ -879,17 +1414,15 @@ msgstr "ID"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "INFORMACION DE FACTURACIÓN"
-msgstr "INFORMACION DE FACTURACIÓN"
+msgstr "INFORMACIÓN DE FACTURACIÓN"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "INFORMACION DEL CLIENTE"
-msgstr "INFORMACION DEL CLIENTE"
+msgstr "INFORMACIÓN DEL CLIENTE"
 
 #. module: contract_management
 #: model:ir.actions.report,name:contract_management.action_iptv_contract
@@ -897,6 +1430,28 @@ msgid "IPTV Contract"
 msgstr "Contrato de IPTV"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_exception_icon
+msgid "Icon"
+msgstr "Icono"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "Icono para indicar una actividad de excepción."
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "Si está marcado, hay nuevos mensajes que requieren tu atención."
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__message_has_error
+#: model:ir.model.fields,help:contract_management.field_contract_management__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "Si se encuentra seleccionado, algunos mensajes tienen error de envío."
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__in_progress
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__3_progress
 msgid "In Progress"
 msgstr "En progreso"
@@ -910,7 +1465,6 @@ msgstr "Fecha de inactividad"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Información del Cliente"
 msgstr "Información del Cliente"
 
@@ -920,15 +1474,35 @@ msgid "Information"
 msgstr "Información"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__closure
+msgid "Information Collection"
+msgstr "Colección de información"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__client_id
 msgid "Integration Key"
 msgstr "Clave de integración"
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Invalid state transition from %(current)s to %(target)s. Allowed next states: %(allowed)s"
+msgstr "Transición de estado inválida de %(current)s a %(target)s. Permitido a continuación: %(allowed)s"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_is_follower
+msgid "Is Follower"
+msgstr "Es seguidor"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__write_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__write_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__write_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__write_uid
@@ -943,9 +1517,12 @@ msgstr "Actualizado por"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__write_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__write_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__write_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_sale_cover_letter__write_date
@@ -969,9 +1546,90 @@ msgid "Login URL"
 msgstr "URL de login"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__lost
+msgid "Lost"
+msgstr "Perdido"
+
+#. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_lost_churn
+msgid "Lost - Churn"
+msgstr "Perdidos - Churn"
+
+#. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_lost_mtm
+msgid "Lost - Stayed MTM"
+msgstr "Perdidos - Permaneció MTM"
+
+#. module: contract_management
+#: model:crm.tag,name:contract_management.crm_tag_mtm model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "MTM"
+msgstr "MTM"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__mtm_bucket__mtm_0_30
+msgid "MTM 0-30"
+msgstr "MTM 0-30"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__mtm_bucket__mtm_31_60
+msgid "MTM 31-60"
+msgstr "MTM 31-60"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__mtm_bucket__mtm_61_90
+msgid "MTM 61-90"
+msgstr "MTM 61-90"
+
+#. module: contract_management
+#: model:crm.tag,name:contract_management.crm_tag_mtm_90
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__mtm_bucket__mtm_90_plus
+msgid "MTM 90+"
+msgstr "MTM 90+"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__mtm_age_days
+msgid "MTM Age (days)"
+msgstr "MTM Edad (días)"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__mtm_bucket
+msgid "MTM Bucket"
+msgstr "Cubo MTM"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__mtm_start_date
+msgid "MTM Start Date"
+msgstr "Fecha de inicio del MTM"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "MTM aging updated: %s (age=%s days)."
+msgstr "Envejecimiento MTM actualizado: %s (edad=%s días)."
+
+#. module: contract_management
 #: model:ir.ui.menu,name:contract_management.menu_sale_cover_letter_management
 msgid "Manage Cover Letters"
 msgstr "Gestionar cartas de presentación"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__approval
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Manager Approval"
+msgstr "Aprobación del responsable"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Manager approval is required because the early termination cost is under $100."
+msgstr "Se requiere la aprobación del responsable porque el coste de la terminación anticipada es inferior a 100 dólares."
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__manager_approved
+msgid "Manager approved termination"
+msgstr "El gerente aprobó la despida"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__max_service_pause_duration
@@ -982,11 +1640,28 @@ msgstr "Duración máxima de las pausas de servicio (días)"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Mensualidad: US$"
 msgstr "Mensualidad: US$"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_has_error
+msgid "Message Delivery error"
+msgstr "Error de Envío de Mensaje"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_ids
+msgid "Messages"
+msgstr "Mensajes"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
+msgid "Missing DocuSign"
+msgstr "DocuSign desaparecido"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__monthly_payment
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__monthly_payment
+#: model:ir.model.fields,field_description:contract_management.field_docusign_connector__monthly_payment
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__monthly_payment
 msgid "Monthly Payment"
 msgstr "Pago mensual"
@@ -995,6 +1670,26 @@ msgstr "Pago mensual"
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__monthly_payment
 msgid "Monthly Quota"
 msgstr "Cuota mensual"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_docusign_connector__contract_value
+msgid "Monthly payment * contract length"
+msgstr "Pago mensual * duración del contrato"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__monthly_payment
+msgid "Monthly payment amount from DocuSign envelope"
+msgstr "Importe del pago mensual del sobre de DocuSign"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "Mi fecha límite de actividad"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "N/A"
+msgstr "N/A"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -1035,6 +1730,65 @@ msgid "New Renter"
 msgstr "Nuevo arrendatario"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Next"
+msgstr "Siguiente"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "Próximo evento del calendario de actividades"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "Fecha límite de la siguiente actividad"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_summary
+msgid "Next Activity Summary"
+msgstr "Resumen de la siguiente actividad"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_type_id
+msgid "Next Activity Type"
+msgstr "Siguiente tipo de actividad"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "No"
+msgstr "No"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "No DocuSign envelope associated with this contract."
+msgstr "No hay sobre de DocuSign asociado a este contrato."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "No contracts expiring in 30 days"
+msgstr "Sin contratos que expiran en 30 días"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "No contracts expiring in 60 days"
+msgstr "No hay contratos que expiran en 60 días"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "No contracts expiring in 90 days"
+msgstr "Sin contratos que expiran en 90 días"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "No non compliant contracts"
+msgstr "No hay contratos no conformes"
+
+#. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/docusign_connector.py:0
 #, python-format
@@ -1042,11 +1796,27 @@ msgid "No recipient(s) found for this record."
 msgstr "No se ha encontrado ningún destinatario para este registro."
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__non_compliant_count
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Non Compliant"
+msgstr "No cumpliendo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__non_compliant_list
+msgid "Non Compliant Contracts"
+msgstr "Contratos no conformes"
+
+#. module: contract_management
 #. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
+#: code:addons/contract_management/models/contract_management.py:0
 #, python-format
-msgid "No recipients available for document download."
-msgstr "No hay destinatarios disponibles para la descarga de documentos."
+msgid "None"
+msgstr "Ninguno"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__not_started
+msgid "Not Started"
+msgstr "Sin Iniciar"
 
 #. module: contract_management
 #. odoo-python
@@ -1067,15 +1837,50 @@ msgid "Not a valid request for user info."
 msgstr "No es una solicitud válida de información de usuario."
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__notes
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__notes
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__notes
 msgid "Notes"
 msgstr "Notas"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_needaction_counter
+msgid "Number of Actions"
+msgstr "Número de acciones"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__service_pause_count
 msgid "Number of Service Pauses"
 msgstr "Número de pausas de servicio"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_has_error_counter
+msgid "Number of errors"
+msgstr "Número de errores"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "Número de mensajes que requieren acción"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "Número de mensajes con error de envío"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Only a contract manager can approve this termination. If you are not a manager, please ask one to continue."
+msgstr "Solo un gestor de contratos puede aprobar esta terminación. Si no eres gerente, por favor pídele que continúe."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Only active or renewal-due contracts can be terminated."
+msgstr "Solo se pueden rescindir contratos activos o con fecha de renovación."
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__docusign_connector__state__open
@@ -1090,7 +1895,6 @@ msgstr "Otra información"
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__transfer_reason__otro
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_transfer_wizard__transfer_reason__otro
-#, fuzzy
 msgid "Otro"
 msgstr "Otro"
 
@@ -1098,7 +1902,6 @@ msgstr "Otro"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "PAGARE SIN PROTESTO"
 msgstr "PAGARE SIN PROTESTO"
 
@@ -1106,7 +1909,6 @@ msgstr "PAGARE SIN PROTESTO"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid ""
 "PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, \n"
 "                                el día _______ de _________ del año _________ la cantidad de"
@@ -1122,11 +1924,9 @@ msgid "Package docusign-esign not found. If you plan to use it, please install t
 msgstr "Paquete docusign-esign no encontrado. Si planea usarlo, instale la biblioteca docusign-esign desde https://pypi.org/project/docusign-esign/"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docu_client.py:0
-#, python-format
-msgid "Package httplib2 not found.If you plan to use it, please install the httplib2 library from https://pypi.org/project/httplib2/"
-msgstr "No se ha encontrado el paquete httplib2. Si planea usarlo, instale la biblioteca httplib2 desde https://pypi.org/project/httplib2/"
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__partner_id
+msgid "Partner"
+msgstr "Socio"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_pause_subscription_wizard
@@ -1154,6 +1954,11 @@ msgstr "Pausar Suscripción"
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__4_paused
 msgid "Paused"
 msgstr "En pausa"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__payment_id
+msgid "Payment"
+msgstr "Pago"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1d_internal
@@ -1193,16 +1998,50 @@ msgstr "Plan:"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Plazo de Contrato:"
 msgstr "Plazo de Contrato:"
 
 #. module: contract_management
 #. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
 #, python-format
-msgid "Please ensure the previous recipient has signed the document: %s"
-msgstr "Asegúrese de que el destinatario anterior haya firmado el documento: %s"
+msgid "Please add notes about this termination."
+msgstr "Por favor, añade notas sobre este despido."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Please check \"Client paid early termination cost\" before continuing."
+msgstr "Por favor, revisa \"Coste de terminación anticipada pagada por el cliente\" antes de continuar."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Please confirm the client has paid the early termination cost to proceed."
+msgstr "Por favor, confirme que el cliente ha pagado el coste de la terminación anticipada para proceder."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Please confirm the client returned all issued equipment before closing the contract."
+msgstr "Por favor, confirme que el cliente devolvió todo el equipo entregado antes de cerrar el contrato."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Please rate our service before finishing the termination."
+msgstr "Por favor, valora nuestro servicio antes de finalizar la terminación."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Please select a reason for closure."
+msgstr "Por favor, selecciona un motivo para cerrar el capítulo."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -1210,6 +2049,11 @@ msgstr "Asegúrese de que el destinatario anterior haya firmado el documento: %s
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "Por US$"
 msgstr "Por US$"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__access_url
+msgid "Portal Access URL"
+msgstr "URL de acceso al portal"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__previous_partner_id
@@ -1232,6 +2076,7 @@ msgid "Problems"
 msgstr "Problemas"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__problems_experienced
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__problems_experienced
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__problems_experienced
 msgid "Problems Experienced"
@@ -1255,15 +2100,36 @@ msgid "Production"
 msgstr "Producción"
 
 #. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_proposal_sent
+msgid "Proposal Sent"
+msgstr "Propuesta enviada"
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1_draft
 msgid "Quotation"
 msgstr "Cotización"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1e_confirm
+msgid "Quotation Confirmed"
+msgstr "Cita confirmada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__quote_confirmed
+msgid "Quote Confirmed"
+msgstr "Cita confirmada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__service_rating
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__service_rating
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__service_rating
 msgid "Rate Our Service"
 msgstr "Califica nuestro servicio"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__rating_ids
+msgid "Ratings"
+msgstr "Calificaciones"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_reactivate_subscription_wizard
@@ -1293,16 +2159,23 @@ msgid "Reason for Cancelation"
 msgstr "Motivo de la cancelación"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__reason
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__reason
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_closure_wizard_form
 msgid "Reason for Closure"
 msgstr "Motivo del cierre"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__other_reason
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__other_reason
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__other_reason
 msgid "Reasons for Other"
 msgstr "Otras razones"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Recompute Total Paid"
+msgstr "Recalcular el Total Pagado"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__record_name
@@ -1313,6 +2186,11 @@ msgstr "Nombre Registro"
 #: model:ir.model.fields,field_description:contract_management.field_res_users__redirect_url
 msgid "Redirect URL"
 msgstr "Redireccionar URL"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Refresh"
+msgstr "Refrescar"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_users_form_preferences
@@ -1330,14 +2208,74 @@ msgid "Remaining Period"
 msgstr "Período restante"
 
 #. module: contract_management
+#: model:crm.tag,name:contract_management.crm_tag_renewal model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Renewal"
+msgstr "Renovación"
+
+#. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_renewal_due
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_renewal_due
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_dashboard__state__renewal_due
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__renewal_due
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_kanban
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Renewal Due"
 msgstr "Renovación proximamente"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_renewal_due
+msgid "Renewal Due Avg Value"
+msgstr "Renovación debida Valor medio"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_renewal_due
+msgid "Renewal Due Total Value"
+msgstr "Renovación debida al valor total"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__renewal_notice_days
+msgid "Renewal Notice Days"
+msgstr "Días de Aviso de Renovación"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__renewal_lead_id
+#, python-format
+msgid "Renewal Opportunity"
+msgstr "Oportunidad de renovación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__renewal_owner_id
+msgid "Renewal Owner"
+msgstr "Propietario de la renovación"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__2_renewal
 msgid "Renewal Quotation"
 msgstr "Cotización de la renovación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__renewal_state
+msgid "Renewal State"
+msgstr "Estado de Renovación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Renewal Tracking"
+msgstr "Seguimiento de renovaciones"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Renewal due (within %s days of end date)."
+msgstr "Renovación prevista (dentro de %s días desde la fecha de finalización)."
+
+#. module: contract_management
+#: model:crm.team,name:contract_management.crm_team_renewals
+msgid "Renewals"
+msgstr "Renovaciones"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__5_renewed
@@ -1350,15 +2288,34 @@ msgid "Rental Property Contract"
 msgstr "Contrato de Servicio para Propiedades Alquiladas"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__requires_manager_approval
+msgid "Requires Manager Approval"
+msgstr "Requiere la aprobación del gestor"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Resend via Email"
+msgstr "Reenviar por correo electrónico"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Resend via WhatsApp"
+msgstr "Reenviar vía WhatsApp"
+
+#. module: contract_management
 #: model:ir.actions.report,name:contract_management.action_report_contract
 msgid "Residental Contract"
 msgstr "Contrato Servicio Residencial"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_user_id
+msgid "Responsible User"
+msgstr "Usuario responsable"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Resumen Amigable del Contrato de Servicios de Internet"
 msgstr "Resumen Amigable del Contrato de Servicios de Internet"
 
@@ -1366,9 +2323,13 @@ msgstr "Resumen Amigable del Contrato de Servicios de Internet"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "SERVICIOS CONTRATADOS"
 msgstr "SERVICIOS CONTRATADOS"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "Error de entrega del SMS"
 
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_sale_cover_letter
@@ -1396,9 +2357,26 @@ msgid "Secuencia Cabal"
 msgstr "Secuencia Cabal"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__access_token
+msgid "Security Token"
+msgstr "Token de seguridad"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_send_method_wizard_form
 msgid "Select Send Method"
 msgstr "Seleccione el método de envío"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Select the payment that covers the early termination cost shown above."
+msgstr "Selecciona el pago que cubra el coste de cancelación anticipada que se muestra arriba."
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__payment_id
+msgid "Select the payment that settles the early termination cost."
+msgstr "Selecciona el pago que cubra el coste de finalización anticipada."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_sale_subscription_order_primary_form_close
@@ -1418,6 +2396,11 @@ msgid "Sent"
 msgstr "Enviado"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__sent_for_signature
+msgid "Sent for Signature"
+msgstr "Enviado para firmar"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__sequence
 msgid "Sequence"
 msgstr "Secuencia"
@@ -1428,15 +2411,70 @@ msgid "Service Name"
 msgstr "Nombre del Servicio"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Service Pauses"
+msgstr "Pauses de servicio"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__service_ids
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 msgid "Services"
 msgstr "Servicios"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__signature_in_process
-msgid "Signature In Process"
-msgstr "Firma en proceso"
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_completed
+msgid "Signature Completed Avg Value"
+msgstr "Valor medio de firma completada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_sig_completed
+msgid "Signature Completed Total Value"
+msgstr "Valor Total de la firma completada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_customer
+msgid "Signature Customer Avg Value"
+msgstr "Valor medio de Signature Customer"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_sig_customer
+msgid "Signature Customer Total Value"
+msgstr "Valor Total del Cliente Signature"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Signature Information"
+msgstr "Información de la firma"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_new
+msgid "Signature New Avg Value"
+msgstr "Nuevo valor medio de firma"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_sig_new
+msgid "Signature New Total Value"
+msgstr "Nuevo valor total de firma"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_open
+msgid "Signature Open Avg Value"
+msgstr "Valor medio abierto de firma"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_sig_open
+msgid "Signature Open Total Value"
+msgstr "Valor Total Abierto de la Firma"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_sent
+msgid "Signature Sent Avg Value"
+msgstr "Valor medio de la firma enviada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_sig_sent
+msgid "Signature Sent Total Value"
+msgstr "Valor total de la firma enviada"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__docusign_status
@@ -1444,9 +2482,53 @@ msgid "Signature Status"
 msgstr "Estado de la firma"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__signed
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__signature_summary_html
+msgid "Signature Summary Table"
+msgstr "Tabla resumen de firmas"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_sig_completed
+msgid "Signature: Completed"
+msgstr "Firma: Completada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_sig_customer
+msgid "Signature: Customer Signed"
+msgstr "Firma: Firmada por el cliente"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_sig_new
+msgid "Signature: New"
+msgstr "Firma: Nuevo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_sig_open
+msgid "Signature: Open"
+msgstr "Firma: Abierto"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_sig_sent
+msgid "Signature: Sent"
+msgstr "Firma: Enviada"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__signed
 msgid "Signed"
 msgstr "Firmado"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__signed_document_ids
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+#, python-format
+msgid "Signed Documents"
+msgstr "Documentos firmados"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "Signed on:"
+msgstr "Firmado el:"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_transfer_wizard__contract_option__standard_period
@@ -1455,11 +2537,23 @@ msgstr "Período de contrato estándar"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__start_date
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Start Date"
 msgstr "Fecha de inicio"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__date_from
+msgid "Start Date From"
+msgstr "Fecha de inicio desde"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__date_to
+msgid "Start Date To"
+msgstr "Fecha de inicio"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_docusign_connector__state
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "State"
 msgstr "Estado"
 
@@ -1469,12 +2563,38 @@ msgid "Status"
 msgstr "Estado"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__state
+msgid "Status Filter"
+msgstr "Filtro de estado"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"Estado basado en actividades\n"
+"Vencida: la fecha tope ya ha pasado\n"
+"Hoy: La fecha tope es hoy\n"
+"Planificada: futuras actividades."
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__state
+msgid "Step"
+msgstr "Paso"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__subscription_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__subscription_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_reactivate_subscription_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__subscription_id
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Subscription"
 msgstr "Suscripción"
 
@@ -1529,7 +2649,7 @@ msgstr "Problema de suscripción"
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_subscription_problem
 msgid "Subscription Problem Model"
-msgstr "Modelo de problema de suscripción"
+msgstr "Modelo de Problema de Suscripción"
 
 #. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_subscription_problem
@@ -1556,6 +2676,26 @@ msgid "Successful"
 msgstr "Exitoso"
 
 #. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__total_paid
+msgid "Sum of paid monthly invoices (tax-inclusive) linked to this subscription"
+msgstr "Suma de las facturas mensuales pagadas (impuestos incluidos) vinculadas a esta suscripción"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Summary"
+msgstr "Resumen"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Summary by Contract Status"
+msgstr "Resumen por estado del contrato"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Summary by Signature Status"
+msgstr "Resumen por estado de firma"
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__8_suspend
 msgid "Suspended"
 msgstr "Suspendido"
@@ -1575,6 +2715,7 @@ msgid "TERMINOS"
 msgstr "TÉRMINOS"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__tv_included
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__tv_included
 msgid "TV Included?"
 msgstr "TV incluido?"
@@ -1599,19 +2740,41 @@ msgid "Telephone"
 msgstr "Teléfono"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__telephone_included
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__telephone_included
 msgid "Telephone Included?"
 msgstr "¿Teléfono incluido?"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
-msgid "Terminate"
-msgstr "Terminar"
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0 model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+#, python-format
+msgid "Terminate Contract"
+msgstr "Finalizar Contrato"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_terminated
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_dashboard__state__terminated
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__state__terminated
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Terminated"
 msgstr "Terminado"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_terminated
+msgid "Terminated Avg Value"
+msgstr "Valor medio terminado"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_terminated
+msgid "Terminated Total Value"
+msgstr "Valor Total terminado"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "Terms & Fees"
+msgstr "Términos y Comisiones"
 
 #. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_sale_terms_conditions
@@ -1628,14 +2791,91 @@ msgid "Terms/Conditions"
 msgstr "Términos/Condiciones"
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "The payment amount ($%.2f) does not match the early termination cost ($%.2f). Please select a payment with the exact amount."
+msgstr "El importe del pago (%.2f $) no coincide con el coste de la cancelación anticipada (%.2f $). Por favor, selecciona un pago con la cantidad exacta."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid ""
+"The selected payment amount does not match the early termination cost (expected %(expected).2f, got %(actual).2f). Please choose a payment for the exact amount."
+msgstr ""
+"La cantidad de pago seleccionada no coincide con el coste de cancelación anticipada (esperado %(expected).2f, got %(actual).2f). Por favor, elige un pago para "
+"la cantidad exacta."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "The selected payment belongs to %(payment_partner)s. Please choose a payment from %(contract_partner)s."
+msgstr "El pago seleccionado pertenece a %(payment_partner)s. Por favor, elige un pago de %(contract_partner)s."
+
+#. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_management__start_date
 msgid "The start date indicate when the subscription periods begin."
 msgstr "La fecha de inicio indica cuándo comienzan los períodos de suscripción."
 
 #. module: contract_management
-#: model:ir.model.fields,field_description:contract_management.field_contract_management__total_amount
-msgid "Total Amount"
-msgstr "Cantidad total"
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "This will resend the DocuSign notification via Email using the current partner contact information. Continue?"
+msgstr "Esto reenviará la notificación de DocuSign por correo electrónico usando la información de contacto actual del socio. ¿Continuar?"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "This will resend the DocuSign notification via WhatsApp using the current partner contact information. Continue?"
+msgstr "Esto reenviará la notificación de DocuSign a través de WhatsApp usando la información de contacto actual del socio. ¿Continuar?"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__top_partners_summary
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Top Partners"
+msgstr "Principales socios"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_tree
+msgid "Total"
+msgstr "Total"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_contract_value
+msgid "Total Contract Value"
+msgstr "Valor total del contrato"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_contracts
+msgid "Total Contracts"
+msgstr "Total de contratos"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
+msgid "Total Count"
+msgstr "Cuenta Total"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__total_paid
+msgid "Total Paid"
+msgstr "Total pagado"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Total Paid recomputed: %0.2f"
+msgstr "Total pagado recalculado: %0.2f"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__contract_value
+msgid "Total contract value from DocuSign envelope"
+msgstr "Valor total del contrato del sobre de DocuSign"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_docusign_connector__monthly_payment
+msgid "Total of recurring line items with taxes"
+msgstr "Total de partidas recurrentes con impuestos"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
@@ -1655,8 +2895,12 @@ msgid "Transfer of Ownership of Property"
 msgstr "Transferencia de Propiedad de la Propiedad"
 
 #. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "Tipo de actividad de excepción registrada."
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.report_saleorder_document_inherit
-#, fuzzy
 msgid "Términos y Condiciones"
 msgstr "Términos y Condiciones"
 
@@ -1666,6 +2910,12 @@ msgid "UUID"
 msgstr "UUID"
 
 #. module: contract_management
+#: model:ir.actions.act_window,name:contract_management.action_contract_upload_wizard
+msgid "Upload Contract"
+msgstr "Contrato de Subida"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__upload
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__upload
 msgid "Upload Speed"
 msgstr "Velocidad de subida"
@@ -1691,6 +2941,26 @@ msgid "Version"
 msgstr "Versión"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
+msgid "View DocuSign Envelope"
+msgstr "Ver sobre de DocuSign"
+
+#. module: contract_management
+#: model_terms:ir.actions.act_window,help:contract_management.action_contract_dashboard
+msgid "View contract statistics by status, partner, term, and expiration date."
+msgstr "Consulta las estadísticas de contratos por estado, socio, plazo y fecha de expiración."
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_management__website_message_ids
+msgid "Website Messages"
+msgstr "Mensajes del sitio web"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_management__website_message_ids
+msgid "Website communication history"
+msgstr "Historial de comunicaciones del sitio web"
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__contract_send_method__whatsapp
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_send_method_wizard__send_method__whatsapp
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__contract_send_method__whatsapp
@@ -1698,25 +2968,12 @@ msgid "WhatsApp"
 msgstr "WhatsApp"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "WhatsApp number for recipient is not valid: "
-msgstr "El número de WhatsApp del destinatario no es válido: "
-
-#. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/docusign_connector.py:0
-#, python-format
-msgid "WhatsApp number has not been defined for recipient: "
-msgstr "No se ha definido el número de WhatsApp para el destinatario: "
-
-#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
+#, fuzzy
 msgid "Whatsapp:"
-msgstr "Whatsapp:"
+msgstr "<i class=\"fa fa-whatsapp me-1\"/>  Envía un mensaje"
 
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_pause_subscription_wizard
@@ -1727,6 +2984,18 @@ msgstr "Asistente para pausar la suscripción"
 #: model:ir.model,name:contract_management.model_reactivate_subscription_wizard
 msgid "Wizard to Reactivate Subscription"
 msgstr "Asistente para reactivar la suscripción"
+
+#. module: contract_management
+#: model:crm.stage,name:contract_management.crm_stage_won_renewed
+msgid "Won - Renewed"
+msgstr "Ganado - Renovado"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Yes"
+msgstr "Sí"
 
 #. module: contract_management
 #. odoo-python
@@ -1742,8 +3011,30 @@ msgstr ""
 " - No tiene período facturado en el futuro."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "contratos@company.com"
+msgstr "contratos@company.com"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "de"
 msgstr "de"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "iVBORw0KGgoAAAANSUhEUgAA..."
+msgstr "iVBORw0KGgoAAAANSUhEUgAA..."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
+msgid "months"
+msgstr "meses"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "none"
+msgstr "ninguno"
