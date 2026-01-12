@@ -14,6 +14,7 @@
         'data/contract_expiration_cron.xml',
         'data/contract_renewal_cron.xml',
         'data/contract_mtm_aging_cron.xml',
+        'data/cm_renewals_pipeline.xml',
         'views/view_contract_clause.xml',
         'views/sale_order_views.xml',
         'views/sale_cover_letter_views.xml',

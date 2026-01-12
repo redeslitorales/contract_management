@@ -1,0 +1,73 @@
+<odoo>
+  <data noupdate="1">
+
+    <record id="crm_team_renewals" model="crm.team">
+      <field name="name">Renewals</field>
+      <field name="use_leads">False</field>
+      <field name="use_opportunities">True</field>
+    </record>
+
+    <record id="crm_tag_renewal" model="crm.tag">
+      <field name="name">Renewal</field>
+    </record>
+
+    <record id="crm_tag_mtm" model="crm.tag">
+      <field name="name">MTM</field>
+    </record>
+
+    <record id="crm_tag_mtm_90" model="crm.tag">
+      <field name="name">MTM 90+</field>
+    </record>
+
+    <record id="crm_stage_renewal_due" model="crm.stage">
+      <field name="name">Renewal Due</field>
+      <field name="sequence">10</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">False</field>
+    </record>
+
+    <record id="crm_stage_contacted" model="crm.stage">
+      <field name="name">Contacted</field>
+      <field name="sequence">20</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">False</field>
+    </record>
+
+    <record id="crm_stage_proposal_sent" model="crm.stage">
+      <field name="name">Proposal Sent</field>
+      <field name="sequence">30</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">False</field>
+    </record>
+
+    <record id="crm_stage_docusign_sent" model="crm.stage">
+      <field name="name">DocuSign Sent</field>
+      <field name="sequence">40</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">False</field>
+    </record>
+
+    <record id="crm_stage_won_renewed" model="crm.stage">
+      <field name="name">Won - Renewed</field>
+      <field name="sequence">90</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="is_won">True</field>
+      <field name="fold">True</field>
+    </record>
+
+    <record id="crm_stage_lost_mtm" model="crm.stage">
+      <field name="name">Lost - Stayed MTM</field>
+      <field name="sequence">95</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">True</field>
+    </record>
+
+    <record id="crm_stage_lost_churn" model="crm.stage">
+      <field name="name">Lost - Churn</field>
+      <field name="sequence">100</field>
+      <field name="team_id" ref="contract_management.crm_team_renewals"/>
+      <field name="fold">True</field>
+    </record>
+
+  </data>
+</odoo>

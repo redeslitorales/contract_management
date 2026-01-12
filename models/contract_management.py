@@ -247,6 +247,13 @@ class ContractManagement(models.Model):
             ensure('Final 7-day renewal attempt', 0)
             ensure('Send WhatsApp final notice (7d)', 0)
 
+    def _get_renewal_owner_user(self):
+        self.ensure_one()
+        sub = self.subscription_id
+        if sub and sub.sale_order_id and sub.sale_order_id.user_id:
+            return sub.sale_order_id.user_id
+        return self.env.user
+
     @api.model
     def cron_push_renewals_to_crm(self):
         today = fields.Date.context_today(self)
@@ -321,6 +328,11 @@ class ContractManagement(models.Model):
 
                 contract.action_create_or_update_renewal_opportunity()
 
+                if bucket == 'mtm_90_plus' and contract.renewal_lead_id:
+                    contract.renewal_lead_id.write({
+                        'tag_ids': [(4, self.env.ref('contract_management.crm_tag_mtm_90').id)],
+                    })
+
     def action_open_renewal_opportunity(self):
         self.ensure_one()
         if not self.renewal_lead_id:
@@ -338,21 +350,53 @@ class ContractManagement(models.Model):
         self.ensure_one()
         Lead = self.env['crm.lead'].sudo()
 
-        if self.renewal_lead_id and self.renewal_lead_id.active:
-            lead = self.renewal_lead_id
-        else:
-            lead = Lead.create({
+        owner = self._get_renewal_owner_user()
+
+        team = self.env.ref('contract_management.crm_team_renewals', raise_if_not_found=False)
+        tag = self.env.ref('contract_management.crm_tag_renewal', raise_if_not_found=False)
+        stage = self.env.ref('contract_management.crm_stage_renewal_due', raise_if_not_found=False)
+
+        # If these are missing, better to fail gracefully (especially for cron callers)
+        if not team or not stage:
+            # optional: self.message_post(...) or log warning
+            return False
+
+        lead = self.renewal_lead_id
+
+        # Recreate if missing / inactive / not an opportunity
+        if not lead or not lead.active or lead.type != 'opportunity':
+            vals = {
                 'type': 'opportunity',
                 'name': f"Renewal - {self.partner_id.name} - {self.name}",
                 'partner_id': self.partner_id.id,
-                'user_id': self.env.user.id,
-            })
+                'user_id': owner.id,
+                'team_id': team.id,
+                'stage_id': stage.id,   # set stage on create
+            }
+            if tag:
+                vals['tag_ids'] = [(4, tag.id)]
+            lead = Lead.create(vals)
             self.renewal_lead_id = lead.id
+        else:
+            write_vals = {
+                'name': f"Renewal - {self.partner_id.name} - {self.name}",
+                'partner_id': self.partner_id.id,
+                'user_id': owner.id,
+                'team_id': team.id,
+            }
 
-        lead.write({
-            'partner_id': self.partner_id.id,
-            'name': f"Renewal - {self.partner_id.name} - {self.name}",
-        })
+            # IMPORTANT: don't force stage back to Renewal Due
+            # Only set stage if it's empty (rare) or the lead has no stage.
+            if not lead.stage_id:
+                write_vals['stage_id'] = stage.id
+
+            # Add tag only if missing
+            if tag and tag.id not in lead.tag_ids.ids:
+                write_vals.setdefault('tag_ids', [])
+                write_vals['tag_ids'].append((4, tag.id))
+
+            if write_vals:
+                lead.write(write_vals)
 
         return {
             'type': 'ir.actions.act_window',

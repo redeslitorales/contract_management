@@ -73,6 +73,17 @@
                                    decoration-warning="docusign_status in ['new', 'open']"/>
                             <field name="contract_send_method"/>
                         </group>
+                        <group string="Renewal Tracking" name="renewal_tracking">
+                            <field name="renewal_state" widget="badge"
+                                   decoration-success="renewal_state == 'signed'"
+                                   decoration-info="renewal_state in ['in_progress', 'sent_for_signature']"
+                                   decoration-warning="renewal_state == 'expired_mtm'"
+                                   decoration-danger="renewal_state == 'lost'"
+                                   decoration-muted="renewal_state == 'not_started'"/>
+                            <field name="renewal_owner_id"/>
+                            <field name="renewal_lead_id" options="{'no_create': True}"/>
+                            <field name="renewal_notice_days"/>
+                        </group>
                         <group string="MTM" invisible="state != 'expired'">
                             <field name="mtm_start_date" readonly="1"/>
                             <field name="mtm_age_days" readonly="1"/>
