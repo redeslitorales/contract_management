@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         ADENDA / CONVENIO MODIFICATORIO (EL SALVADOR) - QWEB REPORT
+         Replaces: Servicios Contratados + Pagaré sin Protesto
+         ========================================================= -->
+
+    <template id="report_contract_addendum_template_es">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.basic_layout">
+
+                    <div class="page" style="font-size: 12px;">
+
+                        <!-- HEADER -->
+                        <div class="mb-3">
+                            <h3 class="text-center m-0">ADENDA / CONVENIO MODIFICATORIO</h3>
+                            <h5 class="text-center mt-1">AL CONTRATO DE PRESTACIÓN DE SERVICIOS</h5>
+                        </div>
+
+                        <!-- PARTY + CONTRACT IDENTIFICATION -->
+                        <div class="border rounded p-3 mb-3">
+                            <div>
+                                En la ciudad de <strong>________________</strong>, a los ______ días del mes de __________ del año ________,
+                                comparecen por una parte <strong>REDES LITORALES, S.A. DE C.V.</strong>, en adelante <strong>“LA EMPRESA”</strong>,
+                                y por la otra <strong><t t-esc="doc.partner_id.name"/></strong>,
+                                con Documento de Identidad No. <strong><t t-esc="doc.partner_id.vat or ''"/></strong>,
+                                en adelante <strong>“EL CLIENTE”</strong>.
+                            </div>
+
+                            <div class="mt-2">
+                                Las partes manifiestan que han celebrado previamente un Contrato de Prestación de Servicios (el <strong>“Contrato Original”</strong>),
+                                identificado como: <strong><t t-esc="doc.name or ''"/></strong>
+                                <t t-if="doc.create_date">
+                                    , en fecha <strong><t t-esc="format_date(doc.create_date) if format_date else doc.create_date.strftime('%d/%m/%Y')"/></strong>
+                                </t>.
+                            </div>
+
+                            <div class="mt-2">
+                                Por medio de la presente Adenda, las partes acuerdan modificar el Contrato Original
+                                <strong>únicamente</strong> en lo relativo a la sección <strong>“Servicios Contratados”</strong> y al <strong>“Pagaré sin Protesto”</strong>,
+                                según se detalla a continuación.
+                            </div>
+                        </div>
+
+                        <!-- CLAUSE 1: REPLACE CONTRACTED SERVICES -->
+                        <div class="mb-3">
+                            <h5 class="m-0">PRIMERA: SUSTITUCIÓN DE SERVICIOS CONTRATADOS</h5>
+                            <div class="mt-2">
+                                A partir de la fecha de firma de la presente Adenda, las partes acuerdan que
+                                <strong>se sustituye en su totalidad</strong> la sección denominada <strong>“SERVICIOS CONTRATADOS”</strong> del Contrato Original,
+                                quedando sin efecto cualquier versión anterior de dicha sección.
+                            </div>
+                            <div class="mt-2">
+                                Los servicios vigentes se detallan en el <strong>ANEXO 1</strong> de la presente Adenda,
+                                el cual forma parte integrante de la misma para todos los efectos legales.
+                            </div>
+                        </div>
+
+                        <!-- ANNEX 1: SERVICES (REBUILT FROM RECURRING LINES) -->
+                        <div class="border rounded p-3 mb-4">
+                            <h5 class="m-0">ANEXO 1: SERVICIOS CONTRATADOS (VIGENTES)</h5>
+
+                            <!-- Get recurring products and total (same pattern as your contract template) -->
+                                     <t t-set="recurring_lines"
+                                         t-value="doc.order_line.filtered(lambda l: l.product_template_id.recurring_invoice) if hasattr(doc, 'order_line') else (doc.recurring_invoice_line_ids if hasattr(doc, 'recurring_invoice_line_ids') else [])"/>
+                                     <t t-set="monthly_total"
+                                         t-value="sum(recurring_lines.mapped(lambda l: (l.price_unit or 0.0) * (l.product_uom_qty or 1.0))) if recurring_lines else (doc.recurring_total if hasattr(doc, 'recurring_total') and doc.recurring_total not in (None, False) else (doc.amount_total if hasattr(doc, 'amount_total') and doc.amount_total not in (None, False) else 0.0))"/>
+
+                            <div class="mt-3">
+                                <t t-if="recurring_lines">
+                                    <t t-foreach="recurring_lines" t-as="line">
+                                        <div class="row mb-2">
+                                            <div class="col-8">
+                                                <span class="bg-light px-2 py-1 d-inline-block">
+                                                    Servicio/Plan: <t t-esc="line.name"/>
+                                                </span>
+                                            </div>
+                                            <div class="col-4 text-end">
+                                                <span class="bg-light px-2 py-1 d-inline-block">
+                                                    US$ <t t-esc="line.price_unit"
+                                                          t-options="{&quot;widget&quot;: &quot;float&quot;, &quot;precision&quot;: 2}"/>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </t>
+
+                                    <div class="row mt-3">
+                                        <div class="col-8 text-end">
+                                            <strong>Mensualidad Total:</strong>
+                                        </div>
+                                        <div class="col-4 text-end">
+                                            <strong>US$ <t t-esc="monthly_total"
+                                                          t-options="{&quot;widget&quot;: &quot;float&quot;, &quot;precision&quot;: 2}"/></strong>
+                                        </div>
+                                    </div>
+
+                                </t>
+                                <t t-else="">
+                                    <div class="mt-2">
+                                        No se encontraron líneas recurrentes en el documento. Verifique que el servicio esté marcado como recurrente.
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="mt-3" style="font-size: 0.95em;">
+                                Cobro por morosidad en el pago: <strong>5%</strong> (según condiciones del Contrato Original, salvo disposición distinta aplicable).
+                            </div>
+                        </div>
+
+                        <!-- CLAUSE 2: REPLACE PAGARE -->
+                        <div class="mb-3">
+                            <h5 class="m-0">SEGUNDA: SUSTITUCIÓN DEL PAGARÉ SIN PROTESTO</h5>
+                            <div class="mt-2">
+                                Como consecuencia de la actualización de los servicios contratados, las partes acuerdan que el pagaré sin protesto
+                                suscrito con anterioridad <strong>queda sin efecto</strong> y es <strong>sustituido en su totalidad</strong> por el pagaré que se adjunta
+                                como <strong>ANEXO 2</strong>, el cual refleja las condiciones económicas vigentes.
+                            </div>
+                        </div>
+
+                        <!-- PAGE BREAK -->
+                        <div style="page-break-before: always;"></div>
+
+                        <!-- ANNEX 2: PAGARE SIN PROTESTO (UPDATED) -->
+                        <div class="border rounded p-4 mt-2">
+                            <div class="row align-items-center">
+                                <div class="col-8">
+                                    <h5 class="m-0">ANEXO 2: PAGARÉ SIN PROTESTO</h5>
+                                </div>
+                                <div class="col-4 text-end">
+                                    Por US$ <strong>
+                                        <t t-esc="doc.contract_value"
+                                           t-options="{&quot;widget&quot;: &quot;float&quot;, &quot;precision&quot;: 2}"/>
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div class="mt-3" style="text-align: justify;">
+                                Yo, <strong><t t-esc="doc.partner_id.name"/></strong>, mayor de edad, portador(a) del Documento de Identidad No.
+                                <strong><t t-esc="doc.partner_id.vat or ''"/></strong>, por medio del presente PAGARÉ SIN PROTESTO me obligo a pagar
+                                a la orden de <strong>REDES LITORALES, S.A. DE C.V.</strong>, en la ciudad de __________________, el día _______ de _________ del año _________,
+                                la cantidad de
+                                <strong>
+                                    <t t-esc="doc.contract_value_amount_to_text()"/> DE LOS ESTADOS UNIDOS DE AMÉRICA
+                                </strong>,
+                                más los intereses convencionales y/o moratorios que correspondan conforme a las condiciones pactadas.
+                            </div>
+
+                            <div class="mt-3" style="text-align: justify;">
+                                El presente pagaré sustituye y deja sin efecto cualquier pagaré anterior relacionado al Contrato Original,
+                                en virtud de la actualización de servicios efectuada por la presente Adenda.
+                            </div>
+
+                            <div class="row mt-5">
+                                <div class="col-6 text-center">
+                                    <p class="m-0"><strong>Firma del Cliente</strong></p>
+                                    <p class="m-0">/sn1/</p>
+                                    <div class="mt-4">_______________________________</div>
+                                    <div><t t-esc="doc.partner_id.name"/></div>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <p class="m-0"><strong>Firma de LA EMPRESA</strong></p>
+                                    <p class="m-0">/sn1/</p>
+                                    <div class="mt-4">_______________________________</div>
+                                    <div>
+                                        <t t-esc="doc.user_id.name if hasattr(doc,'user_id') and doc.user_id else 'Representante Autorizado'"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BACK TO CLAUSE 3 + SIGNATURES -->
+                        <div style="page-break-before: always;"></div>
+
+                        <div class="mb-3">
+                            <h5 class="m-0">TERCERA: RATIFICACIÓN</h5>
+                            <div class="mt-2" style="text-align: justify;">
+                                Todas las demás cláusulas del Contrato Original que no hayan sido expresamente modificadas por la presente Adenda
+                                <strong>permanecen vigentes</strong> y obligatorias para las partes.
+                            </div>
+                        </div>
+
+                        <div class="mb-4" style="text-align: justify;">
+                            Leída que fue la presente Adenda y enteradas las partes de su contenido y efectos legales, la firman en dos ejemplares
+                            del mismo tenor, en la ciudad y fecha arriba indicadas.
+                        </div>
+
+                        <div class="row mt-5">
+                            <div class="col-6 text-center">
+                                <p class="m-0"><strong>EL CLIENTE</strong></p>
+                                <div class="mt-4">_______________________________</div>
+                                <div><t t-esc="doc.partner_id.name"/></div>
+                            </div>
+                            <div class="col-6 text-center">
+                                <p class="m-0"><strong>LA EMPRESA</strong></p>
+                                <div class="mt-4">_______________________________</div>
+                                <div>
+                                    <t t-esc="doc.user_id.name if hasattr(doc,'user_id') and doc.user_id else 'Representante Autorizado'"/>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

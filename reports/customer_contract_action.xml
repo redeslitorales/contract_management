@@ -45,4 +45,16 @@
         <field name="print_report_name">'Contract - %s' % (object.name)</field>
         <field name="paperformat_id" ref="base.paperformat_euro"/>
     </record>
+    <record id="action_report_contract_addendum_es" model="ir.actions.report">
+        <field name="name">Adenda / Convenio Modificatorio (ES)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">contract_management.report_contract_addendum_template_es</field>
+        <field name="report_file">contract_management.report_contract_addendum_template_es</field>
+        <field name="print_report_name">'Adenda - %s' % (object.name or '')</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+        <!-- Shows under Print menu -->
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
 </odoo>

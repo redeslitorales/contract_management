@@ -18,3 +18,9 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='contract_management.docusign_company_stamp_base64',
         size=None
     )
+    
+    contract_cancellation_email = fields.Char(
+        string='Cancellation Notification Email',
+        help='Email address to receive notifications when customers intend to cancel their contracts',
+        config_parameter='contract_management.contract_cancellation_email'
+    )

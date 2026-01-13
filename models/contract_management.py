@@ -250,8 +250,8 @@ class ContractManagement(models.Model):
     def _get_renewal_owner_user(self):
         self.ensure_one()
         sub = self.subscription_id
-        if sub and sub.sale_order_id and sub.sale_order_id.user_id:
-            return sub.sale_order_id.user_id
+        if sub and sub.user_id:
+            return sub.user_id
         return self.env.user
 
     @api.model
@@ -1215,12 +1215,12 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.subscription_state == '1d_internal':  # Customer signed, awaiting Cabal signature
+                        if subscription.subscription_state in ['1d_internal', '1a_pending']:  # Customer signed, awaiting Cabal signature
                             subscription.subscription_state = '1b_install'  # All signatures complete, ready for install
                         else:
                             # Post warning to subscription chatter
                             subscription.message_post(
-                                body=_("Could not update subscription state. Current state is '%s' but should have been '1d_internal' (Pending Cabal Signature) for envelope-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
+                                body=_("Could not update subscription state. Current state is '%s' but should have been '1a_pending' (Pending Customer Signature) or '1d_internal' (Pending Cabal Signature) for envelope-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
                                 subject=_('DocuSign State Mismatch Warning'),
                                 message_type='notification',
                                 subtype_xmlid='mail.mt_note'

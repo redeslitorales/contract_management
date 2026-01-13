@@ -32,6 +32,19 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Cancellation Settings">
+                        <setting>
+                            <label for="contract_cancellation_email" string="Cancellation Notification Email"/>
+                            <div class="text-muted">
+                                Email address to receive notifications when customers intend to cancel their contracts
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="contract_cancellation_email" placeholder="cancelaciones@company.com"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
