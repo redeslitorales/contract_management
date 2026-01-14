@@ -15,6 +15,11 @@
             <xpath expr="//form[1]/header[1]/button[@name='action_confirm'][2]" position="attributes">
                 <attribute name="invisible">subscription_state != "1e_confirm"</attribute>
             </xpath>
+            <xpath expr="//form[1]/header[1]" position="inside">
+                <button string="Resend Contract" type="object" name="action_resend_contract"
+                        class="btn-secondary" icon="fa-refresh"
+                        modifiers="{'invisible': [['can_resend_contract', '=', False]]}"/>
+            </xpath>
 <!--            <xpath expr="//form[1]/header[1]/button[@name='activate_onu']" position="attributes">
                 <attribute name="invisible">subscription_state not in ["1b_install", "1d_internal"]</attribute>
             </xpath>

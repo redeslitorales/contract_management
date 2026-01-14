@@ -84,6 +84,7 @@ class SaleSubscription(models.Model):
     contract_ids = fields.One2many('contract.management', 'subscription_id', string="Contracts")
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
     docusign_ids = fields.One2many('docusign.connector', 'sale_id', string="DocuSign Envelopes")
+    can_resend_contract = fields.Boolean(string='Can Resend Contract', compute='_compute_can_resend_contract')
     transfer_date = fields.Date(string="Date of Transfer")
     transfer_reason = fields.Selection(string="Transfer Reason", selection=TRANSFER_REASONS)
     previous_partner_id = fields.Many2one('res.partner', string="Previous Client")
@@ -151,6 +152,17 @@ class SaleSubscription(models.Model):
     def _compute_contract_count(self):
         for order in self:
             order.contract_count = len(order.contract_ids)
+
+    def _compute_can_resend_contract(self):
+        for order in self:
+            allowed = False
+            connector_candidates = order.docusign_ids.filtered(lambda c: c.state == 'sent' and c.connector_line_ids)
+            if connector_candidates:
+                connector = connector_candidates.sorted(key=lambda c: c.id, reverse=True)[0]
+                has_envelope = any(connector.connector_line_ids.mapped('envelope_id'))
+                unsigned = not any(line.sign_status for line in connector.connector_line_ids)
+                allowed = has_envelope and unsigned
+            order.can_resend_contract = allowed
     
     def action_view_contracts(self):
         """Smart button action to view contracts"""
@@ -466,6 +478,60 @@ class SaleSubscription(models.Model):
     #            contract.docusign_envelope_id = envelope_id
     #            contract.state = 'signature_in_process'
         return
+
+    def action_resend_contract(self):
+        self.ensure_one()
+
+        connector_candidates = self.docusign_ids.filtered(lambda c: c.state == 'sent' and c.connector_line_ids)
+        if not connector_candidates:
+            raise ValidationError(_("No sent DocuSign envelope found to resend."))
+
+        connector = connector_candidates.sorted(key=lambda c: c.id, reverse=True)[0]
+
+        if any(line.sign_status for line in connector.connector_line_ids):
+            raise ValidationError(_("At least one recipient has already signed. Please void and create a new envelope to resend."))
+
+        if not any(connector.connector_line_ids.mapped('envelope_id')):
+            raise ValidationError(_("Cannot resend because the envelope ID is missing."))
+
+        if not self.contract_template:
+            raise ValidationError(_("Contract template is not specified."))
+
+        if not self.cabal_sequence:
+            self.cabal_sequence = self._get_cabal_sequence()
+
+        recurring_lines = self.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        monthly_payment = sum(recurring_lines.mapped('price_total'))
+
+        contract_value = 0.0
+        if self.contract_term and self.plan_id:
+            contract_term_months = self.contract_term.term
+            billing_period_months = self.plan_id.billing_period_value if self.plan_id.billing_period_unit == 'month' else 1
+            if billing_period_months > 0:
+                duration = contract_term_months / billing_period_months
+                contract_value = monthly_payment * duration
+            else:
+                contract_value = monthly_payment * 12
+        else:
+            contract_value = monthly_payment * 12
+
+        document = self._create_document_to_be_signed(self, self.contract_template)
+
+        connector.write({
+            'attachment_ids': [(6, 0, [document.id])],
+            'monthly_payment': monthly_payment,
+            'contract_value': contract_value,
+        })
+
+        result = connector.send_docs(self.contract_send_method)
+
+        envelope_id = connector.connector_line_ids[:1].envelope_id if connector.connector_line_ids else False
+        msg = f"Contract {document.name} replaced and resent via DocuSign"
+        if envelope_id:
+            msg += f" - Envelope ID: {envelope_id}"
+        self.message_post(body=msg, attachment_ids=[document.id])
+
+        return result
 
     def _create_document_to_be_signed(self, subscription, report_template):
         # Render the report as PDF

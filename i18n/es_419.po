@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e-20231127\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-12 09:04+0000\n"
-"PO-Revision-Date: 2026-01-12 03:07-0600\n"
+"POT-Creation-Date: 2026-01-14 01:43+0000\n"
+"PO-Revision-Date: 2026-01-13 19:49-0600\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -21,6 +21,11 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
 msgid "$0.00"
 msgstr "$0.00"
+
+#. module: contract_management
+#: model:ir.actions.report,print_report_name:contract_management.action_report_contract_addendum_es
+msgid "'Adenda - %s' % (object.name or '')"
+msgstr "'Adenda - %s' % (object.name o '')"
 
 #. module: contract_management
 #: model:ir.actions.report,print_report_name:contract_management.action_business_contract
@@ -39,6 +44,33 @@ msgid "(no forma parte del contrato - solo para información)"
 msgstr "(no forma parte del contrato - solo para información)"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+",\n"
+"                                con Documento de Identidad No."
+msgstr ""
+",\n"
+"                                con Documento de Identidad No."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+",\n"
+"                                en adelante <strong>“EL CLIENTE”</strong>."
+msgstr ""
+",\n"
+"                                en adelante <strong>\"EL CLIENTE\".</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+",\n"
+"                                más los intereses convencionales y/o moratorios que correspondan conforme a las condiciones pactadas."
+msgstr ""
+",\n"
+"                                más los intereses convencionales y/o moratorios que correspondan conforme a las condiciones pactadas."
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
@@ -52,8 +84,32 @@ msgstr ""
 "                                del presente documento, pagaré(mos) además a partir de esta última fecha, intereses moratorios sobre el saldo de capital de mora."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ", en fecha"
+msgstr ", en fecha"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ", mayor de edad, portador(a) del Documento de Identidad No."
+msgstr ", mayor de edad, portador(a) del Documento de Identidad No."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+", por medio del presente PAGARÉ SIN PROTESTO me obligo a pagar\n"
+"                                a la orden de <strong>REDES LITORALES, S.A. DE C.V.</strong>, en la ciudad de __________________, el día _______ de _________ "
+"del año _________,\n"
+"                                la cantidad de"
+msgstr ""
+", por medio del presente PAGARÉ SIN PROTESTO me obligo a pagar\n"
+"                                a la <strong>orden de REDES LITORALES, S.A. DE C.V.,</strong> EN LA CIUDAD DE __________________, EL DÍA _______ DE _________ "
+"DEL AÑO _________,\n"
+"                                la cantidad de"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "/sn1/"
 msgstr "/sn1/"
@@ -243,6 +299,11 @@ msgid "<strong>Duración del Contrato:</strong>"
 msgstr "<strong>Duración del Contrato:</strong>"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "<strong>EL CLIENTE</strong>"
+msgstr "<strong>EL CLIENTE</strong>"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
 msgid "<strong>Early Termination Cost (est):</strong>"
 msgstr "<strong>Coste de terminación anticipada (estimado):</strong>"
@@ -253,8 +314,14 @@ msgid "<strong>End Date:</strong>"
 msgstr "<strong>Fecha Fin:</strong>"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "<strong>Firma de LA EMPRESA</strong>"
+msgstr "<strong>Firma de LA EMPRESA</strong>"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "<strong>Firma del Cliente</strong>"
 msgstr "<strong>Firma del Cliente</strong>"
@@ -265,6 +332,16 @@ msgstr "<strong>Firma del Cliente</strong>"
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "<strong>Firma del Vendedor</strong>"
 msgstr "<strong>Firma del Vendedor</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "<strong>LA EMPRESA</strong>"
+msgstr "<strong>LA EMPRESA</strong>"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "<strong>Mensualidad Total:</strong>"
+msgstr "<strong>Totalidad Mensualidad:</strong>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -328,6 +405,39 @@ msgstr "<strong>Valor total</strong><br/>"
 #, python-format
 msgid "A contract manager must approve because the early termination cost is under $100."
 msgstr "Un gestor de contratos debe aprobarlo porque el coste de la terminación anticipada es inferior a 100 dólares."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"A partir de la fecha de firma de la presente Adenda, las partes acuerdan que\n"
+"                                <strong>se sustituye en su totalidad</strong> la sección denominada <strong>“SERVICIOS CONTRATADOS”</strong> del Contrato "
+"Original,\n"
+"                                quedando sin efecto cualquier versión anterior de dicha sección."
+msgstr ""
+"A partir de la fecha de firma de la presente Adenda, las partes acuerdan que\n"
+"                                <strong>se sustituye en su totalidad</strong> la sección <strong>denominada \"SERVICIOS CONTRATADOS\"</strong> del Contrato "
+"Original,\n"
+"                                quedando sin efecto cualquier versión anterior de dicha sección."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "ADENDA / CONVENIO MODIFICATORIO"
+msgstr "ADENDA / CONVENIO MODIFICATORIO"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "AL CONTRATO DE PRESTACIÓN DE SERVICIOS"
+msgstr "AL CONTRATO DE PRESTACIÓN DE SERVICIOS"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "ANEXO 1: SERVICIOS CONTRATADOS (VIGENTES)"
+msgstr "ANEXO 1: SERVICIOS CONTRATADOS (VIGENTES)"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "ANEXO 2: PAGARÉ SIN PROTESTO"
+msgstr "ANEXO 2: PAGARÉ SIN PROTESTO"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__accepted_better_offer
@@ -409,6 +519,11 @@ msgid "Activity Type Icon"
 msgstr "Ícono de tipo de actividad"
 
 #. module: contract_management
+#: model:ir.actions.report,name:contract_management.action_report_contract_addendum_es
+msgid "Adenda / Convenio Modificatorio (ES)"
+msgstr "Adenda / Convenio Modificatorio (ES)"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__equipment_returned
 msgid "All equipment returned"
 msgstr "Todo el equipo devuelto"
@@ -432,6 +547,13 @@ msgstr "Aprobar y continuar"
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__manager_user_id
 msgid "Approved by"
 msgstr "Aprobado por"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "At least one recipient has already signed. Please void and create a new envelope to resend."
+msgstr "Al menos un destinatario ya ha firmado. Por favor, anula y crea un sobre nuevo para reenviar."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__message_attachment_count
@@ -482,6 +604,11 @@ msgid "Cable TV"
 msgstr "TV Cable"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__can_resend_contract
+msgid "Can Resend Contract"
+msgstr "Se puede reenviar el contrato"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_send_method_wizard_form
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_pause_subscription_wizard
@@ -490,6 +617,24 @@ msgstr "TV Cable"
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
 msgid "Cancel"
 msgstr "Cancelar"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_res_config_settings__contract_cancellation_email
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Cancellation Notification Email"
+msgstr "Correo electrónico de notificación de cancelación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Cancellation Settings"
+msgstr "Ajustes de cancelación"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Cannot resend because the envelope ID is missing."
+msgstr "No se puede volver a enviar porque falta el ID del sobre."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -552,9 +697,27 @@ msgid "Cobro por morosidad en el pago - 5%"
 msgstr "Cobro por morosidad en el pago - 5%"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "Cobro por morosidad en el pago: <strong>5%</strong> (según condiciones del Contrato Original, salvo disposición distinta aplicable)."
+msgstr "Cobro por morosidad en el pago: <strong>5%</strong> (según condiciones del Contrato Original, salvo disposición distinta aplicable)."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__code
 msgid "Code"
 msgstr "Código"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Como consecuencia de la actualización de los servicios contratados, las partes acuerdan que el pagaré sin protesto\n"
+"                                suscrito con anterioridad <strong>queda sin efecto</strong> y es <strong>sustituido en su totalidad</strong> por el pagaré que "
+"se adjunta\n"
+"                                como <strong>ANEXO 2</strong>, el cual refleja las condiciones económicas vigentes."
+msgstr ""
+"Como consecuencia de la actualización de los servicios contratados, las partes acuerdan que el pagaré sin protesto\n"
+"                                suscrito con anterioridad <strong>queda sin efecto</strong> y es <strong>sustituido en su totalidad</strong> por el pagaré que "
+"se adjunta\n"
+"                                como <strong>ANEXO 2</strong>, el cual refleja las condiciones económicas vigentes."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -833,6 +996,13 @@ msgstr "Contrato expirado; el cliente ahora es mes a mes (el servicio continúa)
 
 #. module: contract_management
 #. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Contract template is not specified."
+msgstr "No se especifica la plantilla de contrato."
+
+#. module: contract_management
+#. odoo-python
 #: code:addons/contract_management/models/contract_management.py:0
 #, python-format
 msgid "Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. (via wizard: %s)"
@@ -963,6 +1133,7 @@ msgstr "Firmado por el cliente"
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "DE LOS ESTADOS UNIDOS DE AMÉRICA"
 msgstr "DE LOS ESTADOS UNIDOS DE AMÉRICA"
@@ -1226,6 +1397,15 @@ msgstr ""
 "enviadas por este mismo medio."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"El presente pagaré sustituye y deja sin efecto cualquier pagaré anterior relacionado al Contrato Original,\n"
+"                                en virtud de la actualización de servicios efectuada por la presente Adenda."
+msgstr ""
+"El presente pagaré sustituye y deja sin efecto cualquier pagaré anterior relacionado al Contrato Original,\n"
+"                                en virtud de la actualización de servicios efectuada por la presente Adenda."
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__contract_send_method__email
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_send_method_wizard__send_method__email
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__contract_send_method__email
@@ -1237,6 +1417,23 @@ msgstr "Email"
 #: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
 msgid "Email address of the company representative who signs contracts after the customer"
 msgstr "Dirección de correo electrónico del representante de la empresa que firma los contratos después del cliente"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_res_config_settings__contract_cancellation_email
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Email address to receive notifications when customers intend to cancel their contracts"
+msgstr "Dirección de correo electrónico para recibir notificaciones cuando los clientes tengan intención de cancelar sus contratos"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"En la ciudad de <strong>________________</strong>, a los ______ días del mes de __________ del año ________,\n"
+"                                comparecen por una parte <strong>REDES LITORALES, S.A. DE C.V.</strong>, en adelante <strong>“LA EMPRESA”</strong>,\n"
+"                                y por la otra"
+msgstr ""
+"En la ciudad de <strong>________________</strong>, a los ______ días del mes de __________ del año ________,\n"
+"                                comparecen por una <strong>parte REDES LITORALES, S.A. DE C.V.,</strong> EN ADELANTE <strong>\"LA EMPRESA\",</strong>\n"
+"                                y por la otra"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__end_date
@@ -1496,6 +1693,15 @@ msgid "Is Follower"
 msgstr "Es seguidor"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Las partes manifiestan que han celebrado previamente un Contrato de Prestación de Servicios (el <strong>“Contrato Original”</strong>),\n"
+"                                identificado como:"
+msgstr ""
+"Las partes manifiestan que han celebrado previamente un Contrato de Prestación de Servicios (el <strong>\"Contrato Original\"</strong>),\n"
+"                                identificado como:"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__write_uid
@@ -1541,9 +1747,27 @@ msgid "Late Charge"
 msgstr "Cargo por demora"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Leída que fue la presente Adenda y enteradas las partes de su contenido y efectos legales, la firman en dos ejemplares\n"
+"                            del mismo tenor, en la ciudad y fecha arriba indicadas."
+msgstr ""
+"Leída que fue la presente Adenda y enteradas las partes de su contenido y efectos legales, la firman en dos ejemplares\n"
+"                            del mismo tenor, en la ciudad y fecha arriba indicadas."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__login_url
 msgid "Login URL"
 msgstr "URL de login"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Los servicios vigentes se detallan en el <strong>ANEXO 1</strong> de la presente Adenda,\n"
+"                                el cual forma parte integrante de la misma para todos los efectos legales."
+msgstr ""
+"Los servicios vigentes se detallan en el <strong>ANEXO 1</strong> de la presente Adenda,\n"
+"                                el cual forma parte integrante de la misma para todos los efectos legales."
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__lost
@@ -1796,6 +2020,18 @@ msgid "No recipient(s) found for this record."
 msgstr "No se ha encontrado ningún destinatario para este registro."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "No se encontraron líneas recurrentes en el documento. Verifique que el servicio esté marcado como recurrente."
+msgstr "No se encontraron líneas recurrentes en el documento. Verifique que el servicio esté marcado como recurrente."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "No sent DocuSign envelope found to resend."
+msgstr "No se encontró ningún sobre enviado a DocuSign para reenviar."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__non_compliant_count
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
 msgid "Non Compliant"
@@ -1915,6 +2151,11 @@ msgid ""
 msgstr ""
 "PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, \n"
 "                                el día _______ de _________ del año _________ la cantidad de"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "PRIMERA: SUSTITUCIÓN DE SERVICIOS CONTRATADOS"
+msgstr "PRIMERA: SUSTITUCIÓN DE SERVICIOS CONTRATADOS"
 
 #. module: contract_management
 #. odoo-python
@@ -2046,9 +2287,23 @@ msgstr "Por favor, selecciona un motivo para cerrar el capítulo."
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "Por US$"
 msgstr "Por US$"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Por medio de la presente Adenda, las partes acuerdan modificar el Contrato Original\n"
+"                                <strong>únicamente</strong> en lo relativo a la sección <strong>“Servicios Contratados”</strong> y al <strong>“Pagaré sin "
+"Protesto”</strong>,\n"
+"                                según se detalla a continuación."
+msgstr ""
+"Por medio de la presente Adenda, las partes acuerdan modificar el Contrato Original\n"
+"                                <strong>únicamente</strong> en lo relativo a la <strong>sección \"Servicios Contratados\"</strong> y al <strong>\"Pagaré sin "
+"Protesto</strong>\",\n"
+"                                Según se detalla a continuación."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__access_url
@@ -2293,6 +2548,11 @@ msgid "Requires Manager Approval"
 msgstr "Requiere la aprobación del gestor"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
+msgid "Resend Contract"
+msgstr "Reenviar Contrato"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 msgid "Resend via Email"
 msgstr "Reenviar por correo electrónico"
@@ -2318,6 +2578,11 @@ msgstr "Usuario responsable"
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "Resumen Amigable del Contrato de Servicios de Internet"
 msgstr "Resumen Amigable del Contrato de Servicios de Internet"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "SEGUNDA: SUSTITUCIÓN DEL PAGARÉ SIN PROTESTO"
+msgstr "SEGUNDA: SUSTITUCIÓN DEL PAGARÉ SIN PROTESTO"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -2420,6 +2685,11 @@ msgstr "Pauses de servicio"
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 msgid "Services"
 msgstr "Servicios"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "Servicio/Plan:"
+msgstr "Servicio/Plan:"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__avg_value_sig_completed
@@ -2708,6 +2978,11 @@ msgid "TAMANIQUE,"
 msgstr "TAMANIQUE,"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "TERCERA: RATIFICACIÓN"
+msgstr "TERCERA: RATIFICACIÓN"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
@@ -2830,6 +3105,15 @@ msgid "This will resend the DocuSign notification via WhatsApp using the current
 msgstr "Esto reenviará la notificación de DocuSign a través de WhatsApp usando la información de contacto actual del socio. ¿Continuar?"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid ""
+"Todas las demás cláusulas del Contrato Original que no hayan sido expresamente modificadas por la presente Adenda\n"
+"                                <strong>permanecen vigentes</strong> y obligatorias para las partes."
+msgstr ""
+"Todas las demás cláusulas del Contrato Original que no hayan sido expresamente modificadas por la presente Adenda\n"
+"                                <strong>permanecen vigentes</strong> y obligatorias para las partes."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__top_partners_summary
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
 msgid "Top Partners"
@@ -2905,6 +3189,11 @@ msgid "Términos y Condiciones"
 msgstr "Términos y Condiciones"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "US$"
+msgstr "US$"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__confirmation_uuid
 msgid "UUID"
 msgstr "UUID"
@@ -2971,9 +3260,8 @@ msgstr "WhatsApp"
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
-#, fuzzy
 msgid "Whatsapp:"
-msgstr "<i class=\"fa fa-whatsapp me-1\"/>  Envía un mensaje"
+msgstr "WhatsApp:"
 
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_pause_subscription_wizard
@@ -2998,6 +3286,11 @@ msgid "Yes"
 msgstr "Sí"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "Yo,"
+msgstr "Hola,"
+
+#. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/subscription_closure.py:0
 #, python-format
@@ -3009,6 +3302,16 @@ msgstr ""
 "No puede crear una venta adicional para esta suscripción porque:\n"
 " - Todavía no ha comenzado.\n"
 " - No tiene período facturado en el futuro."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
+msgid "_______________________________"
+msgstr "_______________________________"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "cancelaciones@company.com"
+msgstr "cancelaciones@company.com"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management

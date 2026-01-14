@@ -162,8 +162,70 @@ class OverrideDocumentStatus(models.Model):
                     self.env.cr.commit()
                     return self.action_of_button(_("Document sent to %d recipients") % len(signers_list))
                 else:
-                    # Envelope already sent
-                    raise ValidationError(_("Document has already been sent to DocuSign."))
+                    # Envelope already exists - allow replace only if no one has signed yet
+                    any_signed = any(line.sign_status for line in lines_with_envelope)
+                    if any_signed:
+                        raise ValidationError(_("At least one recipient has already signed. Void the envelope and create a new one to resend."))
+
+                    if self.state != 'sent':
+                        raise ValidationError(_(f"Document replacement is only allowed while the envelope is in 'sent' state. Current state: {self.state}"))
+
+                    envelope_id = lines_with_envelope[0].envelope_id
+                    if not envelope_id:
+                        raise ValidationError(_("Cannot replace document: envelope_id is missing."))
+
+                    # Optional safety: confirm envelope is still modifiable
+                    envelope_status = None
+                    envelope_details = None
+                    try:
+                        envelope_details = docu_client.get_envelope_details(self.env, user, envelope_id)
+                        envelope_status = envelope_details.get('status') if isinstance(envelope_details, dict) else None
+                    except Exception as status_err:
+                        _logger.warning("[DocuSign Send] Unable to fetch envelope status for %s: %s", envelope_id, status_err)
+
+                    allowed_statuses = {'created', 'sent', 'delivered'}
+                    if envelope_status and envelope_status.lower() not in allowed_statuses:
+                        raise ValidationError(_(f"Envelope status is '{envelope_status}'. Replace is only allowed while sent and unsigned."))
+
+                    attach_file = self.attachment_ids[0]
+                    attach_file_name = attach_file.name
+                    attach_file_data = attach_file.sudo().read(['datas'])
+                    file_data_encoded_string = attach_file_data[0]['datas']
+
+                    # Determine document_id to replace (default to first document)
+                    document_id = '1'
+                    try:
+                        if envelope_details:
+                            env_docs = envelope_details.get('documents') or envelope_details.get('envelopeDocuments') or []
+                            if env_docs:
+                                document_id = str(env_docs[0].get('documentId', document_id))
+                    except Exception as doc_err:
+                        _logger.warning("[DocuSign Send] Unable to resolve document_id for envelope %s: %s. Falling back to %s", envelope_id, doc_err, document_id)
+
+                    docu_client.replace_envelope_document(
+                        self.env,
+                        user,
+                        envelope_id,
+                        document_id,
+                        attach_file_name,
+                        file_data_encoded_string,
+                        resend_envelope=True,
+                    )
+
+                    # Refresh unsigned attachments and keep envelope_id on all lines
+                    for line in self.connector_line_ids:
+                        line.un_signed_attachment_ids = [(6, 0, [attach_file.id])]
+                        line.sudo().write({
+                            'status': 'sent',
+                            'name': attach_file.name,
+                            'envelope_id': envelope_id,
+                            'send_status': True,
+                        })
+                        _logger.info("[DocuSign Send] Replaced document on envelope %s for line %d (%s)", envelope_id, line.id, line.email)
+
+                    self.write({'state': 'sent'})
+                    self.env.cr.commit()
+                    return self.action_of_button(_("Document replaced on existing envelope and resent to recipients."))
 
         except Exception as e:
             raise ValidationError(_(str(e)))
