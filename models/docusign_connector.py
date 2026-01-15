@@ -424,14 +424,24 @@ class OverrideDocumentStatus(models.Model):
                     sub.write({'subscription_state': '1d_internal'})
                     _logger.info("[DocuSign Status Check] Subscription %s updated to 1d_internal (Pending Cabal Signature)", sub.id)
             elif self.state == 'completed':
-                # All signatures complete - ready for install
+                # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
                 if sub.subscription_state in ['1a_pending', '1d_internal']:
-                    sub.write({'subscription_state': '1b_install'})
+                    # Auto-create installation task
+                    try:
+                        sub.action_create_install_task()
+                        _logger.info("[DocuSign Status Check] Installation task auto-created for subscription %s", sub.id)
+                    except Exception as e:
+                        _logger.warning("[DocuSign Status Check] Failed to auto-create install task: %s", str(e))
+                        # If task creation fails, still advance state manually
+                        sub.write({'subscription_state': '1b_schedule'})
+                    
+                    # Update contract to active when all signatures complete
                     cm = self.env['contract.management'].sudo().search([('name','=',sub.cabal_sequence)]) 
                     if cm:
-                        cm[0].write({'state':'signed'})
-                    _logger.info("[DocuSign Status Check] Subscription %s updated to 1b_install (Pending Install)", sub.id)
+                        cm[0].write({'state': 'active'})
+                        _logger.info("[DocuSign Status Check] Contract %s activated (all signatures complete)", cm[0].id)
+                    _logger.info("[DocuSign Status Check] Subscription %s updated to 1b_schedule (Schedule Install)", sub.id)
             
             # Return notification instead of popup
             return {

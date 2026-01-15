@@ -8,12 +8,13 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_schedule', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
 
 SUBSCRIPTION_STATES = [
     ('1_draft', 'Quotation'),  # Quotation for a new subscription
     ('1a_pending', 'Pending Signature'),  # Confirmed subscription waiting for a signature
-    ('1b_install', 'Pending Install'),  # Confirmed subscription waiting for an installation
+    ('1b_schedule', 'Schedule Install'),  # Installation task created (auto), waiting to be scheduled
+    ('1b_install', 'Pending Install'),  # Installation task scheduled, waiting for completion
     ('1c_nocontract', 'Pending Contract'),  # Confirmed subscription waiting for a contract to be generated
     ('1d_internal', 'Pending Cabal Signature'),  # Confirmed subscription waiting for Cabal to sign
     ('1e_confirm', 'Quotation Confirmed'),  # Quotation has been confirmed by client.  Waiting for contract to be generated.
@@ -244,34 +245,104 @@ class SaleSubscription(models.Model):
     #         ).action_start()
     #     else:
     #         raise UserError(_("No action available for current state."))
-    # 
-    # def action_create_install_task(self):
-    #     """Create install task using fsm_guided_intake wizard"""
-    #     self.ensure_one()
-    #     
-    #     # Find fiber install task type
-    #     task_type = self.env['fsm.task.type'].search([
-    #         ('name', 'ilike', 'install')
-    #     ], limit=1)
-    #     
-    #     if not task_type:
-    #         raise UserError(_("No install task type found. Please configure FSM task types first."))
-    #     
-    #     # Open the FSM intake wizard pre-filled with this order
-    #     return {
-    #         'type': 'ir.actions.act_window',
-    #         'name': _('Schedule Installation'),
-    #         'res_model': 'fsm.task.intake.wizard',
-    #         'view_mode': 'form',
-    #         'target': 'new',
-    #         'context': {
-    #             'default_partner_id': self.partner_id.id,
-    #             'default_sale_order_id': self.id,
-    #             'default_task_type_id': task_type.id,
-    #             'default_state': 'schedule',
-    #         }
-    #     }
-    # 
+    
+    def action_create_install_task(self):
+        """Create install task for the subscription based on product category"""
+        self.ensure_one()
+        
+        # Get first subscription product category
+        subscription_product = self.order_line.filtered(lambda l: l.product_id).mapped('product_id')[:1]
+        if not subscription_product:
+            raise UserError(_("No product found on subscription order."))
+        
+        product_category = subscription_product.categ_id
+        
+        # Search for installation task types matching the product category
+        task_types = self.env['fsm.task.type'].search([
+            ('is_installation', '=', True),
+            ('subscription_category_ids', 'in', product_category.ids)
+        ])
+        
+        if not task_types:
+            raise UserError(_(
+                "No installation task type found for product category '%s'.\n\n"
+                "Please configure an installation task type with:\n"
+                "- 'Is Installation' flag checked\n"
+                "- Subscription category matching '%s'"
+            ) % (product_category.name, product_category.name))
+        
+        task_type = task_types[0]
+        
+        # Create task without scheduling (no date)
+        task_vals = {
+            'name': _('Installation for %s') % self.partner_id.name,
+            'partner_id': self.partner_id.id,
+            'sale_order_id': self.id,
+            'fsm_task_type_id': task_type.id,
+            'project_id': task_type.project_id.id,
+        }
+        
+        # Add default stage if configured
+        if task_type.default_stage_id:
+            task_vals['stage_id'] = task_type.default_stage_id.id
+        
+        task = self.env['project.task'].create(task_vals)
+        
+        # Update subscription state to show schedule button
+        # Only change state if we're at pending signature stage (don't move backwards)
+        if self.subscription_state in ['1a_pending', '1d_internal']:
+            self.write({'subscription_state': '1b_schedule'})
+        
+        # Return message with link to task
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Installation Task Created'),
+                'message': _('Installation task created successfully. Click "Schedule Install" to schedule it.'),
+                'type': 'success',
+                'sticky': False,
+                'next': {
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'sale.order',
+                    'res_id': self.id,
+                    'views': [(False, 'form')],
+                    'target': 'current',
+                }
+            }
+        }
+    
+    def action_schedule_install_task(self):
+        """Open the FSM intake wizard to schedule the installation task"""
+        self.ensure_one()
+        
+        # Find installation task for this order (scheduled or unscheduled)
+        task = self.env['project.task'].search([
+            ('sale_order_id', '=', self.id),
+            ('fsm_task_type_id.is_installation', '=', True)
+        ], limit=1)
+        
+        if not task:
+            raise UserError(_(
+                "No installation task found.\n\n"
+                "Please create an installation task first."
+            ))
+        
+        # Open FSM intake wizard in reschedule mode
+        # The wizard will automatically set state='schedule' when reschedule_task_id is in context
+        wizard_view = self.env.ref('fsm_guided_intake.fsm_task_intake_wizard_form', raise_if_not_found=False)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Schedule Installation'),
+            'res_model': 'fsm.task.intake.wizard',
+            'view_mode': 'form',
+            'view_id': wizard_view.id if wizard_view else False,
+            'target': 'new',
+            'context': {
+                'reschedule_task_id': task.id,
+            }
+        }
+    
     # def action_schedule_install_task(self):
     #     """Reschedule existing unscheduled task"""
     #     self.ensure_one()
@@ -319,12 +390,18 @@ class SaleSubscription(models.Model):
 
     def signed_manually(self):
         if self.subscription_state in ['1a_pending'] and self.contract_send_method == 'physical':
-            self.write({'subscription_state': '1b_install'})
+            # Auto-create installation task
+            try:
+                self.action_create_install_task()
+            except Exception as e:
+                _logger.warning("Failed to auto-create install task: %s", str(e))
+                # If task creation fails, still advance state manually
+                self.write({'subscription_state': '1b_schedule'})
         else:
             raise UserError('Error: No esta firmado fisicamente.')
 
     def return_to_progress(self):
-        if self.subscription_state in ['1d_internal', '1b_install'] and (self.invoice_ids or self.origin_order_id) :
+        if self.subscription_state in ['1d_internal', '1b_schedule', '1b_install'] and (self.invoice_ids or self.origin_order_id) :
             self.write({'subscription_state': '3_progress'})
 
     def _activate_contracts_on_progress(self):
@@ -343,7 +420,13 @@ class SaleSubscription(models.Model):
 #            order.cover_letter_id.cover_letter = cover_letter_html
 
     def manually_signed(self):
-        self.write({'state': 'sale', 'subscription_state': '1b_install'})
+        # Auto-create installation task when manually marked as signed
+        try:
+            self.action_create_install_task()
+        except Exception as e:
+            _logger.warning("Failed to auto-create install task: %s", str(e))
+            # If task creation fails, still advance state
+            self.write({'state': 'sale', 'subscription_state': '1b_schedule'})
 
     def write(self, vals):
         res = super().write(vals)
@@ -1042,8 +1125,13 @@ class ContractUploadWizard(models.TransientModel):
 
         })
 
-        # Change the subscription status to 1b_install
-        self.subscription_id.write({'subscription_state': '1b_install'})
+        # Auto-create installation task and move to schedule state
+        try:
+            self.subscription_id.action_create_install_task()
+        except Exception as e:
+            _logger.warning("Failed to auto-create install task: %s", str(e))
+            # If task creation fails, still advance state manually
+            self.subscription_id.write({'subscription_state': '1b_schedule'})
 
         # Store the contract document in the documents tab of the relevant subscription
         attachment = self.env['ir.attachment'].create({

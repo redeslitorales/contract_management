@@ -11,43 +11,87 @@
                     <field name="subscription_state" invisible="1"/>
                     <div style="margin-top: 15px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <!-- Draft Stage -->
-                            <div style="text-align: center; flex: 1;">
-                                <i class="fa fa-file-text-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1_draft'"/><i class="fa fa-file-text-o fa-2x" style="color: #999;" invisible="subscription_state == '1_draft'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1_draft'">Draft</small><small invisible="subscription_state == '1_draft'">Draft</small>
+                            <!-- Draft Stage - Clickable -->
+                            <button name="action_quotation_send" type="object" 
+                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                    invisible="subscription_state != '1_draft'">
+                                <i class="fa fa-file-text-o fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Draft<br/>(Click to Send Quote)</small>
+                            </button>
+                            <div style="text-align: center; flex: 1;" invisible="subscription_state == '1_draft'">
+                                <i class="fa fa-file-text-o fa-2x" style="color: #999;"/><br/>
+                                <small>Draft</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Confirmed Stage -->
-                            <div style="text-align: center; flex: 1;">
-                                <i class="fa fa-check-circle-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1e_confirm'"/><i class="fa fa-check-circle-o fa-2x" style="color: #999;" invisible="subscription_state == '1e_confirm'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1e_confirm'">Confirmed</small><small invisible="subscription_state == '1e_confirm'">Confirmed</small>
+                            
+                            <!-- Confirmed Stage - Clickable -->
+                            <button name="action_confirm" type="object" 
+                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                    invisible="subscription_state != '1e_confirm'">
+                                <i class="fa fa-check-circle-o fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Confirmed<br/>(Click to Confirm)</small>
+                            </button>
+                            <div style="text-align: center; flex: 1;" invisible="subscription_state == '1e_confirm'">
+                                <i class="fa fa-check-circle-o fa-2x" style="color: #999;"/><br/>
+                                <small>Confirmed</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Contract Stage -->
-                            <div style="text-align: center; flex: 1;">
-                                <i class="fa fa-file-text fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1c_nocontract'"/><i class="fa fa-file-text fa-2x" style="color: #999;" invisible="subscription_state == '1c_nocontract'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1c_nocontract'">Contract</small><small invisible="subscription_state == '1c_nocontract'">Contract</small>
+                            
+                            <!-- Contract Stage - Clickable -->
+                            <button name="action_send_contract" type="object" 
+                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                    invisible="subscription_state != '1c_nocontract'">
+                                <i class="fa fa-file-text fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Contract<br/>(Click to Send)</small>
+                            </button>
+                            <div style="text-align: center; flex: 1;" invisible="subscription_state == '1c_nocontract'">
+                                <i class="fa fa-file-text fa-2x" style="color: #999;"/><br/>
+                                <small>Contract</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Pending Sign Stage -->
+                            
+                            <!-- Pending Sign Stage - Not clickable (waiting for customer) -->
                             <div style="text-align: center; flex: 1;">
                                 <i class="fa fa-pencil-square-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1a_pending'"/><i class="fa fa-pencil-square-o fa-2x" style="color: #999;" invisible="subscription_state == '1a_pending'"/><br/>
                                 <small style="font-weight: bold;" invisible="subscription_state != '1a_pending'">Pending Sign</small><small invisible="subscription_state == '1a_pending'">Pending Sign</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Cabal Sign Stage -->
+                            
+                            <!-- Cabal Sign Stage - Not clickable (internal signing) -->
                             <div style="text-align: center; flex: 1;">
                                 <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(359%) hue-rotate(72deg) brightness(91%) contrast(87%);" invisible="subscription_state != '1d_internal'"/><img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; opacity: 0.4;" invisible="subscription_state == '1d_internal'"/><br/>
                                 <small style="font-weight: bold;" invisible="subscription_state != '1d_internal'">Cabal Sign</small><small invisible="subscription_state == '1d_internal'">Cabal Sign</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Install Stage -->
+                            
+                            <!-- Schedule Install Stage - Clickable -->
+                            <button name="action_schedule_install_task" type="object" 
+                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                    invisible="subscription_state != '1b_schedule'">
+                                <i class="fa fa-calendar fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Schedule Install<br/>(Click to Open Task)</small>
+                            </button>
+                            <div style="text-align: center; flex: 1;" invisible="subscription_state == '1b_schedule' or subscription_state == '1b_install'">
+                                <i class="fa fa-calendar fa-2x" style="color: #999;"/><br/>
+                                <small>Schedule Install</small>
+                            </div>
+                            
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            
+                            <!-- Install Stage - Not clickable (waiting for completion) -->
                             <div style="text-align: center; flex: 1;">
                                 <i class="fa fa-wrench fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1b_install'"/><i class="fa fa-wrench fa-2x" style="color: #999;" invisible="subscription_state == '1b_install'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1b_install'">Install</small><small invisible="subscription_state == '1b_install'">Install</small>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1b_install'">Pending Install</small><small invisible="subscription_state == '1b_install'">Pending Install</small>
                             </div>
+                            
                             <div style="flex: 0; padding: 0 5px;">→</div>
-                            <!-- Final Stage - Active/Paused/Suspended/Churned (mutually exclusive) -->
+                            
+                            <!-- Final Stage - Active/Paused/Suspended/Churned (not clickable - end states) -->
                             <div style="text-align: center; flex: 1;">
                                 <!-- Active (3_progress) -->
                                 <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;" invisible="subscription_state != '3_progress'"/><i class="fa fa-play-circle fa-2x" style="color: #999;" invisible="subscription_state == '3_progress' or subscription_state == '4_paused' or subscription_state == '8_suspend' or subscription_state == '6_churn'"/><br/>

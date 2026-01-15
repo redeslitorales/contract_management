@@ -1216,7 +1216,14 @@ class DocuSignWebhookController(http.Controller):
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
                         if subscription.subscription_state in ['1d_internal', '1a_pending']:  # Customer signed, awaiting Cabal signature
-                            subscription.subscription_state = '1b_install'  # All signatures complete, ready for install
+                            # Auto-create installation task and move to schedule state
+                            try:
+                                subscription.action_create_install_task()
+                                _logger.info("[DocuSign Webhook] Installation task auto-created for subscription %s", subscription.id)
+                            except Exception as e:
+                                _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
+                                # If task creation fails, still advance state manually
+                                subscription.subscription_state = '1b_schedule'
                         else:
                             # Post warning to subscription chatter
                             subscription.message_post(

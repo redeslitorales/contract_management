@@ -203,19 +203,36 @@ class SaleOrderConfirmationController(http.Controller):
                               send_method, sale_order.name)
                 send_method = 'whatsapp'
             
-            # Update sale order
+            # Auto-determine send method based on customer contact info
+            # Priority: WhatsApp > Email > Physical
+            if send_method == 'whatsapp' and not sale_order.partner_id.whatsapp:
+                _logger.info("[QuoteConfirm] Customer %s has no WhatsApp. Falling back to email.", 
+                           sale_order.partner_id.name)
+                send_method = 'email' if sale_order.partner_id.email else 'physical'
+            
+            # Update sale order with send method and mark as confirmed
             sale_order.write({
                 'quote_confirmed': True,
-                'subscription_state': '1e_confirm',
                 'contract_send_method': send_method,
                 'tag_ids': [(4, 2)]  # Add tag ID 2
             })
             
-            _logger.info("[QuoteConfirm] ✓ Order %s (ID: %s) confirmed via webhook. Customer: %s, Send method: %s, IP: %s",
+            _logger.info("[QuoteConfirm] Order %s (ID: %s) confirmed via webhook. Customer: %s, Send method: %s, IP: %s",
                         sale_order.name, sale_order.id, sale_order.partner_id.name, 
                         send_method, request.httprequest.remote_addr)
             
-            # Automation rule 'Process Confirmed Quote' will handle the rest
+            # Automatically confirm the order and send contract
+            try:
+                # Call action_confirm_via_uuid which handles contract sending
+                sale_order.action_confirm_via_uuid()
+                _logger.info("[QuoteConfirm] ✓ Order %s auto-confirmed and contract sent via %s",
+                           sale_order.name, send_method)
+            except Exception as confirm_error:
+                _logger.error("[QuoteConfirm] ✗ Failed to auto-confirm order %s: %s",
+                            sale_order.name, str(confirm_error))
+                # Still redirect to success page - order was marked confirmed
+                # Manual intervention may be needed for contract sending
+            
             return request.redirect('/quote_confirmed?order=%s&method=%s' % (sale_order.name, send_method))
             
         except Exception as e:
