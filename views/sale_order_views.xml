@@ -2,23 +2,118 @@
     <record id="view_order_form_inherit" model="ir.ui.view">
         <field name="name">sale.order.form.inherit</field>
         <field name="model">sale.order</field>
+        <field name="priority" eval="200"/>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <!-- Add smart button for contracts -->
+            <!-- Add horizontal subscription progress bar in sheet -->
+            <xpath expr="//form[1]/sheet[1]/group[1]" position="before">
+                <div class="oe_title" style="margin-bottom: 20px;" invisible="not subscription_state">
+                    <field name="subscription_state" invisible="1"/>
+                    <div style="margin-top: 15px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <!-- Draft Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <i class="fa fa-file-text-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1_draft'"/><i class="fa fa-file-text-o fa-2x" style="color: #999;" invisible="subscription_state == '1_draft'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1_draft'">Draft</small><small invisible="subscription_state == '1_draft'">Draft</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Confirmed Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <i class="fa fa-check-circle-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1e_confirm'"/><i class="fa fa-check-circle-o fa-2x" style="color: #999;" invisible="subscription_state == '1e_confirm'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1e_confirm'">Confirmed</small><small invisible="subscription_state == '1e_confirm'">Confirmed</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Contract Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <i class="fa fa-file-text fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1c_nocontract'"/><i class="fa fa-file-text fa-2x" style="color: #999;" invisible="subscription_state == '1c_nocontract'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1c_nocontract'">Contract</small><small invisible="subscription_state == '1c_nocontract'">Contract</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Pending Sign Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <i class="fa fa-pencil-square-o fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1a_pending'"/><i class="fa fa-pencil-square-o fa-2x" style="color: #999;" invisible="subscription_state == '1a_pending'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1a_pending'">Pending Sign</small><small invisible="subscription_state == '1a_pending'">Pending Sign</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Cabal Sign Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(359%) hue-rotate(72deg) brightness(91%) contrast(87%);" invisible="subscription_state != '1d_internal'"/><img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; opacity: 0.4;" invisible="subscription_state == '1d_internal'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1d_internal'">Cabal Sign</small><small invisible="subscription_state == '1d_internal'">Cabal Sign</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Install Stage -->
+                            <div style="text-align: center; flex: 1;">
+                                <i class="fa fa-wrench fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1b_install'"/><i class="fa fa-wrench fa-2x" style="color: #999;" invisible="subscription_state == '1b_install'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '1b_install'">Install</small><small invisible="subscription_state == '1b_install'">Install</small>
+                            </div>
+                            <div style="flex: 0; padding: 0 5px;">→</div>
+                            <!-- Final Stage - Active/Paused/Suspended/Churned (mutually exclusive) -->
+                            <div style="text-align: center; flex: 1;">
+                                <!-- Active (3_progress) -->
+                                <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;" invisible="subscription_state != '3_progress'"/><i class="fa fa-play-circle fa-2x" style="color: #999;" invisible="subscription_state == '3_progress' or subscription_state == '4_paused' or subscription_state == '8_suspend' or subscription_state == '6_churn'"/><br/>
+                                <small style="font-weight: bold;" invisible="subscription_state != '3_progress'">Active</small><small invisible="subscription_state == '3_progress' or subscription_state == '4_paused' or subscription_state == '8_suspend' or subscription_state == '6_churn'">Active</small>
+                                <!-- Paused (4_paused) -->
+                                <i class="fa fa-pause-circle fa-2x" style="color: #f0ad4e;" invisible="subscription_state != '4_paused'"/><br invisible="subscription_state != '4_paused'"/>
+                                <small style="font-weight: bold; color: #f0ad4e;" invisible="subscription_state != '4_paused'">Paused</small>
+                                <!-- Suspended (8_suspend) -->
+                                <i class="fa fa-ban fa-2x" style="color: #d9534f;" invisible="subscription_state != '8_suspend'"/><br invisible="subscription_state != '8_suspend'"/>
+                                <small style="font-weight: bold; color: #d9534f;" invisible="subscription_state != '8_suspend'">Suspended</small>
+                                <!-- Churned (6_churn) -->
+                                <i class="fa fa-times-circle fa-2x" style="color: #777;" invisible="subscription_state != '6_churn'"/><br invisible="subscription_state != '6_churn'"/>
+                                <small style="font-weight: bold; color: #777;" invisible="subscription_state != '6_churn'">Churned</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+            
+            <!-- Add smart buttons for contracts -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button class="oe_stat_button" type="object" name="action_view_contracts"
                         icon="fa-briefcase" invisible="contract_count == 0">
                     <field string="Contracts" name="contract_count" widget="statinfo"/>
                 </button>
+                <!-- FSM smart button commented out until FSM modules installed in test env
+                <button class="oe_stat_button" type="object" name="action_view_fsm_tasks"
+                        icon="fa-wrench" invisible="fsm_task_count == 0">
+                    <field string="Install Tasks" name="fsm_task_count" widget="statinfo"/>
+                </button>
+                -->
             </xpath>
             
             <xpath expr="//form[1]/header[1]/button[@name='action_confirm'][2]" position="attributes">
-                <attribute name="invisible">subscription_state != "1e_confirm"</attribute>
+                <attribute name="invisible">subscription_state != '1c_nocontract'</attribute>
             </xpath>
+            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send']" position="attributes">
+                <attribute name="invisible">subscription_state != '1_draft'</attribute>
+            </xpath>
+            <xpath expr="//form[1]/header[1]/button[@name='action_draft']" position="attributes">
+                <attribute name="invisible">subscription_state != '1_draft'</attribute>
+            </xpath>
+            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send'][3]" position="replace"/>
+            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send'][2]" position="replace"/>
             <xpath expr="//form[1]/header[1]" position="inside">
+                <field name="can_resend_contract" invisible="1"/>
+                <field name="docusign_connector_ids" invisible="1"/>
+                <!-- <field name="next_action" invisible="1"/> FSM field - commented out until FSM modules installed -->
+                <button string="Send Contract" type="object" name="action_send_contract"
+                        class="btn-primary" icon="fa-file-signature"
+                        invisible="subscription_state != '1c_nocontract' or docusign_connector_ids"/>
                 <button string="Resend Contract" type="object" name="action_resend_contract"
                         class="btn-secondary" icon="fa-refresh"
-                        modifiers="{'invisible': [['can_resend_contract', '=', False]]}"/>
+                        invisible = "not can_resend_contract"/>
+                
+                <!-- Dynamic Next Action button - Commented out until FSM modules installed in test env
+                <button string="Create Install Task" type="object" name="action_next_step"
+                        class="btn-primary" icon="fa-calendar-plus"
+                        invisible="next_action != 'create_task'"/>
+                <button string="Schedule Install" type="object" name="action_next_step"
+                        class="btn-primary" icon="fa-calendar-check"
+                        invisible="next_action != 'schedule_task'"/>
+                <button string="Activate Service" type="object" name="action_next_step"
+                        class="btn-primary" icon="fa-power-off"
+                        invisible="next_action != 'activate_service'"/>
+                -->
             </xpath>
 <!--            <xpath expr="//form[1]/header[1]/button[@name='activate_onu']" position="attributes">
                 <attribute name="invisible">subscription_state not in ["1b_install", "1d_internal"]</attribute>
@@ -26,7 +121,13 @@
             <xpath expr="//form[1]/header[1]/button[@name='action_get_signature']" position="attributes">
                 <attribute name="invisible">True</attribute>
             </xpath>
--->            <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
+-->            
+            <!-- Suppress subscription_state badge from base sale.order view -->
+            <xpath expr="//form[1]/sheet[1]/field[@name='subscription_state'][2]" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+            
+            <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
                 <page string="Terms/Conditions" name="terms_conditions">
                 <group name="tc_group_2ca">
                     <field name="cover_letter_id" readonly="1"/>

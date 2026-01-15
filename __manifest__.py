@@ -1,7 +1,7 @@
 {
     'name': 'Cabal Contract Management',
     'author': 'Redes Litorales SA de CV',
-    "version": "17.0.4.0.0",
+    "version": "17.0.5.2.0",
     'category': 'Sales Management',
     'sequence': -100,
     'summary': 'Contract Management',
@@ -17,6 +17,7 @@
         'data/cm_renewals_pipeline.xml',
         'views/view_contract_clause.xml',
         'views/sale_order_views.xml',
+        'views/sale_order_next_invoice_date_view.xml',
         'views/sale_cover_letter_views.xml',
         'views/sale_terms_conditions_view.xml',
         'views/subscription_closure_form.xml',

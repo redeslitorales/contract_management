@@ -159,4 +159,161 @@
             </div>
         </t>
     </template>
+    
+    <!-- Quote Confirmation Success Page -->
+    <template id="quote_confirmed_template" name="Quote Confirmed Success">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure oe_empty">
+                <section class="s_cover parallax s_parallax_is_fixed bg-black-50 pt96 pb96" data-vcss="001" data-snippet="s_cover" data-name="Cover">
+                    <span class="s_parallax_bg oe_img_bg" style="background-image: url('/web/image/website.s_cover_default_image'); background-position: 50% 0;"/>
+                    <div class="o_we_bg_filter bg-success-50"/>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-8 offset-lg-2 text-center">
+                                <div class="bg-white rounded shadow-lg p-5">
+                                    <div class="mb-4">
+                                        <i class="fa fa-check-circle text-success" style="font-size: 80px;"/>
+                                    </div>
+                                    <h1 class="display-4 text-success mb-3">¡Cotización Confirmada!</h1>
+                                    <h2 class="h4 text-muted mb-4">Quote Confirmed Successfully</h2>
+                                    
+                                    <div class="alert alert-success" role="alert">
+                                        <p class="mb-2"><strong>Orden:</strong> <t t-esc="order_name"/></p>
+                                        <p class="mb-0"><strong>Método de Envío:</strong> <t t-esc="send_method_label"/></p>
+                                    </div>
+                                    
+                                    <p class="lead mb-4">
+                                        Hemos recibido la confirmación de su cotización. 
+                                        <br/>
+                                        Su contrato será procesado y enviado vía <strong><t t-esc="send_method_label"/></strong>.
+                                    </p>
+                                    
+                                    <div class="text-muted">
+                                        <p class="mb-1">
+                                            <i class="fa fa-clock-o me-2"/>
+                                            Recibirá su contrato para firma en las próximas horas.
+                                        </p>
+                                        <p class="mb-3">
+                                            <i class="fa fa-info-circle me-2"/>
+                                            Una vez firmado, procederemos con la instalación del servicio.
+                                        </p>
+                                    </div>
+                                    
+                                    <hr class="my-4"/>
+                                    
+                                    <h5 class="mb-3">¿Necesita Ayuda? / Need Help?</h5>
+                                    <p class="mb-3">
+                                        <i class="fa fa-phone me-2"/>
+                                        <a href="tel:+50323374000" class="text-decoration-none">+503 2337 4000</a>
+                                        <br/>
+                                        <i class="fa fa-whatsapp me-2"/>
+                                        <a href="https://wa.me/50379401214" class="text-decoration-none" target="_blank">+503 7940 1214</a>
+                                        <br/>
+                                        <i class="fa fa-envelope me-2"/>
+                                        <a href="mailto:soporte@cabalinternet.com" class="text-decoration-none">soporte@cabalinternet.com</a>
+                                    </p>
+                                    
+                                    <a href="https://cabalinternet.com" class="btn btn-primary btn-lg mt-3">
+                                        <i class="fa fa-home me-2"/>
+                                        Volver al Sitio Web / Return to Website
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+    
+    <!-- Quote Rejection Error Page -->
+    <template id="quote_rejected_template" name="Quote Confirmation Failed">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure oe_empty">
+                <section class="s_cover parallax s_parallax_is_fixed bg-black-50 pt96 pb96" data-vcss="001" data-snippet="s_cover" data-name="Cover">
+                    <span class="s_parallax_bg oe_img_bg" style="background-image: url('/web/image/website.s_cover_default_image'); background-position: 50% 0;"/>
+                    <div class="o_we_bg_filter bg-danger-50"/>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-8 offset-lg-2 text-center">
+                                <div class="bg-white rounded shadow-lg p-5">
+                                    <div class="mb-4">
+                                        <i class="fa fa-times-circle text-danger" style="font-size: 80px;"/>
+                                    </div>
+                                    <h1 class="display-4 text-danger mb-3">Error al Confirmar</h1>
+                                    <h2 class="h4 text-muted mb-4">Unable to Confirm Quote</h2>
+                                    
+                                    <div class="alert alert-danger" role="alert">
+                                        <p class="mb-0"><t t-esc="error_message"/></p>
+                                    </div>
+                                    
+                                    <t t-if="order_name">
+                                        <p class="text-muted mb-3">
+                                            <strong>Orden:</strong> <t t-esc="order_name"/>
+                                        </p>
+                                    </t>
+                                    
+                                    <p class="lead mb-4">
+                                        No pudimos procesar su confirmación. 
+                                        <br/>
+                                        Por favor contacte a nuestro equipo de soporte.
+                                    </p>
+                                    
+                                    <div class="text-muted small mb-3">
+                                        <p class="mb-0">Código de Error: <code><t t-esc="reason_code"/></code></p>
+                                    </div>
+                                    
+                                    <hr class="my-4"/>
+                                    
+                                    <h5 class="mb-3">Contacte Soporte / Contact Support</h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card border-primary h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">
+                                                        <i class="fa fa-phone me-2"/>
+                                                        Por Teléfono
+                                                    </h6>
+                                                    <p class="card-text">
+                                                        <a href="tel:+50323374000" class="text-decoration-none">
+                                                            +503 2337 4000
+                                                        </a>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card border-success h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">
+                                                        <i class="fa fa-whatsapp me-2"/>
+                                                        Por WhatsApp
+                                                    </h6>
+                                                    <p class="card-text">
+                                                        <a href="https://wa.me/50379401214" class="text-decoration-none" target="_blank">
+                                                            +503 7940 1214
+                                                        </a>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="mt-3 mb-3">
+                                        <i class="fa fa-envelope me-2"/>
+                                        <a href="mailto:soporte@cabalinternet.com" class="text-decoration-none">soporte@cabalinternet.com</a>
+                                    </p>
+                                    
+                                    <a href="https://cabalinternet.com" class="btn btn-secondary btn-lg mt-3">
+                                        <i class="fa fa-home me-2"/>
+                                        Volver al Sitio Web / Return to Website
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
 </odoo>

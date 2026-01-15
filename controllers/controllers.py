@@ -2,10 +2,13 @@ import json
 import jwt
 import time
 import requests
+import logging
 from odoo import http, models, fields, _
 from odoo.http import request
 from odoo.exceptions import ValidationError, AccessError
 from odoo.addons.portal.controllers.portal import CustomerPortal, pager as portal_pager
+
+_logger = logging.getLogger(__name__)
 
 # DEPRECATED: This webhook controller has been disabled in favor of the odoo_docusign webhook
 # which includes HMAC signature verification for improved security.
@@ -149,3 +152,117 @@ class ContractPortal(CustomerPortal):
             return request.redirect('/my/contract/%s' % contract_id)
             
         return http.Stream.from_attachment(attachment).get_response()
+
+
+class SaleOrderConfirmationController(http.Controller):
+    """Handle public sale order confirmations via webhook links."""
+
+    @http.route('/webhook/confirm_sale_order', type='http', auth='public', methods=['GET'], csrf=False)
+    def confirm_sale_order(self, uuid=None, send_method=None, **kwargs):
+        """
+        Public webhook endpoint for confirming sale orders via unique UUID link.
+        
+        Expected parameters:
+            uuid: Unique confirmation UUID for the sale order
+            send_method: Delivery method for contract (whatsapp, email, physical)
+        
+        Returns:
+            Redirect to success or error page with appropriate message
+        """
+        try:
+            # Default to WhatsApp if no method specified
+            if not send_method:
+                send_method = 'whatsapp'
+            
+            # Validate UUID parameter
+            if not uuid:
+                _logger.warning("[QuoteConfirm] Confirmation attempted without UUID. IP: %s", 
+                              request.httprequest.remote_addr)
+                return request.redirect('/quote_reject?reason=missing_uuid')
+            
+            # Search for sale order with matching UUID
+            sale_order = request.env['sale.order'].sudo().search([
+                ('confirmation_uuid', '=', uuid)
+            ], limit=1)
+            
+            if not sale_order:
+                _logger.warning("[QuoteConfirm] No order found for UUID: %s. IP: %s", 
+                              uuid, request.httprequest.remote_addr)
+                return request.redirect('/quote_reject?reason=invalid_uuid')
+            
+            # Validate order state
+            if sale_order.state not in ['draft', 'sent']:
+                _logger.warning("[QuoteConfirm] Order %s (ID: %s) in invalid state for confirmation: %s. IP: %s",
+                              sale_order.name, sale_order.id, sale_order.state, request.httprequest.remote_addr)
+                return request.redirect('/quote_reject?reason=invalid_state&order=%s' % sale_order.name)
+            
+            # Validate send method
+            valid_methods = ['whatsapp', 'email', 'physical', 'donotsend']
+            if send_method not in valid_methods:
+                _logger.warning("[QuoteConfirm] Invalid send method '%s' for order %s. Defaulting to whatsapp.",
+                              send_method, sale_order.name)
+                send_method = 'whatsapp'
+            
+            # Update sale order
+            sale_order.write({
+                'quote_confirmed': True,
+                'subscription_state': '1e_confirm',
+                'contract_send_method': send_method,
+                'tag_ids': [(4, 2)]  # Add tag ID 2
+            })
+            
+            _logger.info("[QuoteConfirm] ✓ Order %s (ID: %s) confirmed via webhook. Customer: %s, Send method: %s, IP: %s",
+                        sale_order.name, sale_order.id, sale_order.partner_id.name, 
+                        send_method, request.httprequest.remote_addr)
+            
+            # Automation rule 'Process Confirmed Quote' will handle the rest
+            return request.redirect('/quote_confirmed?order=%s&method=%s' % (sale_order.name, send_method))
+            
+        except Exception as e:
+            _logger.exception("[QuoteConfirm] ✗ Unexpected error confirming order. UUID: %s, IP: %s. Error: %s",
+                            uuid, request.httprequest.remote_addr, str(e))
+            return request.redirect('/quote_reject?reason=system_error')
+
+    @http.route('/quote_confirmed', type='http', auth='public', methods=['GET'], csrf=False, website=True)
+    def quote_confirmed_page(self, order=None, method=None, **kwargs):
+        """
+        Success page shown after quote confirmation.
+        
+        Parameters:
+            order: Order name (for display)
+            method: Send method chosen (for display)
+        """
+        return request.render('contract_management.quote_confirmed_template', {
+            'order_name': order or _('Your Order'),
+            'send_method': method or 'whatsapp',
+            'send_method_label': dict([
+                ('whatsapp', 'WhatsApp'),
+                ('email', 'Email'),
+                ('physical', 'Physical Copy'),
+                ('donotsend', 'Will Not Send')
+            ]).get(method, 'WhatsApp')
+        })
+
+    @http.route('/quote_reject', type='http', auth='public', methods=['GET'], csrf=False, website=True)
+    def quote_reject_page(self, reason=None, order=None, **kwargs):
+        """
+        Error page shown when quote confirmation fails.
+        
+        Parameters:
+            reason: Error reason code
+            order: Order name (if available)
+        """
+        error_messages = {
+            'missing_uuid': _('The confirmation link is incomplete. Please use the full link sent to you.'),
+            'invalid_uuid': _('This confirmation link is invalid or has expired.'),
+            'invalid_state': _('This quotation has already been processed or is no longer available.'),
+            'system_error': _('A system error occurred. Please contact support.'),
+        }
+        
+        return request.render('contract_management.quote_rejected_template', {
+            'reason_code': reason or 'unknown',
+            'order_name': order,
+            'error_message': error_messages.get(reason, _('Unable to confirm quotation. Please contact support.')),
+            'support_phone': '+503 2563 4888',
+            'support_email': 'soporte@cabalinternet.com'
+        })

@@ -1239,23 +1239,3 @@ class DocuSignWebhookController(http.Controller):
                         connector.status_docs()
         
         return {'status': 'success'}
-    
-class SaleOrderWebhook(http.Controller):
-
-    @http.route('/webhook/confirm_sale_order', type='http', auth='public', methods=['GET'])
-
-    def cnfirm_sale_order(self, uuid=None, send_method=None):
-        if not send_method:
-            send_method = 'whatsapp'
-        if not uuid:
-            return request.redirect('/quote_reject')
-        else:
-            sale_order = request.env['sale.order'].sudo().search([('confirmation_uuid', '=', uuid)], limit=1)
-            if sale_order and sale_order.state in ['draft', 'sent']:
-                sale_order.write({'quote_confirmed': True, 'subscription_state': '1e_confirm', 'contract_send_method': send_method, 'tag_ids': [(4, 2)]})
-                return request.redirect('/quote_confirmed')
-                # Automation rule 'Process Confirmed Quote' will do the processing of the confirmation
-            else:
-                return request.redirect('/quote_reject')
-                
-    

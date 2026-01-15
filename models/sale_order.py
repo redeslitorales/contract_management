@@ -85,6 +85,12 @@ class SaleSubscription(models.Model):
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
     docusign_ids = fields.One2many('docusign.connector', 'sale_id', string="DocuSign Envelopes")
     can_resend_contract = fields.Boolean(string='Can Resend Contract', compute='_compute_can_resend_contract')
+    
+    # FSM Integration - Commented out until FSM modules installed in test env
+    # fsm_task_ids = fields.One2many('project.task', 'sale_order_id', string="Install Tasks", 
+    #                                 domain=[('is_fsm', '=', True)])
+    # fsm_task_count = fields.Integer(string='Install Task Count', compute='_compute_fsm_task_count')
+    # next_action = fields.Char(string='Next Action', compute='_compute_next_action')
     transfer_date = fields.Date(string="Date of Transfer")
     transfer_reason = fields.Selection(string="Transfer Reason", selection=TRANSFER_REASONS)
     previous_partner_id = fields.Many2one('res.partner', string="Previous Client")
@@ -152,17 +158,45 @@ class SaleSubscription(models.Model):
     def _compute_contract_count(self):
         for order in self:
             order.contract_count = len(order.contract_ids)
+    
+    # FSM Integration - Commented out until FSM modules installed in test env
+    # @api.depends('fsm_task_ids')
+    # def _compute_fsm_task_count(self):
+    #     for order in self:
+    #         order.fsm_task_count = len(order.fsm_task_ids)
+    # 
+    # @api.depends('subscription_state', 'fsm_task_ids', 'fsm_task_ids.stage_id')
+    # def _compute_next_action(self):
+    #     """Compute the next contextual action based on subscription state and FSM task status"""
+    #     for order in self:
+    #         if order.subscription_state == '1b_install':
+    #             if not order.fsm_task_ids:
+    #                 order.next_action = 'create_task'
+    #             else:
+    #                 # Check if task is scheduled (has planned_date_begin)
+    #                 unscheduled = order.fsm_task_ids.filtered(
+    #                     lambda t: not t.planned_date_begin and t.stage_id.name not in ['Done', 'Cancelled']
+    #                 )
+    #                 if unscheduled:
+    #                     order.next_action = 'schedule_task'
+    #                 else:
+    #                     # Check if any task is done
+    #                     done_tasks = order.fsm_task_ids.filtered(lambda t: t.stage_id.name == 'Done')
+    #                     if done_tasks and not order.cpe_unit_asset:
+    #                         order.next_action = 'activate_service'
+    #                     else:
+    #                         order.next_action = False
+    #         else:
+    #             order.next_action = False
 
+    @api.depends('subscription_state', 'contract_ids', 'docusign_ids')
     def _compute_can_resend_contract(self):
         for order in self:
-            allowed = False
-            connector_candidates = order.docusign_ids.filtered(lambda c: c.state == 'sent' and c.connector_line_ids)
-            if connector_candidates:
-                connector = connector_candidates.sorted(key=lambda c: c.id, reverse=True)[0]
-                has_envelope = any(connector.connector_line_ids.mapped('envelope_id'))
-                unsigned = not any(line.sign_status for line in connector.connector_line_ids)
-                allowed = has_envelope and unsigned
-            order.can_resend_contract = allowed
+            order.can_resend_contract = (
+                order.subscription_state == '1a_pending'
+                and order.contract_ids
+                and order.docusign_ids
+            )
     
     def action_view_contracts(self):
         """Smart button action to view contracts"""
@@ -176,6 +210,91 @@ class SaleSubscription(models.Model):
             action['domain'] = [('id', 'in', contracts.ids)]
         action['context'] = {'default_subscription_id': self.id}
         return action
+    
+    # FSM Integration - Commented out until FSM modules installed in test env
+    # def action_view_fsm_tasks(self):
+    #     """Smart button action to view install tasks"""
+    #     self.ensure_one()
+    #     action = self.env['ir.actions.act_window']._for_xml_id('industry_fsm.project_task_action_fsm')
+    #     tasks = self.fsm_task_ids
+    #     if len(tasks) == 1:
+    #         action['views'] = [(False, 'form')]
+    #         action['res_id'] = tasks.id
+    #     else:
+    #         action['domain'] = [('id', 'in', tasks.ids)]
+    #     action['context'] = {
+    #         'default_partner_id': self.partner_id.id,
+    #         'default_sale_order_id': self.id,
+    #     }
+    #     return action
+    # 
+    # def action_next_step(self):
+    #     """Dynamic action button that changes based on subscription state"""
+    #     self.ensure_one()
+    #     if self.next_action == 'create_task':
+    #         return self.action_create_install_task()
+    #     elif self.next_action == 'schedule_task':
+    #         return self.action_schedule_install_task()
+    #     elif self.next_action == 'activate_service':
+    #         # Use existing activation wizard
+    #         return self.env['activation.wizard'].with_context(
+    #             active_model='sale.order',
+    #             active_ids=[self.id],
+    #             active_id=self.id
+    #         ).action_start()
+    #     else:
+    #         raise UserError(_("No action available for current state."))
+    # 
+    # def action_create_install_task(self):
+    #     """Create install task using fsm_guided_intake wizard"""
+    #     self.ensure_one()
+    #     
+    #     # Find fiber install task type
+    #     task_type = self.env['fsm.task.type'].search([
+    #         ('name', 'ilike', 'install')
+    #     ], limit=1)
+    #     
+    #     if not task_type:
+    #         raise UserError(_("No install task type found. Please configure FSM task types first."))
+    #     
+    #     # Open the FSM intake wizard pre-filled with this order
+    #     return {
+    #         'type': 'ir.actions.act_window',
+    #         'name': _('Schedule Installation'),
+    #         'res_model': 'fsm.task.intake.wizard',
+    #         'view_mode': 'form',
+    #         'target': 'new',
+    #         'context': {
+    #             'default_partner_id': self.partner_id.id,
+    #             'default_sale_order_id': self.id,
+    #             'default_task_type_id': task_type.id,
+    #             'default_state': 'schedule',
+    #         }
+    #     }
+    # 
+    # def action_schedule_install_task(self):
+    #     """Reschedule existing unscheduled task"""
+    #     self.ensure_one()
+    #     unscheduled = self.fsm_task_ids.filtered(
+    #         lambda t: not t.planned_date_begin and t.stage_id.name not in ['Done', 'Cancelled']
+    #     )
+    #     if not unscheduled:
+    #         raise UserError(_("No unscheduled tasks found."))
+    #     
+    #     task = unscheduled[0]
+    #     
+    #     # Open FSM intake wizard in reschedule mode
+    #     return {
+    #         'type': 'ir.actions.act_window',
+    #         'name': _('Reschedule Installation'),
+    #         'res_model': 'fsm.task.intake.wizard',
+    #         'view_mode': 'form',
+    #         'target': 'new',
+    #         'context': {
+    #             'reschedule_task_id': task.id,
+    #             'default_state': 'schedule',
+    #         }
+    #     }
 
     @api.model
     def _get_cabal_sequence(self):
@@ -351,6 +470,23 @@ class SaleSubscription(models.Model):
                 raise ValidationError(_("Failed to obtain access token from DocuSign"))
 
 
+    def action_send_contract(self):
+        """Button action to send contract when in 1c_nocontract state without docusign connector."""
+        self.ensure_one()
+        if self.subscription_state != '1c_nocontract':
+            raise UserError(_('Contract can only be sent when subscription is in Pending Contract state.'))
+        if self.docusign_connector_ids:
+            raise UserError(_('Contract has already been sent. Use Resend Contract instead.'))
+        
+        # Open the send method wizard
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'contract.send.method.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_send_method': self.contract_send_method}
+        }
+
     def action_send_for_signature(self):
         _logger.info("[DocuSign] action_send_for_signature called for %d contract(s)", len(self))
         for contract in self:
@@ -383,11 +519,11 @@ class SaleSubscription(models.Model):
                         contract.id, monthly_payment, contract_value)
 
             # Persist contract_value so QWeb reports (contract PDFs) render the correct amount
-            contract.write({'contract_value': contract_value})
+            contract.sudo().write({'contract_value': contract_value})
             
             # Step 1: Generate contract number
             if contract.is_subscription and not contract.cabal_sequence:
-                contract.cabal_sequence = contract._get_cabal_sequence()
+                contract.sudo().cabal_sequence = contract._get_cabal_sequence()
                 _logger.info("[DocuSign] Generated contract sequence: %s", contract.cabal_sequence)
             # Step2 - Fetch the contract template
             if not contract.contract_template:
@@ -399,54 +535,17 @@ class SaleSubscription(models.Model):
             document = self._create_document_to_be_signed(contract, contract.contract_template)
             _logger.info("[DocuSign] Document created: ID=%s, name=%s", document.id, document.name)
             
+            # Step 4: Create the connector and connector line records (if not physical)
+            connector_id = None
             if contract.contract_send_method != 'physical':
-                # Step 4: Create the connector and connector line records
-                _logger.info("[DocuSign] Sending document to DocuSign for contract ID=%s", contract.id)
+                _logger.info("[DocuSign] Creating DocuSign connector for contract ID=%s", contract.id)
                 connector_id = self._send_document_to_docusign(contract, document)
                 _logger.info("[DocuSign] DocuSign connector created: ID=%s, name=%s", 
                             connector_id.id, connector_id.name)
-                
-                # Send document from Docusign
-                _logger.info("[DocuSign] Calling send_docs() with method=%s for connector ID=%s", 
-                            contract.contract_send_method, connector_id.id)
-                send_contract_result = connector_id.send_docs(contract.contract_send_method)
-                _logger.info("[DocuSign] send_docs() result: %s", send_contract_result)
-                msg_text = "sent to customer."
-                if send_contract_result['name'] == "Successful":
-                    _logger.info("[DocuSign] SUCCESS: Contract sent successfully for contract ID=%s", contract.id)
-                    
-                    # Get envelope ID from first connector line
-                    envelope_id = connector_id.connector_line_ids[0].envelope_id if connector_id.connector_line_ids else None
-                    
-                    # Format method for display
-                    if contract.contract_send_method in ['whatsapp', 'email']:
-                        method_display = f"DocuSign ({contract.contract_send_method.capitalize()})"
-                    else:
-                        method_display = contract.contract_send_method.capitalize()
-                    
-                    # Construct message with envelope ID
-                    msg_body = f'SUCCESS: Contract {document.name} {msg_text} via {method_display}'
-                    if envelope_id:
-                        msg_body += f' - Envelope ID: {envelope_id}'
-                    
-                    contract.message_post(body=msg_body, attachment_ids=[document.id])
-                    contract.write({'state': 'sale', 'subscription_state': '1a_pending'})
-                    _logger.info("[DocuSign] Contract state updated to 'sale', subscription_state='1a_pending'")
-                else:
-                    _logger.error("[DocuSign] Failed to send contract ID=%s. Result: %s", 
-                                 contract.id, send_contract_result)
-                    raise ValidationError(str(send_contract_result))
-            else:
-                    _logger.info("[DocuSign] Physical contract method - creating print activity for contract ID=%s", 
-                                contract.id)
-                    contract.message_post(body=f'Contract {document.name} is ready to be printed and signed.', attachment_ids=[document.id])
-                    contract.write({'state': 'sale', 'subscription_state': '1a_pending'})
-                    contract.create_print_sign_activity()
 
-
-            # Step 5 Create the contract management record
+            # Step 5: Create the contract management record (before sending to ensure logging exists)
             _logger.info("[DocuSign] Creating contract.management record for subscription ID=%s", contract.id)
-            k_management = self.env['contract.management'].create({
+            k_management = self.env['contract.management'].sudo().create({
                 'subscription_id': contract.id,
                 "contract_send_method": contract.contract_send_method,
                 'monthly_payment': monthly_payment,
@@ -460,7 +559,7 @@ class SaleSubscription(models.Model):
             service_lines_created = 0
             for line in contract.order_line:
                 if line.product_id and not line.display_type:
-                    self.env['contract.service'].create({
+                    self.env['contract.service'].sudo().create({
                         'contract_id': k_management.id,
                         'product_id': line.product_id.id,
                         'name': line.name or line.product_id.name,
@@ -470,9 +569,67 @@ class SaleSubscription(models.Model):
             _logger.info("[DocuSign] Created %d service lines for contract.management ID=%s", 
                         service_lines_created, k_management.id)
             
-            if contract.contract_send_method != 'physical':
-                k_management.write({'docusign_id': connector_id.id})
+            # Step 6: Link docusign connector to contract.management
+            if contract.contract_send_method != 'physical' and connector_id:
+                k_management.sudo().write({'docusign_id': connector_id.id})
                 _logger.info("[DocuSign] contract.management updated with docusign_id=%s", connector_id.id)
+            
+            # Step 7: Send document (after local records are created)
+            if contract.contract_send_method != 'physical':
+                # Send document from Docusign
+                _logger.info("[DocuSign] Calling send_docs() with send_method=%s for connector ID=%s", 
+                            contract.contract_send_method, connector_id.id)
+                send_contract_result = connector_id.send_docs(contract.contract_send_method)
+                _logger.info("[DocuSign] send_docs() result: %s", send_contract_result)
+                
+                # Treat any 2xx-style success or "Successful" result as success
+                # DocuSign APIs return 200, 201, 202 (accepted), 204 (no content) as success
+                is_success = False
+                if isinstance(send_contract_result, dict):
+                    # Check for explicit success indicators (use translated comparison)
+                    if send_contract_result.get('name') == _("Successful"):
+                        is_success = True
+                    # Check for HTTP status code (if present) - any 2xx is success
+                    elif 'status_code' in send_contract_result:
+                        status_code = send_contract_result.get('status_code')
+                        if 200 <= status_code < 300:
+                            is_success = True
+                    # Check for other success indicators
+                    elif send_contract_result.get('success') is True:
+                        is_success = True
+                
+                if is_success:
+                    _logger.info("[DocuSign] SUCCESS: Contract sent successfully for contract ID=%s", contract.id)
+                    
+                    # Get envelope ID from first connector line
+                    envelope_id = connector_id.connector_line_ids[0].envelope_id if connector_id.connector_line_ids else None
+                    
+                    # Format method for display
+                    if contract.contract_send_method in ['whatsapp', 'email']:
+                        method_display = f"DocuSign ({contract.contract_send_method.capitalize()})"
+                    else:
+                        method_display = contract.contract_send_method.capitalize()
+                    
+                    # Construct message with envelope ID
+                    msg_body = f'SUCCESS: Contract {document.name} sent to customer via {method_display}'
+                    if envelope_id:
+                        msg_body += f' - Envelope ID: {envelope_id}'
+                    
+                    contract.sudo().message_post(body=msg_body, attachment_ids=[document.id])
+                    contract.sudo().write({'state': 'sale', 'subscription_state': '1a_pending'})
+                    _logger.info("[DocuSign] Contract state updated to 'sale', subscription_state='1a_pending'")
+                else:
+                    # Don't use 'name' field as error message - it may contain success indicators
+                    error_msg = send_contract_result.get('message') or send_contract_result.get('error') or str(send_contract_result)
+                    _logger.error("[DocuSign] Failed to send contract ID=%s. Result: %s", 
+                                 contract.id, send_contract_result)
+                    raise ValidationError(f"Failed to send contract via DocuSign: {error_msg}")
+            else:
+                    _logger.info("[DocuSign] Physical contract method - creating print activity for contract ID=%s", 
+                                contract.id)
+                    contract.sudo().message_post(body=f'Contract {document.name} is ready to be printed and signed.', attachment_ids=[document.id])
+                    contract.sudo().write({'state': 'sale', 'subscription_state': '1a_pending'})
+                    contract.create_print_sign_activity()
     #            contract.write({'contract_management_id': k_management.id})
                 # Update the contract with the DocuSign envelope ID
     #            contract.docusign_envelope_id = envelope_id
@@ -498,7 +655,7 @@ class SaleSubscription(models.Model):
             raise ValidationError(_("Contract template is not specified."))
 
         if not self.cabal_sequence:
-            self.cabal_sequence = self._get_cabal_sequence()
+            self.sudo().cabal_sequence = self._get_cabal_sequence()
 
         recurring_lines = self.order_line.filtered(lambda l: l.product_id.recurring_invoice)
         monthly_payment = sum(recurring_lines.mapped('price_total'))
@@ -517,7 +674,7 @@ class SaleSubscription(models.Model):
 
         document = self._create_document_to_be_signed(self, self.contract_template)
 
-        connector.write({
+        connector.sudo().write({
             'attachment_ids': [(6, 0, [document.id])],
             'monthly_payment': monthly_payment,
             'contract_value': contract_value,
@@ -529,7 +686,7 @@ class SaleSubscription(models.Model):
         msg = f"Contract {document.name} replaced and resent via DocuSign"
         if envelope_id:
             msg += f" - Envelope ID: {envelope_id}"
-        self.message_post(body=msg, attachment_ids=[document.id])
+        self.sudo().message_post(body=msg, attachment_ids=[document.id])
 
         return result
 
@@ -552,7 +709,7 @@ class SaleSubscription(models.Model):
         # Create an attachment for the generated PDF
         attachment_name = f'{subscription.cabal_sequence}_{subscription.name}_customer_contract.pdf'
         _logger.info("[DocuSign] Creating attachment: %s", attachment_name)
-        attachment = self.env['ir.attachment'].create({
+        attachment = self.env['ir.attachment'].sudo().create({
             'name': attachment_name,
             'type': 'binary',
             'datas': base64.b64encode(pdf_content),
@@ -613,7 +770,7 @@ class SaleSubscription(models.Model):
         _logger.info("[DocuSign] Creating docusign.connector record with name=%s, sale_id=%s", 
                     contract.cabal_sequence, contract.id)
         _logger.info("[DocuSign] Custom fields: monthly_payment=%.2f, contract_value=%.2f", monthly_payment, contract_value)
-        connector_record = self.env['docusign.connector'].create({
+        connector_record = self.env['docusign.connector'].sudo().create({
             'name': contract.cabal_sequence,
             'responsible_id': user.id,
             'state': 'new',
@@ -630,7 +787,7 @@ class SaleSubscription(models.Model):
         # Create connector line for customer (first signer)
         _logger.info("[DocuSign] Creating docusign.connector.lines for customer: partner_id=%s, email=%s", 
                     contract.partner_id.id, contract.partner_id.email_normalized)
-        customer_line = self.env['docusign.connector.lines'].create({
+        customer_line = self.env['docusign.connector.lines'].sudo().create({
             'partner_id': contract.partner_id.id,
             'email': contract.partner_id.email_normalized,
             'status': 'draft',
@@ -643,7 +800,7 @@ class SaleSubscription(models.Model):
         # Create connector line for company signer (second signer)
         _logger.info("[DocuSign] Creating docusign.connector.lines for company signer: user_id=%s, email=%s", 
                     user.id, user.email)
-        company_line = self.env['docusign.connector.lines'].create({
+        company_line = self.env['docusign.connector.lines'].sudo().create({
             'partner_id': user.partner_id.id,
             'email': user.email,
             'status': 'draft',
@@ -663,7 +820,7 @@ class SaleSubscription(models.Model):
             summary = 'Print and Sign Contract'
             note = 'Please print and sign the contract.'
 
-            self.env['mail.activity'].create({
+            self.env['mail.activity'].sudo().create({
                 'activity_type_id': activity_type,
                 'res_model_id': self.env['ir.model']._get('sale.order').id,
                 'res_id': subscription.id,

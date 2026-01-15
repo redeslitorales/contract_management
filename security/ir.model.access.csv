@@ -3,6 +3,7 @@ access_contract_management_user,access.contract.management.user,model_contract_m
 access_contract_management_manager,access.contract.management.manager,model_contract_management,base.group_system,1,1,1,1
 access_contract_management_portal,access.contract.management.portal,model_contract_management,base.group_portal,1,0,0,0
 access_contract_service_manager,access.contract.service.manager,model_contract_service,base.group_system,1,1,1,1
+access_contract_service_user,access.contract.service.user,model_contract_service,base.group_user,1,0,1,0
 access_contract_dashboard_user,access.contract.dashboard.user,model_contract_dashboard,base.group_user,1,1,1,1
 access_contract_dashboard_manager,access.contract.dashboard.manager,model_contract_dashboard,base.group_system,1,1,1,1
 access_subscription_closure,access.subscription_closure,model_subscription_closure,base.group_user,1,1,1,1
@@ -14,3 +15,4 @@ access_sale_cover_letter,access.sale.cover.letter,model_sale_cover_letter,base.g
 access_contract_clause,access.contract_clause,model_contract_clause,base.group_user,1,0,0,0
 access_contract_upload_wizard,access.contract.upload.wizard,model_contract_upload_wizard,base.group_user,1,0,0,0
 access_contract_termination_wizard_user,access.contract.termination.wizard.user,model_contract_termination_wizard,base.group_user,1,1,1,0
+

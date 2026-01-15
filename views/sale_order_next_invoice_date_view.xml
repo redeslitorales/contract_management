@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add next_invoice_date field to sale.order form in Other Info tab -->
+    <record id="view_sale_order_next_invoice_date" model="ir.ui.view">
+        <field name="name">sale.order.form.next.invoice.date</field>
+        <field name="model">sale.order</field>
+        <field name="priority" eval="99"/>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Find Other Info tab and add next_invoice_date in Subscription section -->
+            <xpath expr="//page[@name='other_information']//field[@name='start_date']" position="after">
+                <field name="next_invoice_date" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
