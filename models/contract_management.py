@@ -14,7 +14,7 @@ from odoo.addons.odoo_docusign.models import docu_client
 
 _logger = logging.getLogger(__name__)
 
-SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_schedule', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
 SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
 SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 
@@ -134,6 +134,46 @@ class ContractManagement(models.Model):
         default=60,
         help='How many days before end_date a contract should be flagged as renewal_due and pushed into CRM.'
     )
+    progress_stage = fields.Char(
+        string='Progress Stage',
+        compute='_compute_progress_stage',
+        store=False,
+        help='Determines which stage to show in the progress bar based on subscription state'
+    )
+
+    @api.depends('subscription_id.subscription_state')
+    def _compute_progress_stage(self):
+        """Compute the progress stage to display in the progress bar."""
+        for contract in self:
+            if not contract.subscription_id:
+                contract.progress_stage = 'draft'
+                continue
+            
+            sub_state = contract.subscription_id.subscription_state
+            
+            # Draft stage: 1_draft, 2_renewal, 7_upsell
+            if sub_state in ['1_draft', '2_renewal', '7_upsell']:
+                contract.progress_stage = 'draft'
+            # Pending signature: 1a_pending, 1d_internal
+            elif sub_state in ['1a_pending', '1d_internal']:
+                contract.progress_stage = 'pending_signature'
+            # Pending install: 1b_schedule, 1b_install
+            elif sub_state in ['1b_schedule', '1b_install']:
+                contract.progress_stage = 'pending_install'
+            # Active: 3_progress, 4_paused, 5_renewed
+            elif sub_state in ['3_progress', '4_paused', '5_renewed']:
+                contract.progress_stage = 'active'
+            # Suspended: 8_suspend
+            elif sub_state == '8_suspend':
+                contract.progress_stage = 'suspended'
+            # Churned: 6_churn
+            elif sub_state == '6_churn':
+                contract.progress_stage = 'churned'
+            # Pending contract: 1c_nocontract, 1e_confirm
+            elif sub_state in ['1c_nocontract', '1e_confirm']:
+                contract.progress_stage = 'pending_contract'
+            else:
+                contract.progress_stage = 'draft'
 
     def _compute_total_paid(self):
         for contract in self:

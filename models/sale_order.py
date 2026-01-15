@@ -103,12 +103,52 @@ class SaleSubscription(models.Model):
     quote_confirmed = fields.Boolean(string='Quote Confirmed', default=False)
     contract_term = fields.Many2one('dte.base.contract', string="Contract Term")
     contract_value = fields.Float(string = "Contract Value")
+    progress_stage = fields.Char(
+        string='Progress Stage',
+        compute='_compute_progress_stage',
+        store=False,
+        help='Determines which stage to show in the progress bar based on subscription state'
+    )
     
     @api.depends('confirmation_uuid')
     def _compute_confirmation_url(self):
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         for order in self:
             order.confirmation_url = f"{base_url}/webhook/confirm_sale_order?uuid={order.confirmation_uuid}"
+
+    @api.depends('subscription_state')
+    def _compute_progress_stage(self):
+        """Compute the progress stage to display in the progress bar."""
+        for order in self:
+            if not order.subscription_state:
+                order.progress_stage = 'draft'
+                continue
+            
+            sub_state = order.subscription_state
+            
+            # Draft stage: 1_draft, 2_renewal, 7_upsell
+            if sub_state in ['1_draft', '2_renewal', '7_upsell']:
+                order.progress_stage = 'draft'
+            # Pending signature: 1a_pending, 1d_internal
+            elif sub_state in ['1a_pending', '1d_internal']:
+                order.progress_stage = 'pending_signature'
+            # Pending install: 1b_schedule, 1b_install
+            elif sub_state in ['1b_schedule', '1b_install']:
+                order.progress_stage = 'pending_install'
+            # Active: 3_progress, 4_paused, 5_renewed
+            elif sub_state in ['3_progress', '4_paused', '5_renewed']:
+                order.progress_stage = 'active'
+            # Suspended: 8_suspend
+            elif sub_state == '8_suspend':
+                order.progress_stage = 'suspended'
+            # Churned: 6_churn
+            elif sub_state == '6_churn':
+                order.progress_stage = 'churned'
+            # Pending contract: 1c_nocontract, 1e_confirm
+            elif sub_state in ['1c_nocontract', '1e_confirm']:
+                order.progress_stage = 'pending_contract'
+            else:
+                order.progress_stage = 'draft'
 
     @api.depends('order_line.product_id.categ_id')
     def _compute_cover_letter(self):
