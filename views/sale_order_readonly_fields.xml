@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Make subscription fields readonly when not in draft stage -->
+    <record id="view_sale_order_readonly_fields" model="ir.ui.view">
+        <field name="name">sale.order.form.readonly.fields</field>
+        <field name="model">sale.order</field>
+        <field name="priority" eval="999"/>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Make contract_term readonly when not in draft stage -->
+            <xpath expr="//field[@name='contract_term']" position="attributes">
+                <attribute name="readonly">progress_stage != 'draft'</attribute>
+            </xpath>
+            
+            <!-- Make payment_term_id readonly when not in draft stage -->
+            <xpath expr="//field[@name='payment_term_id']" position="attributes">
+                <attribute name="readonly">progress_stage != 'draft'</attribute>
+            </xpath>
+            
+            <!-- Make plan_id (recurring plan) readonly when not in draft stage -->
+            <xpath expr="//field[@name='plan_id']" position="attributes">
+                <attribute name="readonly">progress_stage != 'draft'</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

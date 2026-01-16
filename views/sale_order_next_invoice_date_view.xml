@@ -9,7 +9,7 @@
         <field name="arch" type="xml">
             <!-- Find Other Info tab and add next_invoice_date in Subscription section -->
             <xpath expr="//page[@name='other_information']//field[@name='start_date']" position="after">
-                <field name="next_invoice_date" readonly="1"/>
+                <field name="next_invoice_date" readonly="1" invisible="1"/>
             </xpath>
         </field>
     </record>

@@ -176,6 +176,11 @@
                 <attribute name="invisible">True</attribute>
             </xpath>
             
+            <!-- Make order lines readonly when not in draft stage -->
+            <xpath expr="//field[@name='order_line']" position="attributes">
+                <attribute name="readonly">progress_stage != 'draft'</attribute>
+            </xpath>
+            
             <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
                 <page string="Terms/Conditions" name="terms_conditions">
                 <group name="tc_group_2ca">
