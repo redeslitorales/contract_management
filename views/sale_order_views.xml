@@ -26,15 +26,13 @@
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
-                            <!-- Confirmed Stage - Clickable -->
-                            <button name="action_confirm" type="object" 
-                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
-                                    invisible="subscription_state != '1e_confirm'">
-                                <i class="fa fa-check-circle-o fa-2x" style="color: #5cb85c;"/><br/>
-                                <small style="font-weight: bold;">Confirmed<br/>(Click to Confirm)</small>
-                            </button>
-                            <div style="text-align: center; flex: 1;" invisible="subscription_state == '1e_confirm'">
-                                <i class="fa fa-check-circle-o fa-2x" style="color: #999;"/><br/>
+                            <!-- Confirmed Stage - Not clickable -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'confirmed'">
+                                <i class="fa fa-check-circle fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Confirmed</small>
+                            </div>
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'confirmed'">
+                                <i class="fa fa-check-circle fa-2x" style="color: #999;"/><br/>
                                 <small>Confirmed</small>
                             </div>
                             
@@ -54,62 +52,83 @@
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
-                            <!-- Pending Sign Stage - Not clickable (waiting for customer) -->
-                            <div style="text-align: center; flex: 1;">
-                                <i class="fa fa-pencil-square-o fa-2x" style="color: #5cb85c;" invisible="progress_stage != 'pending_signature'"/><i class="fa fa-pencil-square-o fa-2x" style="color: #999;" invisible="progress_stage == 'pending_signature'"/><br/>
-                                <small style="font-weight: bold;" invisible="progress_stage != 'pending_signature'">Pending Sign</small><small invisible="progress_stage == 'pending_signature'">Pending Sign</small>
+                            <!-- Pending Client Sign Stage - Not clickable (waiting for customer) -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_client_signature'">
+                                <i class="fa fa-pencil-square-o fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Pending Sign</small>
+                            </div>
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_client_signature'">
+                                <i class="fa fa-pencil-square-o fa-2x" style="color: #999;"/><br/>
+                                <small>Pending Sign</small>
                             </div>
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
                             <!-- Cabal Sign Stage - Not clickable (internal signing) -->
-                            <div style="text-align: center; flex: 1;">
-                                <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(359%) hue-rotate(72deg) brightness(91%) contrast(87%);" invisible="subscription_state != '1d_internal'"/><img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; opacity: 0.4;" invisible="subscription_state == '1d_internal'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1d_internal'">Cabal Sign</small><small invisible="subscription_state == '1d_internal'">Cabal Sign</small>
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_cabal_signature'">
+                                <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(359%) hue-rotate(72deg) brightness(91%) contrast(87%);"/><br/>
+                                <small style="font-weight: bold;">Cabal Sign</small>
+                            </div>
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_cabal_signature'">
+                                <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; opacity: 0.4;"/><br/>
+                                <small>Cabal Sign</small>
                             </div>
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
-                            <!-- Schedule Install Stage - Clickable -->
+                            <!-- Schedule Install Stage - Clickable button when 1b_schedule, grey fallback otherwise -->
                             <button name="action_schedule_install_task" type="object" 
                                     style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
-                                    invisible="subscription_state != '1b_schedule'">
+                                    invisible="progress_stage != 'schedule_install'">
                                 <i class="fa fa-calendar fa-2x" style="color: #5cb85c;"/><br/>
                                 <small style="font-weight: bold;">Schedule Install<br/>(Click to Open Task)</small>
                             </button>
-                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_install'">
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'schedule_install'">
                                 <i class="fa fa-calendar fa-2x" style="color: #999;"/><br/>
                                 <small>Schedule Install</small>
                             </div>
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
-                            <!-- Install Stage - Not clickable (waiting for completion) -->
-                            <div style="text-align: center; flex: 1;">
-                                <i class="fa fa-wrench fa-2x" style="color: #5cb85c;" invisible="subscription_state != '1b_install'"/><i class="fa fa-wrench fa-2x" style="color: #999;" invisible="subscription_state == '1b_install'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '1b_install'">Pending Install</small><small invisible="subscription_state == '1b_install'">Pending Install</small>
+                            <!-- Install Stage - Green when 1b_install, grey otherwise -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_install'">
+                                <i class="fa fa-wrench fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Pending Install</small>
+                            </div>
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_install'">
+                                <i class="fa fa-wrench fa-2x" style="color: #999;"/><br/>
+                                <small>Pending Install</small>
                             </div>
                             
                             <div style="flex: 0; padding: 0 5px;">→</div>
                             
                             <!-- Final Stage - Active/Paused/Suspended/Churned -->
-                            <div style="text-align: center; flex: 1;">
-                                <!-- Active (3_progress) -->
-                                <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;" invisible="subscription_state != '3_progress'"/><i class="fa fa-play-circle fa-2x" style="color: #999;" invisible="progress_stage == 'active' or progress_stage == 'suspended' or progress_stage == 'churned'"/><br/>
-                                <small style="font-weight: bold;" invisible="subscription_state != '3_progress'">Active</small><small invisible="progress_stage == 'active' or progress_stage == 'suspended' or progress_stage == 'churned'">Active</small>
-                                <!-- Paused (4_paused) - Clickable -->
-                                <button name="action_reactivate_subscription_wizard" type="object" 
-                                        style="border: none; background: none; cursor: pointer; padding: 0;"
-                                        invisible="subscription_state != '4_paused'">
-                                    <i class="fa fa-pause-circle fa-2x" style="color: #f0ad4e;"/><br/>
-                                    <small style="font-weight: bold; color: #f0ad4e;">Paused<br/>(Click to Reactivate)</small>
-                                </button>
-                                <!-- Suspended (8_suspend) -->
-                                <i class="fa fa-ban fa-2x" style="color: #d9534f;" invisible="progress_stage != 'suspended'"/><br invisible="progress_stage != 'suspended'"/>
-                                <small style="font-weight: bold; color: #d9534f;" invisible="progress_stage != 'suspended'">Suspended</small>
-                                <!-- Churned (6_churn) -->
-                                <i class="fa fa-times-circle fa-2x" style="color: #777;" invisible="progress_stage != 'churned'"/><br invisible="progress_stage != 'churned'"/>
-                                <small style="font-weight: bold; color: #777;" invisible="progress_stage != 'churned'">Churned</small>
+                            <!-- Active (3_progress, 4_paused, 5_renewed) -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'active'">
+                                <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;"/><br/>
+                                <small style="font-weight: bold;">Active</small>
+                            </div>
+                            <!-- Paused (4_paused) - Clickable -->
+                            <button name="action_reactivate_subscription_wizard" type="object" 
+                                    style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                    invisible="progress_stage != 'paused'">
+                                <i class="fa fa-pause-circle fa-2x" style="color: #f0ad4e;"/><br/>
+                                <small style="font-weight: bold; color: #f0ad4e;">Paused<br/>(Click to Reactivate)</small>
+                            </button>
+                            <!-- Suspended (8_suspend) -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'suspended'">
+                                <i class="fa fa-ban fa-2x" style="color: #d9534f;"/><br/>
+                                <small style="font-weight: bold; color: #d9534f;">Suspended</small>
+                            </div>
+                            <!-- Churned (6_churn) -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage != 'churned'">
+                                <i class="fa fa-times-circle fa-2x" style="color: #777;"/><br/>
+                                <small style="font-weight: bold; color: #777;">Churned</small>
+                            </div>
+                            <!-- Default grey state for Active/Paused/Suspended/Churned when none match -->
+                            <div style="text-align: center; flex: 1;" invisible="progress_stage == 'active' or progress_stage == 'paused' or progress_stage == 'suspended' or progress_stage == 'churned'">
+                                <i class="fa fa-play-circle fa-2x" style="color: #999;"/><br/>
+                                <small>Active</small>
                             </div>
                         </div>
                     </div>

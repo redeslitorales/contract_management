@@ -129,24 +129,36 @@ class SaleSubscription(models.Model):
             # Draft stage: 1_draft, 2_renewal, 7_upsell
             if sub_state in ['1_draft', '2_renewal', '7_upsell']:
                 order.progress_stage = 'draft'
-            # Pending signature: 1a_pending, 1d_internal
-            elif sub_state in ['1a_pending', '1d_internal']:
-                order.progress_stage = 'pending_signature'
-            # Pending install: 1b_schedule, 1b_install
-            elif sub_state in ['1b_schedule', '1b_install']:
+            # Confirmed: 1e_confirm (quotation confirmed, waiting for contract)
+            elif sub_state == '1e_confirm':
+                order.progress_stage = 'confirmed'
+            # Pending contract: 1c_nocontract
+            elif sub_state == '1c_nocontract':
+                order.progress_stage = 'pending_contract'
+            # Pending client signature: 1a_pending
+            elif sub_state == '1a_pending':
+                order.progress_stage = 'pending_client_signature'
+            # Pending Cabal signature: 1d_internal
+            elif sub_state == '1d_internal':
+                order.progress_stage = 'pending_cabal_signature'
+            # Schedule install: 1b_schedule
+            elif sub_state == '1b_schedule':
+                order.progress_stage = 'schedule_install'
+            # Pending install: 1b_install
+            elif sub_state == '1b_install':
                 order.progress_stage = 'pending_install'
-            # Active: 3_progress, 4_paused, 5_renewed
-            elif sub_state in ['3_progress', '4_paused', '5_renewed']:
+            # Active: 3_progress, 5_renewed (NOT 4_paused - that's handled separately)
+            elif sub_state in ['3_progress', '5_renewed']:
                 order.progress_stage = 'active'
+            # Paused: 4_paused (separate from active)
+            elif sub_state == '4_paused':
+                order.progress_stage = 'paused'
             # Suspended: 8_suspend
             elif sub_state == '8_suspend':
                 order.progress_stage = 'suspended'
             # Churned: 6_churn
             elif sub_state == '6_churn':
                 order.progress_stage = 'churned'
-            # Pending contract: 1c_nocontract, 1e_confirm
-            elif sub_state in ['1c_nocontract', '1e_confirm']:
-                order.progress_stage = 'pending_contract'
             else:
                 order.progress_stage = 'draft'
 

@@ -21,6 +21,7 @@ SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 SUBSCRIPTION_STATES = [
     ('1_draft', 'Quotation'),  # Quotation for a new subscription
     ('1a_pending', 'Pending Signature'),  # Confirmed subscription waiting for a signature
+    ('1b_schedule', 'Pending Schedule'),  # Confirmed subscription waiting to be scheduled
     ('1b_install', 'Pending Install'),  # Confirmed subscription waiting for an installation
     ('1c_nocontract', 'Pending Contract'),  # Confirmed subscription waiting for a contract to be generated
     ('1d_internal', 'Pending Cabal Signature'),  # Confirmed subscription waiting for Cabal to sign
@@ -154,11 +155,23 @@ class ContractManagement(models.Model):
             # Draft stage: 1_draft, 2_renewal, 7_upsell
             if sub_state in ['1_draft', '2_renewal', '7_upsell']:
                 contract.progress_stage = 'draft'
-            # Pending signature: 1a_pending, 1d_internal
-            elif sub_state in ['1a_pending', '1d_internal']:
-                contract.progress_stage = 'pending_signature'
-            # Pending install: 1b_schedule, 1b_install
-            elif sub_state in ['1b_schedule', '1b_install']:
+            # Confirmed: 1e_confirm (quotation confirmed, waiting for contract)
+            elif sub_state == '1e_confirm':
+                contract.progress_stage = 'confirmed'
+            # Pending contract: 1c_nocontract
+            elif sub_state == '1c_nocontract':
+                contract.progress_stage = 'pending_contract'
+            # Pending client signature: 1a_pending
+            elif sub_state == '1a_pending':
+                contract.progress_stage = 'pending_client_signature'
+            # Pending Cabal signature: 1d_internal
+            elif sub_state == '1d_internal':
+                contract.progress_stage = 'pending_cabal_signature'
+            # Schedule install: 1b_schedule
+            elif sub_state == '1b_schedule':
+                contract.progress_stage = 'schedule_install'
+            # Pending install: 1b_install
+            elif sub_state == '1b_install':
                 contract.progress_stage = 'pending_install'
             # Active: 3_progress, 4_paused, 5_renewed
             elif sub_state in ['3_progress', '4_paused', '5_renewed']:
@@ -169,9 +182,6 @@ class ContractManagement(models.Model):
             # Churned: 6_churn
             elif sub_state == '6_churn':
                 contract.progress_stage = 'churned'
-            # Pending contract: 1c_nocontract, 1e_confirm
-            elif sub_state in ['1c_nocontract', '1e_confirm']:
-                contract.progress_stage = 'pending_contract'
             else:
                 contract.progress_stage = 'draft'
 

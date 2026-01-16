@@ -9,7 +9,13 @@
         <field name="arch" type="xml">
             <!-- Find Other Info tab and add next_invoice_date in Subscription section -->
             <xpath expr="//page[@name='other_information']//field[@name='start_date']" position="after">
-                <field name="next_invoice_date" readonly="1" invisible="1"/>
+                <field name="next_invoice_date"/>
+            </xpath>
+            
+            <!-- Make second occurrence of next_invoice_date readonly with force_save -->
+            <xpath expr="//form[1]/sheet[1]/group[@name='sale_header']/group[@name='order_details']/field[@name='next_invoice_date'][2]" position="attributes">
+                <attribute name="force_save">1</attribute>
+                <attribute name="readonly">True</attribute>
             </xpath>
         </field>
     </record>
