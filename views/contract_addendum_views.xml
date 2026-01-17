@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_contract_addendum_tree" model="ir.ui.view">
+        <field name="name">contract.addendum.tree</field>
+        <field name="model">contract.addendum</field>
+        <field name="arch" type="xml">
+            <tree string="Contract Addendums" decoration-info="state=='draft'" decoration-warning="state=='pending_signature'" decoration-success="state=='active'" decoration-muted="state=='cancelled'">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="partner_id"/>
+                <field name="addendum_type"/>
+                <field name="effective_date"/>
+                <field name="state" widget="badge" decoration-info="state=='draft'" decoration-warning="state=='pending_signature'" decoration-success="state in ['signed','active']" decoration-danger="state=='cancelled'"/>
+                <field name="docusign_status" optional="hide"/>
+                <field name="monthly_payment_change" optional="hide" sum="Total Payment Change"/>
+                <field name="one_time_fee" optional="hide" sum="Total One-Time Fees"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_contract_addendum_form" model="ir.ui.view">
+        <field name="name">contract.addendum.form</field>
+        <field name="model">contract.addendum</field>
+        <field name="arch" type="xml">
+            <form string="Contract Addendum">
+                <header>
+                    <button name="action_send_for_signature" string="Send for Signature" type="object" 
+                            class="oe_highlight" invisible="state != 'draft'" 
+                            confirm="Are you sure you want to send this addendum for signature?"/>
+                    <button name="action_mark_signed" string="Mark as Signed" type="object" 
+                            invisible="state != 'pending_signature'" 
+                            confirm="Confirm that this addendum has been physically signed?"/>
+                    <button name="action_activate" string="Activate" type="object" 
+                            class="oe_highlight" invisible="state != 'signed'" 
+                            confirm="Are you sure you want to activate this addendum? Changes will be applied to the contract."/>
+                    <button name="action_cancel" string="Cancel" type="object" 
+                            invisible="state in ['active','cancelled']" 
+                            confirm="Are you sure you want to cancel this addendum?"/>
+                    <button name="action_resend_via_whatsapp" string="Resend via WhatsApp" type="object" 
+                            invisible="state not in ['pending_signature','signed']" 
+                            icon="fa-whatsapp"/>
+                    <button name="action_resend_via_email" string="Resend via Email" type="object" 
+                            invisible="state not in ['pending_signature','signed']" 
+                            icon="fa-envelope"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,pending_signature,signed,active"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_documents" type="object" 
+                                class="oe_stat_button" icon="fa-file-pdf-o"
+                                invisible="document_count == 0">
+                            <field name="document_count" widget="statinfo" string="Documents"/>
+                        </button>
+                        <button name="action_view_docusign" type="object" 
+                                class="oe_stat_button" icon="fa-envelope"
+                                invisible="not docusign_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">DocuSign</span>
+                                <field name="docusign_status" widget="badge"/>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1>
+                            <field name="name" placeholder="e.g., Speed Upgrade Addendum"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group>
+                            <field name="contract_id" options="{'no_create': True}"/>
+                            <field name="partner_id"/>
+                            <field name="subscription_id"/>
+                        </group>
+                        <group>
+                            <field name="addendum_type"/>
+                            <field name="effective_date"/>
+                            <field name="contract_send_method" widget="radio"/>
+                        </group>
+                    </group>
+                    
+                    <group string="Description">
+                        <field name="description" nolabel="1" placeholder="Describe the changes being made to the contract..."/>
+                    </group>
+                    
+                    <group string="Financial Impact">
+                        <group>
+                            <field name="monthly_payment_change" widget="monetary"/>
+                        </group>
+                        <group>
+                            <field name="one_time_fee" widget="monetary"/>
+                        </group>
+                    </group>
+                    
+                    <group string="DocuSign Information" invisible="not docusign_id">
+                        <group>
+                            <field name="docusign_id"/>
+                        </group>
+                        <group>
+                            <field name="has_signed_documents"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Signed Documents" invisible="not has_signed_documents">
+                            <field name="signed_document_ids" mode="kanban" nolabel="1">
+                                <kanban>
+                                    <field name="name"/>
+                                    <field name="mimetype"/>
+                                    <templates>
+                                        <t t-name="kanban-box">
+                                            <div class="oe_kanban_global_click">
+                                                <div class="o_kanban_image">
+                                                    <i class="fa fa-file-pdf-o fa-3x text-danger" t-if="record.mimetype.value == 'application/pdf'"/>
+                                                    <i class="fa fa-file-o fa-3x" t-else=""/>
+                                                </div>
+                                                <div class="oe_kanban_details">
+                                                    <strong><field name="name"/></strong>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+                            </field>
+                        </page>
+                        <page string="Audit Trail">
+                            <group>
+                                <group>
+                                    <field name="create_uid" readonly="1"/>
+                                    <field name="create_date" readonly="1"/>
+                                </group>
+                                <group>
+                                    <field name="write_uid" readonly="1"/>
+                                    <field name="write_date" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" groups="base.group_user"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_contract_addendum_search" model="ir.ui.view">
+        <field name="name">contract.addendum.search</field>
+        <field name="model">contract.addendum</field>
+        <field name="arch" type="xml">
+            <search string="Contract Addendums">
+                <field name="name" string="Addendum Name"/>
+                <field name="contract_id" string="Contract"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="addendum_type"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Pending Signature" name="pending_signature" domain="[('state', '=', 'pending_signature')]"/>
+                <filter string="Signed" name="signed" domain="[('state', '=', 'signed')]"/>
+                <filter string="Active" name="active" domain="[('state', '=', 'active')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Service Addition" name="service_addition" domain="[('addendum_type', '=', 'service_addition')]"/>
+                <filter string="Service Removal" name="service_removal" domain="[('addendum_type', '=', 'service_removal')]"/>
+                <filter string="Price Change" name="price_change" domain="[('addendum_type', '=', 'price_change')]"/>
+                <filter string="Term Extension" name="term_extension" domain="[('addendum_type', '=', 'term_extension')]"/>
+                <separator/>
+                <filter string="This Month" name="this_month" domain="[('effective_date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')), ('effective_date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="This Year" name="this_year" domain="[('effective_date', '&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Contract" name="group_contract" context="{'group_by': 'contract_id'}"/>
+                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Addendum Type" name="group_type" context="{'group_by': 'addendum_type'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Effective Date" name="group_effective_date" context="{'group_by': 'effective_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_contract_addendum" model="ir.actions.act_window">
+        <field name="name">Contract Addendums</field>
+        <field name="res_model">contract.addendum</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_contract_addendum_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first contract addendum
+            </p>
+            <p>
+                Contract addendums allow you to make changes to existing contracts
+                that require customer signature, such as service additions, price changes,
+                or term extensions.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_contract_addendum"
+              name="Addendums"
+              parent="contract_management.menu_contract_management_root"
+              action="action_contract_addendum"
+              sequence="15"/>
+
+</odoo>

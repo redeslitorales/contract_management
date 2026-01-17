@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError,ValidationError
 from datetime import datetime, timedelta, time
 import pytz
@@ -197,7 +197,7 @@ class SubscriptionClose(models.Model):
                               ' - Has no invoiced period in the future.'))
         subscription = self.with_company(self.company_id)
         order_lines = self.order_line._get_renew_upsell_values(subscription_state, period_end=self.next_invoice_date)
-        is_subscription = subscription_state == '2_renewal'
+        is_subscription = subscription_state in ['2_renewal', '7_upsell']
         option_lines_data = [Command.link(option.copy().id) for option in subscription.sale_order_option_ids]
         if subscription_state == '7_upsell':
             start_date = fields.Date.today()
@@ -218,7 +218,7 @@ class SubscriptionClose(models.Model):
             'subscription_state': subscription_state,
             'origin': subscription.client_order_ref,
             'client_order_ref': subscription.client_order_ref,
-            'origin_order_id': subscription.origin_order_id.id,
+            'origin_order_id': subscription.id,
             'note': subscription.note,
             'user_id': subscription.user_id.id,
             'payment_term_id': subscription.payment_term_id.id,

@@ -12,28 +12,45 @@
                 <t t-call="web.basic_layout">
 
                     <div class="page" style="font-size: 12px;">
+                                <t t-set="base_doc" t-value="doc._get_addendum_base_order()"/>
+                                <t t-set="base_contract_start" t-value="base_doc.start_date or doc.start_date"/>
+                                <t t-set="addendum_date" t-value="doc.create_date or base_contract_start or doc.write_date"/>
+                                <t t-set="months"
+                                    t-value="{'1': 'enero', '2': 'febrero', '3': 'marzo', '4': 'abril', '5': 'mayo', '6': 'junio', '7': 'julio', '8': 'agosto', '9': 'septiembre', '10': 'octubre', '11': 'noviembre', '12': 'diciembre'}"/>
+                                <t t-set="addendum_day" t-value="addendum_date.day if addendum_date else ''"/>
+                                <t t-set="addendum_month" t-value="months.get(str(addendum_date.month)) if addendum_date else ''"/>
+                                <t t-set="addendum_year" t-value="addendum_date.year if addendum_date else ''"/>
+                                <t t-set="contract_day" t-value="base_contract_start.day if base_contract_start else ''"/>
+                                <t t-set="contract_month" t-value="months.get(str(base_contract_start.month)) if base_contract_start else ''"/>
+                                <t t-set="contract_year" t-value="base_contract_start.year if base_contract_start else ''"/>
 
+                        <div class="col-3">
+                            <img t-if="doc.company_id.logo" t-att-src="image_data_uri(doc.company_id.logo)" style="max-height: 100px; margin-left: 2mm" alt="Company Logo"/>
+                        </div>
                         <!-- HEADER -->
                         <div class="mb-3">
                             <h3 class="text-center m-0">ADENDA / CONVENIO MODIFICATORIO</h3>
                             <h5 class="text-center mt-1">AL CONTRATO DE PRESTACIÓN DE SERVICIOS</h5>
+                            <div class="text-center" style="font-size: 11px;">
+                                Adenda Nr.: <strong><t t-esc="base_doc.cabal_sequence or doc.cabal_sequence or ''"/></strong>
+                            </div>
                         </div>
 
                         <!-- PARTY + CONTRACT IDENTIFICATION -->
                         <div class="border rounded p-3 mb-3">
                             <div>
-                                En la ciudad de <strong>________________</strong>, a los ______ días del mes de __________ del año ________,
+                                En la ciudad de <strong>La Libertad Costa</strong>, a los <strong><t t-esc="addendum_day"/></strong> días del mes de <strong><t t-esc="addendum_month"/></strong> del año <strong><t t-esc="addendum_year"/></strong>,
                                 comparecen por una parte <strong>REDES LITORALES, S.A. DE C.V.</strong>, en adelante <strong>“LA EMPRESA”</strong>,
                                 y por la otra <strong><t t-esc="doc.partner_id.name"/></strong>,
-                                con Documento de Identidad No. <strong><t t-esc="doc.partner_id.vat or ''"/></strong>,
+                                con Documento de Identidad No. <strong><t t-esc="doc.partner_id.sv_dui or ''"/></strong>,
                                 en adelante <strong>“EL CLIENTE”</strong>.
                             </div>
 
                             <div class="mt-2">
                                 Las partes manifiestan que han celebrado previamente un Contrato de Prestación de Servicios (el <strong>“Contrato Original”</strong>),
-                                identificado como: <strong><t t-esc="doc.name or ''"/></strong>
-                                <t t-if="doc.create_date">
-                                    , en fecha <strong><t t-esc="format_date(doc.create_date) if format_date else doc.create_date.strftime('%d/%m/%Y')"/></strong>
+                                identificado como: <strong><t t-esc="base_doc.cabal_sequence or doc.cabal_sequence or ''"/></strong>
+                                <t t-if="base_contract_start">
+                                    , en fecha <strong><t t-esc="format_date(base_contract_start) if format_date else base_contract_start.strftime('%d/%m/%Y')"/></strong>
                                 </t>.
                             </div>
 
@@ -62,11 +79,9 @@
                         <div class="border rounded p-3 mb-4">
                             <h5 class="m-0">ANEXO 1: SERVICIOS CONTRATADOS (VIGENTES)</h5>
 
-                            <!-- Get recurring products and total (same pattern as your contract template) -->
-                                     <t t-set="recurring_lines"
-                                         t-value="doc.order_line.filtered(lambda l: l.product_template_id.recurring_invoice) if hasattr(doc, 'order_line') else (doc.recurring_invoice_line_ids if hasattr(doc, 'recurring_invoice_line_ids') else [])"/>
-                                     <t t-set="monthly_total"
-                                         t-value="sum(recurring_lines.mapped(lambda l: (l.price_unit or 0.0) * (l.product_uom_qty or 1.0))) if recurring_lines else (doc.recurring_total if hasattr(doc, 'recurring_total') and doc.recurring_total not in (None, False) else (doc.amount_total if hasattr(doc, 'amount_total') and doc.amount_total not in (None, False) else 0.0))"/>
+                            <!-- Get recurring products and total (prefer parent contract/order if present) -->
+                                     <t t-set="recurring_lines" t-value="doc._get_recurring_lines_for_addendum()"/>
+                                     <t t-set="monthly_total" t-value="doc._get_addendum_monthly_total(recurring_lines)"/>
 
                             <div class="mt-3">
                                 <t t-if="recurring_lines">
@@ -161,11 +176,9 @@
                                 </div>
                                 <div class="col-6 text-center">
                                     <p class="m-0"><strong>Firma de LA EMPRESA</strong></p>
-                                    <p class="m-0">/sn1/</p>
+                                    <p class="m-0">/sn2/</p>
                                     <div class="mt-4">_______________________________</div>
-                                    <div>
-                                        <t t-esc="doc.user_id.name if hasattr(doc,'user_id') and doc.user_id else 'Representante Autorizado'"/>
-                                    </div>
+                                    <div>Redes Litorales SA de CV</div>
                                 </div>
                             </div>
                         </div>
@@ -189,15 +202,16 @@
                         <div class="row mt-5">
                             <div class="col-6 text-center">
                                 <p class="m-0"><strong>EL CLIENTE</strong></p>
-                                <div class="mt-4">_______________________________</div>
+                                <p class="m-0">/sn1/</p>
+                                 <div class="mt-4">_______________________________</div>
                                 <div><t t-esc="doc.partner_id.name"/></div>
                             </div>
                             <div class="col-6 text-center">
                                 <p class="m-0"><strong>LA EMPRESA</strong></p>
+                                <p class="m-0">/sn2/</p>
                                 <div class="mt-4">_______________________________</div>
-                                <div>
-                                    <t t-esc="doc.user_id.name if hasattr(doc,'user_id') and doc.user_id else 'Representante Autorizado'"/>
-                                </div>
+                                <div>Redes Litorales SA de CV</div>
+                                <p class ="m-0">/st2/</p>
                             </div>
                         </div>
 

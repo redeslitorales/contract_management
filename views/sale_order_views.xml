@@ -105,7 +105,7 @@
                             <!-- Final Stage - Active/Paused/Suspended/Churned -->
                             <!-- Active (3_progress, 4_paused, 5_renewed) -->
                             <div style="text-align: center; flex: 1;" invisible="progress_stage != 'active'">
-                                <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;"/><br/>
+                                <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;" title="Active"/><br/>
                                 <small style="font-weight: bold;">Active</small>
                             </div>
                             <!-- Paused (4_paused) - Clickable -->
@@ -127,12 +127,17 @@
                             </div>
                             <!-- Default grey state for Active/Paused/Suspended/Churned when none match -->
                             <div style="text-align: center; flex: 1;" invisible="progress_stage == 'active' or progress_stage == 'paused' or progress_stage == 'suspended' or progress_stage == 'churned'">
-                                <i class="fa fa-play-circle fa-2x" style="color: #999;"/><br/>
+                                <i class="fa fa-play-circle fa-2x" style="color: #999;" title="Active"/><br/>
                                 <small>Active</small>
                             </div>
                         </div>
                     </div>
                 </div>
+            </xpath>
+
+            <xpath expr="//field[@name='client_order_ref']" position="after">
+                <field name="renewal_of_id" readonly="1" options="{'no_open': True}"/>
+                <field name="upsell_from_id" readonly="1" options="{'no_open': True}"/>
             </xpath>
             
             <!-- Add smart buttons for contracts -->

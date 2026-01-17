@@ -141,6 +141,8 @@ class ContractManagement(models.Model):
         store=False,
         help='Determines which stage to show in the progress bar based on subscription state'
     )
+    addendum_ids = fields.One2many('contract.addendum', 'contract_id', string='Addendums')
+    addendum_count = fields.Integer(string='Addendum Count', compute='_compute_addendum_count')
 
     @api.depends('subscription_id.subscription_state')
     def _compute_progress_stage(self):
@@ -224,6 +226,11 @@ class ContractManagement(models.Model):
                 continue
             start = contract.mtm_start_date or (contract.end_date + timedelta(days=1) if contract.end_date else None)
             contract.mtm_age_days = (today - start).days if start else 0
+
+    @api.depends('addendum_ids')
+    def _compute_addendum_count(self):
+        for contract in self:
+            contract.addendum_count = len(contract.addendum_ids)
 
     def _get_or_create_renewal_opportunity(self):
         """Ensure a single open renewal opportunity per contract."""
@@ -1158,6 +1165,38 @@ class ContractManagement(models.Model):
                 subject="DocuSign Resend Failed"
             )
             raise
+
+    def action_view_addendums(self):
+        """Smart button action to view contract addendums"""
+        self.ensure_one()
+        return {
+            'name': _('Contract Addendums'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'contract.addendum',
+            'view_mode': 'tree,form',
+            'domain': [('contract_id', '=', self.id)],
+            'context': {
+                'default_contract_id': self.id,
+                'default_partner_id': self.partner_id.id,
+                'default_contract_send_method': self.contract_send_method,
+            }
+        }
+
+    def action_create_addendum(self):
+        """Action to create a new addendum for this contract"""
+        self.ensure_one()
+        return {
+            'name': _('Create Addendum'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'contract.addendum',
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'default_contract_id': self.id,
+                'default_partner_id': self.partner_id.id,
+                'default_contract_send_method': self.contract_send_method,
+            }
+        }
 
 class ContractService(models.Model):
     _name = 'contract.service'

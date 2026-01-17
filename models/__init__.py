@@ -1,4 +1,5 @@
 from . import contract_management
+from . import contract_addendum
 from . import contract_dashboard
 from . import sale_order
 from . import subscription_closure

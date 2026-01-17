@@ -103,6 +103,20 @@ class SaleSubscription(models.Model):
     quote_confirmed = fields.Boolean(string='Quote Confirmed', default=False)
     contract_term = fields.Many2one('dte.base.contract', string="Contract Term")
     contract_value = fields.Float(string = "Contract Value")
+    renewal_of_id = fields.Many2one(
+        'sale.order',
+        string='Renewal Of',
+        help='Source subscription from which this renewal was initiated.',
+        copy=False,
+        readonly=True,
+    )
+    upsell_from_id = fields.Many2one(
+        'sale.order',
+        string='Upsell From',
+        help='Source subscription from which this upsell was initiated.',
+        copy=False,
+        readonly=True,
+    )
     progress_stage = fields.Char(
         string='Progress Stage',
         compute='_compute_progress_stage',
@@ -177,9 +191,24 @@ class SaleSubscription(models.Model):
         'order_line.product_id',
         'order_line.product_id.categ_id',
         'order_line.product_id.categ_id.contract_template',
+        'subscription_state',
     )
     def _compute_contract_template(self):
         for order in self:
+            # For upsells, use addendum template instead of full contract
+            # Check both subscription_state (for new upsells) and addendum existence (for processed upsells)
+            is_upsell = order.subscription_state == '7_upsell'
+            has_addendum = self.env['contract.addendum'].search_count([
+                ('upsell_subscription_id', '=', order.id)
+            ]) > 0
+            
+            if is_upsell or has_addendum:
+                addendum_report = self.env.ref('contract_management.action_report_contract_addendum_es', raise_if_not_found=False)
+                order.contract_template = addendum_report
+                _logger.info("[Template] Order %s using addendum template (is_upsell=%s, has_addendum=%s)", 
+                           order.name, is_upsell, has_addendum)
+                continue
+            
             # Consider only real product lines that have a contract_template
             lines = order.order_line.filtered(
                 lambda l: not l.display_type
@@ -453,8 +482,9 @@ class SaleSubscription(models.Model):
             raise UserError('Error: No esta firmado fisicamente.')
 
     def return_to_progress(self):
-        if self.subscription_state in ['1d_internal', '1b_schedule', '1b_install'] and (self.invoice_ids or self.origin_order_id) :
-            self.write({'subscription_state': '3_progress'})
+        if self.subscription_state in ['1d_internal', '1b_schedule', '1b_install'] and (self.invoice_ids or self.origin_order_id):
+            target_state = '7_upsell' if self.upsell_from_id else '3_progress'
+            self.write({'subscription_state': target_state})
 
     def _activate_contracts_on_progress(self):
         """Promote linked contracts to Active when subscription enters progress."""
@@ -522,7 +552,7 @@ class SaleSubscription(models.Model):
         if not self:
             raise ValueError("Expected singleton: sale.order()")
         self.ensure_one()
-        if self.is_subscription:
+        if self.is_subscription or self.subscription_state == '7_upsell':
             # Retrieve DocuSign credentials from the custom model
             user = self.env.user
             if not user.access_token or not user.account_id:
@@ -539,7 +569,7 @@ class SaleSubscription(models.Model):
         self.ensure_one()
         if self.subscription_id.contract_ids:
             raise UserError("The contract has already been sent via Docusign.  Please review.")
-        if self.is_subscription:
+        if self.is_subscription or self.subscription_state == '7_upsell':
             # Retrieve DocuSign credentials from the custom model
             user = self.env['res.users'].browse(196)
 #           user = self.env.user
@@ -554,38 +584,88 @@ class SaleSubscription(models.Model):
         }
 
     def action_confirm_via_uuid(self):
+        _logger.info("[UUID] ===== action_confirm_via_uuid called for order %s (ID: %s) =====", self.name, self.id)
+        _logger.info("[UUID] Current subscription_state: %s, is_subscription: %s, origin_order_id: %s", 
+                     self.subscription_state, self.is_subscription, self.origin_order_id.name if self.origin_order_id else None)
+        
         # Authenticate using hardcoded user 196 (contratos@cabal.sv) for token consistency
         authenticated = self.authenicate_jwt()
         user = self.env['res.users'].browse(196)
         if authenticated:
+            _logger.info("[UUID] Authentication successful for order %s", self.name)
+            
+            # Check if this is an upsell BEFORE confirming (super() may change state)
+            is_upsell = self.subscription_state == '7_upsell'
+            if is_upsell:
+                _logger.info("[Addendum] Upsell detected via UUID for order %s - will create addendum after confirmation", self.name)
+            
             res = super(SaleSubscription, self).action_confirm()
-            if self.is_subscription:
+            _logger.info("[UUID] super().action_confirm() completed for order %s", self.name)
+            
+            if self.is_subscription or is_upsell:
+                _logger.info("[UUID] Order %s is a subscription, processing contract workflow", self.name)
+                
+                # Create addendum if this was an upsell (checked BEFORE super().action_confirm())
+                if is_upsell:
+                    _logger.info("[Addendum] Creating addendum for order %s (was upsell)", self.name)
+                    try:
+                        result = self._create_addendum_for_upsell()
+                        _logger.info("[Addendum] Successfully created addendum for order %s", self.name)
+                    except Exception as e:
+                        _logger.exception("[Addendum] ERROR creating addendum for order %s: %s", self.name, str(e))
+                        raise
+                
+                # NOW move to contract phase (for both upsells and normal subscriptions)
                 self.write({'subscription_state': '1c_nocontract'})
-            if self.contract_send_method == 'whatsapp' and not self.partner_id.whatsapp:
-                self.write({'contract_send_method': 'email'})
-            else:
-                if self.partner_id.whatsapp.startswith('+1') and len(self.partner_id.whatsapp) == 12:
-                    match = re.match(r'^\+(\d{1})(\d{10})$', self.partner_id.whatsapp)
-                elif self.partner_id.whatsapp.startswith('+503') and len(self.partner_id.whatsapp) == 12:
-                    match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
-                else:
-                    match = re.match(r'^\+(\d{1,3})(\d{4,14})$', self.partner_id.whatsapp)
-                if match:
-                    country_code = match.group(1)
-                    phone_number = match.group(2)
-                else:
+                _logger.info("[Addendum] Changed subscription_state to 1c_nocontract for order %s", self.name)
+                
+                # Send for signature (will use addendum template for upsells, full contract for normal subscriptions)
+                if self.contract_send_method == 'whatsapp' and not self.partner_id.whatsapp:
                     self.write({'contract_send_method': 'email'})
-            self.action_send_for_signature()
+                else:
+                    if self.partner_id.whatsapp.startswith('+1') and len(self.partner_id.whatsapp) == 12:
+                        match = re.match(r'^\+(\d{1})(\d{10})$', self.partner_id.whatsapp)
+                    elif self.partner_id.whatsapp.startswith('+503') and len(self.partner_id.whatsapp) == 12:
+                        match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
+                    else:
+                        match = re.match(r'^\+(\d{1,3})(\d{4,14})$', self.partner_id.whatsapp)
+                    if match:
+                        country_code = match.group(1)
+                        phone_number = match.group(2)
+                    else:
+                        self.write({'contract_send_method': 'email'})
+                self.action_send_for_signature()
             return res
         
     def action_confirm(self):
         user = self.env['res.users'].browse(196)
 #       user = self.env.user
+        _logger.info("[DEBUG] action_confirm called for order %s, is_subscription=%s, subscription_state=%s", 
+                    self.name, self.is_subscription, self.subscription_state)
+        
         authenticated = self.authenicate_jwt()
         if authenticated:
+            # Confirm the order first for all subscriptions
             res = super(SaleSubscription, self).action_confirm()
-            if self.is_subscription:
+            _logger.info("[DEBUG] Super action_confirm completed for order %s", self.name)
+            
+            if self.is_subscription or self.subscription_state == '7_upsell':
+                # Check if this is an upsell FIRST (before changing state!)
+                if self.subscription_state == '7_upsell':
+                    _logger.info("[Addendum] Upsell detected for order %s - creating addendum", self.name)
+                    # Create addendum while state is still '7_upsell'
+                    try:
+                        self._create_addendum_for_upsell()
+                        _logger.info("[Addendum] Successfully created addendum for order %s", self.name)
+                    except Exception as e:
+                        _logger.exception("[Addendum] ERROR creating addendum for order %s: %s", self.name, str(e))
+                        raise
+                
+                # NOW move to contract phase (for both upsells and normal subscriptions)
                 self.write({'subscription_state': '1c_nocontract'})
+                _logger.info("[Addendum] Changed subscription_state to 1c_nocontract for order %s", self.name)
+                
+                # Normal subscription/upsell flow - open wizard to send contract/addendum
                 # Retrieve DocuSign credentials from the custom model
                 if not user.access_token or not user.account_id:
                     raise UserError("DocuSign credentials are not active.  Please sign in and get your access token.")
@@ -605,6 +685,126 @@ class SaleSubscription(models.Model):
                 raise ValidationError(_("Failed to obtain access token from DocuSign"))
 
 
+    def _find_parent_contract(self):
+        """Find the active contract for the parent subscription (used for upsells)"""
+        self.ensure_one()
+        if not self.origin_order_id:
+            _logger.warning("[Addendum] No parent subscription found for upsell %s", self.name)
+            return False
+        
+        # Find active contract for parent subscription
+        parent_contracts = self.env['contract.management'].search([
+            ('subscription_id', '=', self.origin_order_id.id),
+            ('state', 'in', ['active', 'signed'])
+        ], order='create_date desc', limit=1)
+        
+        if not parent_contracts:
+            _logger.warning("[Addendum] No active contract found for parent subscription %s", self.origin_order_id.name)
+            return False
+        
+        return parent_contracts[0]
+
+    def _create_addendum_for_upsell(self):
+        """Create and send addendum for upsell order"""
+        self.ensure_one()
+        _logger.info("[Addendum] _create_addendum_for_upsell called for order %s", self.name)
+        
+        # Find parent contract
+        parent_contract = self._find_parent_contract()
+        _logger.info("[Addendum] Parent contract search result: %s", parent_contract.name if parent_contract else "None")
+        
+        if not parent_contract:
+            error_msg = _("Cannot create addendum: No active contract found for parent subscription. "
+                            "Please ensure the parent subscription has an active contract.")
+            _logger.error("[Addendum] %s", error_msg)
+            raise UserError(error_msg)
+        
+        # Calculate financial impact
+        monthly_payment_change = 0.0
+        one_time_fee = 0.0
+        
+        # Calculate change in monthly payment from recurring lines
+        recurring_lines = self.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        for line in recurring_lines:
+            monthly_payment_change += line.price_total
+        
+        # Calculate one-time fees from non-recurring lines
+        one_time_lines = self.order_line.filtered(lambda l: not l.product_id.recurring_invoice)
+        for line in one_time_lines:
+            one_time_fee += line.price_total
+
+        # Recalculate parent contract totals (monthly_payment and contract_value) to include upsell
+        base_order = self._get_addendum_base_order()
+        contract_value_order = self._get_contract_value_source_order()
+        contract_value_lines = contract_value_order.order_line.filtered(lambda l: l.product_id.recurring_invoice) if contract_value_order else self.env['sale.order.line']
+        monthly_payment_for_value = sum(line.price_total for line in contract_value_lines)
+        monthly_payment_recomputed = monthly_payment_for_value
+
+        # Contract value follows the same logic used when creating contract.management
+        billing_source = base_order if base_order else self
+        contract_value_billing_source = contract_value_order if contract_value_order else billing_source
+        if contract_value_billing_source.contract_term and contract_value_billing_source.plan_id:
+            contract_term_months = contract_value_billing_source.contract_term.term
+            billing_period_months = contract_value_billing_source.plan_id.billing_period_value if contract_value_billing_source.plan_id.billing_period_unit == 'month' else 1
+            duration = (contract_term_months / billing_period_months) if billing_period_months > 0 else 12
+        else:
+            duration = 12
+
+        contract_value_recomputed = monthly_payment_for_value * duration
+        parent_contract.sudo().write({
+            'monthly_payment': monthly_payment_recomputed,
+            'contract_value': contract_value_recomputed,
+        })
+        _logger.info(
+            "[Addendum] Parent contract %s updated: monthly_payment=%.2f, contract_value=%.2f",
+            parent_contract.name,
+            monthly_payment_recomputed,
+            contract_value_recomputed,
+        )
+        
+        # Build description of changes
+        description_parts = ["Service additions from upsell:"]
+        for line in self.order_line:
+            description_parts.append(f"- {line.product_id.name}: {line.product_uom_qty} x ${line.price_unit:.2f}")
+        description = "\n".join(description_parts)
+        
+        # Create addendum
+        addendum_vals = {
+            'name': f'Upsell Addendum - {self.name}',
+            'contract_id': parent_contract.id,
+            'upsell_subscription_id': self.id,  # Link to upsell order
+            'addendum_type': 'service_addition',
+            'description': description,
+            'effective_date': fields.Date.today(),
+            'state': 'draft',
+            'contract_send_method': self.contract_send_method or 'whatsapp',
+            'monthly_payment_change': monthly_payment_change,
+            'one_time_fee': one_time_fee,
+        }
+        
+        addendum = self.env['contract.addendum'].create(addendum_vals)
+        _logger.info("[Addendum] Created addendum %s (ID: %s) for upsell %s", 
+                    addendum.name, addendum.id, self.name)
+        
+        # Link addendum to order's chatter
+        self.message_post(
+            body=_("Addendum created: <a href='/web#id=%s&model=contract.addendum&view_type=form'>%s</a>") % (addendum.id, addendum.name),
+            subject="Addendum Created for Upsell"
+        )
+        
+        # Return action to open the addendum
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Addendum for Upsell',
+            'res_model': 'contract.addendum',
+            'res_id': addendum.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'form_view_initial_mode': 'edit',
+            }
+        }
+
     def action_send_contract(self):
         """Button action to send contract when in 1c_nocontract state without docusign connector."""
         self.ensure_one()
@@ -622,6 +822,89 @@ class SaleSubscription(models.Model):
             'context': {'default_send_method': self.contract_send_method}
         }
 
+    def action_quotation_send(self):
+        """Override to conditionally send quotation email automatically.
+        
+        - Production (web.base.url starts with https://servicio.): Send automatically
+        - Test/Dev environments: Open standard email composer dialog
+        """
+        self.ensure_one()
+        
+        # Check environment based on web.base.url
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
+        is_production = base_url.startswith('https://servicio.')
+        
+        _logger.info("[QuoteSend] action_quotation_send called for order %s (ID: %s), base_url=%s, is_production=%s", 
+                    self.name, self.id, base_url, is_production)
+        
+        # In test/dev environments, use standard email composer
+        if not is_production:
+            _logger.info("[QuoteSend] Non-production environment detected, opening email composer dialog")
+            return super().action_quotation_send()
+        
+        # Production: Automatic sending
+        _logger.info("[QuoteSend] Production environment detected, sending automatically")
+        
+        # Validate customer has an email
+        if not self.partner_id.email:
+            _logger.warning("[QuoteSend] Order %s: Customer %s has no email address", 
+                          self.name, self.partner_id.name)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('No Email Address'),
+                    'message': _('Customer %s has no email address configured.') % self.partner_id.name,
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+        
+        # Get the quotation email template
+        template = self.env.ref('sale.email_template_edi_sale', raise_if_not_found=False)
+        if not template:
+            _logger.error("[QuoteSend] Email template 'sale.email_template_edi_sale' not found")
+            raise UserError(_('Quotation email template not found. Please contact administrator.'))
+        
+        _logger.info("[QuoteSend] Queueing email using template ID=%s to customer %s (%s)", 
+                    template.id, self.partner_id.name, self.partner_id.email)
+        
+        try:
+            # Queue the email for async sending (more robust than force_send)
+            # force_send=False means it will be queued and sent by mail queue cron
+            template.send_mail(self.id, force_send=False, raise_exception=False)
+            
+            # Mark quotation as sent
+            if self.state in ('draft', 'sent'):
+                self.write({'state': 'sent'})
+            
+            _logger.info("[QuoteSend] Email queued successfully for order %s", self.name)
+            
+            # Return a success notification
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Quotation Queued'),
+                    'message': _('Quotation will be sent to %s shortly.') % self.partner_id.email,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except Exception as e:
+            _logger.exception("[QuoteSend] Failed to queue email for order %s", self.name)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Email Error'),
+                    'message': _('Failed to queue quotation email: %s') % str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     def action_send_for_signature(self):
         _logger.info("[DocuSign] action_send_for_signature called for %d contract(s)", len(self))
         for contract in self:
@@ -629,26 +912,32 @@ class SaleSubscription(models.Model):
                         contract.id, contract.name, contract.contract_send_method)
             
             # Calculate monthly_payment (tax-inclusive) and contract_value from recurring order lines
-            monthly_payment = 0.0
+            base_order = contract._get_addendum_base_order()
+            contract_value_source = contract._get_contract_value_source_order()
+            recurring_lines_current = contract.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+            recurring_lines_base = base_order.order_line.filtered(lambda l: l.product_id.recurring_invoice) if base_order and base_order != contract else contract.env['sale.order.line']
+            combined_recurring_lines = (recurring_lines_base | recurring_lines_current) if recurring_lines_base else recurring_lines_current
+
+            # Use non-upsell ancestor for monthly and contract value to avoid double counting
             contract_value = 0.0
-            recurring_lines = contract.order_line.filtered(lambda l: l.product_id.recurring_invoice)
-            for line in recurring_lines:
-                # price_total includes taxes; use it for monthly_payment per requirements
-                monthly_payment += line.price_total
-            
-            # Calculate contract value based on contract term and billing period
-            # duration = contract_term_months / billing_period_months
-            if contract.contract_term and contract.plan_id:
-                contract_term_months = contract.contract_term.term
+            contract_value_lines = contract_value_source.order_line.filtered(lambda l: l.product_id.recurring_invoice) if contract_value_source else contract.env['sale.order.line']
+            contract_value_monthly = sum(line.price_total for line in contract_value_lines)
+            monthly_payment = contract_value_monthly
+
+            # Calculate contract value based on contract term and billing period (prefer base order settings for upsells)
+            billing_source = base_order if base_order else contract
+            contract_value_billing_source = contract_value_source if contract_value_source else billing_source
+            if contract_value_billing_source.contract_term and contract_value_billing_source.plan_id:
+                contract_term_months = contract_value_billing_source.contract_term.term
                 # Get billing period in months from the plan
-                billing_period_months = contract.plan_id.billing_period_value if contract.plan_id.billing_period_unit == 'month' else 1
+                billing_period_months = contract_value_billing_source.plan_id.billing_period_value if contract_value_billing_source.plan_id.billing_period_unit == 'month' else 1
                 if billing_period_months > 0:
                     duration = contract_term_months / billing_period_months
-                    contract_value = monthly_payment * duration
+                    contract_value = contract_value_monthly * duration
                 else:
-                    contract_value = monthly_payment * 12  # Fallback to 12 if calculation fails
+                    contract_value = contract_value_monthly * 12  # Fallback to 12 if calculation fails
             else:
-                contract_value = monthly_payment * 12  # Default to 12 if no contract term/plan
+                contract_value = contract_value_monthly * 12  # Default to 12 if no contract term/plan
             
             _logger.info("[DocuSign] Calculated values for contract ID=%s: monthly_payment=%.2f, contract_value=%.2f", 
                         contract.id, monthly_payment, contract_value)
@@ -660,7 +949,22 @@ class SaleSubscription(models.Model):
             if contract.is_subscription and not contract.cabal_sequence:
                 contract.sudo().cabal_sequence = contract._get_cabal_sequence()
                 _logger.info("[DocuSign] Generated contract sequence: %s", contract.cabal_sequence)
-            # Step2 - Fetch the contract template
+            
+            # Step 2: Fetch the contract template (force recompute for upsells)
+            # For upsells, check if an addendum was created (not subscription_state, which may have changed)
+            has_addendum = self.env['contract.addendum'].search_count([
+                ('upsell_subscription_id', '=', contract.id)
+            ]) > 0
+            
+            _logger.info("[DocuSign] Contract subscription_state=%s, has_addendum=%s", 
+                        contract.subscription_state, has_addendum)
+            
+            if has_addendum:
+                # This is an upsell - force recompute to use addendum template
+                contract._compute_contract_template()
+                _logger.info("[DocuSign] Addendum detected, forced recompute. contract_template=%s", 
+                           contract.contract_template.name if contract.contract_template else None)
+            
             if not contract.contract_template:
                 _logger.error("[DocuSign] Contract template not specified for contract ID=%s", contract.id)
                 raise UserError('Contract template not specified.')
@@ -792,13 +1096,15 @@ class SaleSubscription(models.Model):
         if not self.cabal_sequence:
             self.sudo().cabal_sequence = self._get_cabal_sequence()
 
-        recurring_lines = self.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        contract_value_source = self._get_contract_value_source_order()
+        recurring_lines = contract_value_source.order_line.filtered(lambda l: l.product_id.recurring_invoice) if contract_value_source else self.env['sale.order.line']
         monthly_payment = sum(recurring_lines.mapped('price_total'))
 
         contract_value = 0.0
-        if self.contract_term and self.plan_id:
-            contract_term_months = self.contract_term.term
-            billing_period_months = self.plan_id.billing_period_value if self.plan_id.billing_period_unit == 'month' else 1
+        billing_source = contract_value_source if contract_value_source else self
+        if billing_source.contract_term and billing_source.plan_id:
+            contract_term_months = billing_source.contract_term.term
+            billing_period_months = billing_source.plan_id.billing_period_value if billing_source.plan_id.billing_period_unit == 'month' else 1
             if billing_period_months > 0:
                 duration = contract_term_months / billing_period_months
                 contract_value = monthly_payment * duration
@@ -825,10 +1131,76 @@ class SaleSubscription(models.Model):
 
         return result
 
+    def _get_addendum_base_order(self):
+        """Return the parent contract/order for addendum rendering."""
+        self.ensure_one()
+        if getattr(self, 'origin_order_id', False):
+            return self.origin_order_id
+        return self
+
+    def _get_contract_value_source_order(self):
+        """Walk up the chain to a non-upsell order for contract value math."""
+        self.ensure_one()
+        order = self._get_addendum_base_order()
+        while order and getattr(order, 'upsell_from_id', False):
+            order = order.upsell_from_id
+        return order
+
+    def _get_recurring_lines_for_addendum(self):
+        """Collect recurring lines, preferring the parent order for upsells."""
+        self.ensure_one()
+        base_order = self._get_addendum_base_order()
+
+        lines = base_order.order_line if getattr(base_order, 'order_line', False) else base_order.env['sale.order.line']
+        if not lines:
+            lines = base_order.recurring_invoice_line_ids if getattr(base_order, 'recurring_invoice_line_ids', False) else base_order.env['sale.order.line']
+
+        if not lines:
+            return base_order.env['sale.order.line']
+
+        return lines.filtered(lambda l: l.product_template_id and getattr(l.product_template_id, 'recurring_invoice', False))
+
+    def _get_addendum_monthly_total(self, recurring_lines=None):
+        """Compute monthly total safely, falling back to stored totals."""
+        self.ensure_one()
+        recurring_lines = recurring_lines if recurring_lines is not None else self._get_recurring_lines_for_addendum()
+
+        if recurring_lines:
+            return sum((l.price_unit or 0.0) * (l.product_uom_qty or 1.0) for l in recurring_lines)
+
+        base_order = self._get_addendum_base_order()
+
+        if hasattr(base_order, 'recurring_total'):
+            return base_order.recurring_total or 0.0
+
+        if hasattr(base_order, 'amount_total'):
+            return base_order.amount_total or 0.0
+
+        return 0.0
+
     def _create_document_to_be_signed(self, subscription, report_template):
         # Render the report as PDF
         # Check to make sure that the contract template has been specified
         _logger.info("[DocuSign] _create_document_to_be_signed called for subscription ID=%s", subscription.id)
+        
+        # LOG RECORD DATA FOR DEBUGGING
+        _logger.info("[DocuSign] DEBUG - Subscription record data:")
+        _logger.info("[DocuSign] - name: %s", subscription.name)
+        _logger.info("[DocuSign] - partner_id: %s", subscription.partner_id.name if subscription.partner_id else None)
+        _logger.info("[DocuSign] - has order_line: %s", hasattr(subscription, 'order_line'))
+        _logger.info("[DocuSign] - order_line count: %s", len(subscription.order_line) if hasattr(subscription, 'order_line') else 'N/A')
+        if hasattr(subscription, 'order_line') and subscription.order_line:
+            for idx, line in enumerate(subscription.order_line):
+                _logger.info("[DocuSign] - order_line[%d]: product=%s, price_unit=%s, product_uom_qty=%s, recurring=%s", 
+                            idx, 
+                            line.product_id.name if line.product_id else None,
+                            line.price_unit,
+                            line.product_uom_qty,
+                            line.product_template_id.recurring_invoice if hasattr(line, 'product_template_id') and line.product_template_id else 'N/A')
+        _logger.info("[DocuSign] - has recurring_invoice_line_ids: %s", hasattr(subscription, 'recurring_invoice_line_ids'))
+        _logger.info("[DocuSign] - has recurring_total: %s (value=%s)", hasattr(subscription, 'recurring_total'), getattr(subscription, 'recurring_total', 'N/A'))
+        _logger.info("[DocuSign] - has amount_total: %s (value=%s)", hasattr(subscription, 'amount_total'), getattr(subscription, 'amount_total', 'N/A'))
+        
         if not report_template:
             _logger.error("[DocuSign] No contract template specified for subscription ID=%s", subscription.id)
             raise ValueError("No contract template specified.")
@@ -869,11 +1241,11 @@ class SaleSubscription(models.Model):
             _logger.error("[DocuSign] Company signer email not configured in settings")
             raise UserError("DocuSign company signer email is not configured. Please configure it in Settings > General Settings > Contract Management.")
         
-        # Look up user by email
-        user = self.env['res.users'].search([('email', '=', company_signer_email)], limit=1)
+        # Look up user by login (not email, since login contains the business email)
+        user = self.env['res.users'].search([('login', '=', company_signer_email)], limit=1)
         if not user:
-            _logger.error("[DocuSign] No user found with email=%s", company_signer_email)
-            raise UserError(f"No user found with email {company_signer_email}. Please check the DocuSign company signer email in settings.")
+            _logger.error("[DocuSign] No user found with login=%s", company_signer_email)
+            raise UserError(f"No user found with login {company_signer_email}. Please check the DocuSign company signer email in settings.")
         
         _logger.info("[DocuSign] Retrieved DocuSign user ID=%s, name=%s, email=%s", user.id, user.name, user.email)
         
@@ -1067,6 +1439,73 @@ class SaleSubscription(models.Model):
                 raise ValidationError("Cliente no tiene numero de WhatsApp registrado")
 
             return response
+
+    # Redefining methods from the sale_subscription.sale_order.py file to accommodate CPE 
+
+    def _get_order_digest(self, origin='', template='sale_subscription.sale_order_digest', lang=None):
+        self.ensure_one()
+        values = {'origin': origin,
+                  'record_url': self._get_html_link(),
+                  'start_date': self.start_date,
+                  'next_invoice_date': self.next_invoice_date,
+                  'recurring_monthly': self.recurring_monthly,
+                  'untaxed_amount': self.amount_untaxed,
+                  'cpe_unit':self.cpe_unit,
+                  'cpe_unit_asset':self.cpe_unit_asset,
+                  'quotation_template': self.sale_order_template_id.name} # see if we don't want plan instead
+        return self.env['ir.qweb'].with_context(lang=lang)._render(template, values)
+    
+    def _prepare_upsell_renew_order_values(self, subscription_state):
+        """
+        Create a new draft order with the same lines as the parent subscription. All recurring lines are linked to their parent lines
+        :return: dict of new sale order values
+        """
+        self.ensure_one()
+        today = fields.Date.today()
+        if subscription_state == '7_upsell' and self.next_invoice_date <= max(self.first_contract_date or today, today):
+            raise UserError(_('You cannot create an upsell for this subscription because it :\n'
+                              ' - Has not started yet.\n'
+                              ' - Has no invoiced period in the future.'))
+        subscription = self.with_company(self.company_id)
+        order_lines = self.order_line._get_renew_upsell_values(subscription_state, period_end=self.next_invoice_date)
+        is_subscription = subscription_state in ['2_renewal', '7_upsell']
+        option_lines_data = [Command.link(option.copy().id) for option in subscription.sale_order_option_ids]
+        if subscription_state == '7_upsell':
+            start_date = fields.Date.today()
+            next_invoice_date = self.next_invoice_date
+        else:
+            # renewal
+            start_date = self.next_invoice_date
+            next_invoice_date = self.next_invoice_date # the next invoice date is the start_date for new contract
+        return {
+            'is_subscription': is_subscription,
+            'subscription_id': subscription.id,
+            'pricelist_id': subscription.pricelist_id.id,
+            'partner_id': subscription.partner_id.id,
+            'partner_invoice_id': subscription.partner_invoice_id.id,
+            'partner_shipping_id': subscription.partner_shipping_id.id,
+            'order_line': order_lines,
+            'analytic_account_id': subscription.analytic_account_id.id,
+            'subscription_state': subscription_state,
+            'origin': subscription.client_order_ref,
+            'client_order_ref': subscription.client_order_ref,
+            'origin_order_id': subscription.id,
+            'note': subscription.note,
+            'user_id': subscription.user_id.id,
+            'payment_term_id': subscription.payment_term_id.id,
+            'company_id': subscription.company_id.id,
+            'sale_order_template_id': self.sale_order_template_id.id,
+            'sale_order_option_ids': option_lines_data,
+            'payment_token_id': False,
+            'start_date': start_date,
+            'next_invoice_date': next_invoice_date,
+            'plan_id': subscription.plan_id.id,
+            'cpe_unit': subscription.cpe_unit.id,
+            'cpe_unit_asset': subscription.cpe_unit_asset.id,
+            'is_subscription': subscription.is_subscription,
+            'renewal_of_id': subscription.id if subscription_state == '2_renewal' else False,
+            'upsell_from_id': subscription.id if subscription_state == '7_upsell' else False,
+        }
 
 class ContractSendMethodWizard(models.TransientModel):
     _name = 'contract.send.method.wizard'

@@ -7,6 +7,9 @@
             <form string="Contract Management">
                 <header>
                     <field name="state" widget="statusbar" statusbar_visible="draft,active,renewal_due,expired,terminated" clickable="1"/>
+                    <button string="Create Addendum" type="object" name="action_create_addendum"
+                            class="btn-primary" invisible="state not in ['active', 'renewal_due', 'expired']"
+                            icon="fa-plus"/>
                     <button string="Recompute Total Paid" type="object" name="action_recompute_total_paid" 
                             class="btn-primary"
                             icon="fa-refresh"/>
@@ -30,6 +33,11 @@
                         <button class="oe_stat_button" type="object" name="action_view_documents"
                                 icon="fa-file-pdf-o" invisible="document_count == 0">
                             <field string="Documents" name="document_count" widget="statinfo"/>
+                        </button>
+
+                        <button class="oe_stat_button" type="object" name="action_view_addendums"
+                                icon="fa-file-text-o">
+                            <field string="Addendums" name="addendum_count" widget="statinfo"/>
                         </button>
 
                         <button class="oe_stat_button" type="object" name="action_open_renewal_opportunity"
