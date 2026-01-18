@@ -231,6 +231,8 @@ class SubscriptionClose(models.Model):
             'plan_id': subscription.plan_id.id,
             'cpe_unit': subscription.cpe_unit.id,
             'cpe_unit_asset': subscription.cpe_unit_asset.id,
+            'renewal_of_id': subscription.id if subscription_state == '2_renewal' else False,
+            'upsell_from_id': subscription.id if subscription_state == '7_upsell' else False,
         }
     
 class SubscriptionCloseReasonCustom(models.Model):

@@ -182,6 +182,39 @@ class ContractAddendum(models.Model):
             }
         }
 
+    def _sync_parent_contract_services(self):
+        """Replace parent contract service lines with services from the parent subscription."""
+        self.ensure_one()
+        contract = self.contract_id
+        subscription = contract.subscription_id
+
+        if not contract or not subscription:
+            _logger.warning("[Addendum] Cannot sync services: missing contract or subscription for addendum %s", self.id)
+            return
+
+        lines = subscription.order_line.filtered(lambda l: l.product_id and not l.display_type)
+        contract.service_ids.sudo().unlink()
+
+        service_vals = []
+        for line in lines:
+            service_vals.append({
+                'contract_id': contract.id,
+                'product_id': line.product_id.id,
+                'name': line.name or line.product_id.name,
+                'price': line.price_total,
+            })
+
+        if service_vals:
+            self.env['contract.service'].sudo().create(service_vals)
+            _logger.info(
+                "[Addendum] Synced %d service lines to parent contract %s from subscription %s",
+                len(service_vals),
+                contract.name,
+                subscription.name,
+            )
+        else:
+            _logger.info("[Addendum] No service lines found on subscription %s to sync", subscription.name)
+
     def action_activate(self):
         """Activate addendum and apply changes"""
         self.ensure_one()
@@ -221,6 +254,9 @@ class ContractAddendum(models.Model):
                 self.contract_id.contract_value - new_contract_value + self.contract_id.contract_value,
                 new_contract_value
             )
+
+        # Sync parent contract services with the latest services on the parent subscription
+        self._sync_parent_contract_services()
         
         self.message_post(
             body=_("Addendum activated. Changes applied to contract.<br/>" +

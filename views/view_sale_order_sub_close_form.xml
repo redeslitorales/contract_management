@@ -48,7 +48,7 @@
             </xpath>
               <field name="state" position="attributes">
                 <attribute name="widget">statusbar</attribute>
-                <attribute name="statusbar_visible">draft,open,close,1a_pending,1b_install</attribute>
+                <attribute name="statusbar_visible">draft,open,close</attribute>
             </field>
         </field>
     </record>

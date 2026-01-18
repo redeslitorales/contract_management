@@ -24,11 +24,11 @@ class ProjectTask(models.Model):
     def _check_installation_scheduled(self):
         """
         Check if this is an installation task that just got scheduled.
-        If so, advance the subscription from '1b_schedule' to '1b_install'.
+        If so, advance the installation state from 'to_be_scheduled' to 'scheduled'.
         
         State progression rules:
-        - Only advance from '1b_schedule' → '1b_install'
-        - Never regress or change state if not at '1b_schedule'
+        - Only advance from 'to_be_scheduled' → 'scheduled'
+        - Never regress or change state if not at 'to_be_scheduled'
         """
         for task in self:
             # Only process installation tasks with a sale order
@@ -43,12 +43,12 @@ class ProjectTask(models.Model):
             if not task.planned_date_begin:
                 continue
             
-            # CRITICAL: Only advance if currently at '1b_schedule' state
+            # CRITICAL: Only advance if currently at 'to_beschedule' state
             # This prevents regression from later states
-            current_state = task.sale_order_id.subscription_state
-            if current_state != '1b_schedule':
+            current_state = task.sale_order_id.installation_state
+            if current_state != 'to_be_scheduled':
                 # Don't touch subscriptions that are not at the schedule state
                 continue
             
             # Advance subscription to next state (Pending Install)
-            task.sale_order_id.write({'subscription_state': '1b_install'})
+            task.sale_order_id.write({'installation_state': 'scheduled'})
