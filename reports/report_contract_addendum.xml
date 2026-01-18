@@ -13,7 +13,7 @@
 
                     <div class="page" style="font-size: 12px;">
                                 <t t-set="base_doc" t-value="doc._get_addendum_base_order()"/>
-                                <t t-set="base_contract_start" t-value="base_doc.start_date or doc.start_date"/>
+                                <t t-set="base_contract_start" t-value="base_doc.date_order or doc.date_order"/>
                                 <t t-set="addendum_date" t-value="doc.create_date or base_contract_start or doc.write_date"/>
                                 <t t-set="months"
                                     t-value="{'1': 'enero', '2': 'febrero', '3': 'marzo', '4': 'abril', '5': 'mayo', '6': 'junio', '7': 'julio', '8': 'agosto', '9': 'septiembre', '10': 'octubre', '11': 'noviembre', '12': 'diciembre'}"/>
