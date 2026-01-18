@@ -194,9 +194,9 @@
                             </div>
                             <div class="mt-3 text-justify" t-translation="on">
                                 TAMANIQUE, 
-                                <t t-esc="doc.start_date.day"/ t-translation="on"> de 
-                                <t t-esc="months[str(doc.start_date.month)]"/ t-translation="on"> de 
-                                <t t-esc="doc.start_date.year"/> 
+                                <t t-esc="doc.date_order.day"/ t-translation="on"> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/ t-translation="on"> de 
+                                <t t-esc="doc.date_order.year"/> 
                                 We will PAY without protest unconditionally to the order of REDES LITORALES S.A. DE C.V., at its offices, on the _______ day of _________ of the year _________ the amount of
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
@@ -569,9 +569,9 @@
                             </div>
                             <div class="mt-3 text-justify">
                                 TAMANIQUE, 
-                                <t t-esc="doc.start_date.day"/> de 
-                                <t t-esc="months[str(doc.start_date.month)]"/> de 
-                                <t t-esc="doc.start_date.year"/> 
+                                <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> de 
+                                <t t-esc="doc.date_order.year"/> 
                                 We will PAY without protest unconditionally to the order of REDES LITORALES S.A. DE C.V., at its offices, on the _______ day of _________ of the year _________ the amount of
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
@@ -944,9 +944,9 @@
                             </div>
                             <div class="mt-3 text-justify">
                                 TAMANIQUE, 
-                                <t t-esc="doc.start_date.day"/> de 
-                                <t t-esc="months[str(doc.start_date.month)]"/> de 
-                                <t t-esc="doc.start_date.year"/> 
+                                <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> de 
+                                <t t-esc="doc.date_order.year"/> 
                                 We will PAY without protest unconditionally to the order of REDES LITORALES S.A. DE C.V., at its offices, on the _______ day of _________ of the year _________ the amount of
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
@@ -1319,9 +1319,9 @@
                             </div>
                             <div class="mt-3 text-justify">
                                 TAMANIQUE, 
-                                <t t-esc="doc.start_date.day"/> de 
-                                <t t-esc="months[str(doc.start_date.month)]"/> de 
-                                <t t-esc="doc.start_date.year"/> 
+                                <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> de 
+                                <t t-esc="doc.date_order.year"/> 
                                 We will PAY without protest unconditionally to the order of REDES LITORALES S.A. DE C.V., at its offices, on the _______ day of _________ of the year _________ the amount of
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
@@ -1694,9 +1694,9 @@
                             </div>
                             <div class="mt-3 text-justify">
                                 TAMANIQUE, 
-                                <t t-esc="doc.start_date.day"/> de 
-                                <t t-esc="months[str(doc.start_date.month)]"/> de 
-                                <t t-esc="doc.start_date.year"/> 
+                                <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> de 
+                                <t t-esc="doc.date_order.year"/> 
                                 We will PAY without protest unconditionally to the order of REDES LITORALES S.A. DE C.V., at its offices, on the _______ day of _________ of the year _________ the amount of
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
