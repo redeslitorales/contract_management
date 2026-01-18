@@ -14,18 +14,12 @@ from odoo.addons.odoo_docusign.models import docu_client
 
 _logger = logging.getLogger(__name__)
 
-SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_schedule', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
 SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
 SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 
 SUBSCRIPTION_STATES = [
     ('1_draft', 'Quotation'),  # Quotation for a new subscription
-    ('1a_pending', 'Pending Signature'),  # Confirmed subscription waiting for a signature
-    ('1b_schedule', 'Pending Schedule'),  # Confirmed subscription waiting to be scheduled
-    ('1b_install', 'Pending Install'),  # Confirmed subscription waiting for an installation
-    ('1c_nocontract', 'Pending Contract'),  # Confirmed subscription waiting for a contract to be generated
-    ('1d_internal', 'Pending Cabal Signature'),  # Confirmed subscription waiting for Cabal to sign
-    ('1e_confirm', 'Quotation Confirmed'),  # Quotation has been confirmed by client.  Waiting for contract to be generated.
     ('2_renewal', 'Renewal Quotation'),  # Renewal Quotation for existing subscription
     ('3_progress', 'In Progress'),  # Active Subscription or confirmed renewal for active subscription
     ('4_paused', 'Paused'),  # Active subscription with paused invoicing
@@ -33,6 +27,7 @@ SUBSCRIPTION_STATES = [
     ('6_churn', 'Churned'),  # Closed or ended subscription
     ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
+    ('9_pending', 'Pending'),  # Confirmed but not yet active
 ]
 
 CONTRACT_SEND_METHODS = [
@@ -144,7 +139,7 @@ class ContractManagement(models.Model):
     addendum_ids = fields.One2many('contract.addendum', 'contract_id', string='Addendums')
     addendum_count = fields.Integer(string='Addendum Count', compute='_compute_addendum_count')
 
-    @api.depends('subscription_id.subscription_state')
+    @api.depends('subscription_id.subscription_state', 'subscription_id.contract_state')
     def _compute_progress_stage(self):
         """Compute the progress stage to display in the progress bar."""
         for contract in self:
@@ -153,27 +148,29 @@ class ContractManagement(models.Model):
                 continue
             
             sub_state = contract.subscription_id.subscription_state
+            contract_state = contract.subscription_id.contract_state
+            quote_confirmed = contract.subscription_id.quote_confirmed
             
             # Draft stage: 1_draft, 2_renewal, 7_upsell
             if sub_state in ['1_draft', '2_renewal', '7_upsell']:
                 contract.progress_stage = 'draft'
-            # Confirmed: 1e_confirm (quotation confirmed, waiting for contract)
-            elif sub_state == '1e_confirm':
+            # Confirmed: (quotation confirmed, waiting for contract)
+            elif sub_state == '1_draft' and quote_confirmed:
                 contract.progress_stage = 'confirmed'
-            # Pending contract: 1c_nocontract
-            elif sub_state == '1c_nocontract':
+            # Pending contract: contract_state pending_contract
+            elif contract_state == 'pending_contract':
                 contract.progress_stage = 'pending_contract'
-            # Pending client signature: 1a_pending
-            elif sub_state == '1a_pending':
+            # Pending client signature: contract_state pending_customer_signature
+            elif contract_state == 'pending_customer_signature':
                 contract.progress_stage = 'pending_client_signature'
-            # Pending Cabal signature: 1d_internal
-            elif sub_state == '1d_internal':
+            # Pending Cabal signature: contract_state pending_cabal_signature
+            elif contract_state == 'pending_cabal_signature':
                 contract.progress_stage = 'pending_cabal_signature'
-            # Schedule install: 1b_schedule
-            elif sub_state == '1b_schedule':
+            # Schedule install: to_be_scheduled
+            elif installation_state == 'to_be_scheduled':
                 contract.progress_stage = 'schedule_install'
-            # Pending install: 1b_install
-            elif sub_state == '1b_install':
+            # Pending install: pending_install
+            elif contract.installation_state == 'pending_install':
                 contract.progress_stage = 'pending_install'
             # Active: 3_progress, 4_paused, 5_renewed
             elif sub_state in ['3_progress', '4_paused', '5_renewed']:
@@ -621,10 +618,22 @@ class ContractManagement(models.Model):
                 )
 
     def write(self, vals):
-        if 'state' in vals:
-            target_state = vals.get('state')
+        state_update = 'state' in vals
+        target_state = vals.get('state') if state_update else None
+
+        if state_update:
             self._validate_state_change(target_state)
-        return super().write(vals)
+
+        res = super().write(vals)
+
+        # Keep sale order contract_state in sync for terminal/active states
+        if state_update and target_state in ['active', 'expired', 'terminated']:
+            for contract in self:
+                subscription = contract.subscription_id
+                if subscription:
+                    subscription.write({'contract_state': target_state})
+
+        return res
 
     def action_activate(self):
         for contract in self:
@@ -1290,21 +1299,21 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'recipient-completed':
                         connector.state = 'customer'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.subscription_state == '1a_pending':  # Was awaiting customer signature
-                            subscription.subscription_state = '1d_internal'  # Customer signed, awaiting Cabal signature
+                        if subscription.contract_state == 'pending_customer_signature':  # Was awaiting customer signature
+                            subscription.contract_state = 'pending_cabal_signature'  # Customer signed, awaiting Cabal signature
                         else:
                             # Post warning to subscription chatter
                             subscription.message_post(
-                                body=_("Could not update subscription state. Current state is '%s' but should have been '1a_pending' (Pending Signature) for recipient-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
+                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_customer_signature' for recipient-completed event.") % (subscription.contract_state or ''),
                                 subject=_('DocuSign State Mismatch Warning'),
                                 message_type='notification',
                                 subtype_xmlid='mail.mt_note'
                             )
-                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current=%s, expected=1a_pending", subscription.id, subscription.subscription_state)
+                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current contract_state=%s, expected=pending_customer_signature", subscription.id, subscription.contract_state)
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.subscription_state in ['1d_internal', '1a_pending']:  # Customer signed, awaiting Cabal signature
+                        if subscription.contract_state in ['pending_cabal_signature', 'pending_customer_signature']:  # Customer signed, awaiting Cabal signature
                             # Auto-create installation task and move to schedule state
                             try:
                                 subscription.action_create_install_task()
@@ -1312,16 +1321,16 @@ class DocuSignWebhookController(http.Controller):
                             except Exception as e:
                                 _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
                                 # If task creation fails, still advance state manually
-                                subscription.subscription_state = '1b_schedule'
+                                subscription.installation_state = 'to_be_scheduled'
                         else:
                             # Post warning to subscription chatter
                             subscription.message_post(
-                                body=_("Could not update subscription state. Current state is '%s' but should have been '1a_pending' (Pending Customer Signature) or '1d_internal' (Pending Cabal Signature) for envelope-completed event.") % dict(SUBSCRIPTION_STATES).get(subscription.subscription_state, subscription.subscription_state),
+                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_customer_signature' or 'pending_cabal_signature' for envelope-completed event.") % (subscription.contract_state or ''),
                                 subject=_('DocuSign State Mismatch Warning'),
                                 message_type='notification',
                                 subtype_xmlid='mail.mt_note'
                             )
-                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current=%s, expected=1d_internal", subscription.id, subscription.subscription_state)
+                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current contract_state=%s, expected pending_cabal_signature", subscription.id, subscription.contract_state)
                         
                         # Auto-download signed documents (skip if already present to avoid duplicates)
                         try:

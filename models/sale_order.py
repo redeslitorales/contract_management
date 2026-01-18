@@ -1,5 +1,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools.misc import html_escape
+from markupsafe import Markup
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import time, base64, uuid, re, json, jwt, requests
@@ -8,16 +10,10 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_schedule', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
 
 SUBSCRIPTION_STATES = [
     ('1_draft', 'Quotation'),  # Quotation for a new subscription
-    ('1a_pending', 'Pending Signature'),  # Confirmed subscription waiting for a signature
-    ('1b_schedule', 'Schedule Install'),  # Installation task created (auto), waiting to be scheduled
-    ('1b_install', 'Pending Install'),  # Installation task scheduled, waiting for completion
-    ('1c_nocontract', 'Pending Contract'),  # Confirmed subscription waiting for a contract to be generated
-    ('1d_internal', 'Pending Cabal Signature'),  # Confirmed subscription waiting for Cabal to sign
-    ('1e_confirm', 'Quotation Confirmed'),  # Quotation has been confirmed by client.  Waiting for contract to be generated.
     ('2_renewal', 'Renewal Quotation'),  # Renewal Quotation for existing subscription
     ('3_progress', 'In Progress'),  # Active Subscription or confirmed renewal for active subscription
     ('4_paused', 'Paused'),  # Active subscription with paused invoicing
@@ -25,6 +21,7 @@ SUBSCRIPTION_STATES = [
     ('6_churn', 'Churned'),  # Closed or ended subscription
     ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
+    ('9_pending', 'Pending'),  # Confirmed but not yet active
 ]
 
 
@@ -34,6 +31,38 @@ CONTRACT_SEND_METHODS = [
         ('physical', 'Physical'),
         ('donotsend', 'Do Not Send')
 #        ('sms', 'SMS')
+]
+
+CONTRACT_STATES = [
+    ('pending_contract', 'Pending Contract'),
+    ('pending_customer_signature', 'Pending Customer Signature'),
+    ('pending_cabal_signature', 'Pending Cabal Signature'),
+    ('active', 'Active'),
+    ('expired', 'Expired'),
+    ('terminated', 'Terminated'),
+    ('not_required', 'Not Required'),
+]
+
+INTERNET_SERVICE_STATES = [
+    ('not_active', 'Not Active'),
+    ('active', 'Active'),
+    ('suspended', 'Suspended'),
+    ('paused', 'Paused'),
+    ('terminated', 'Terminated'),
+]
+
+INSTALLATION_STATES = [
+    ('to_be_scheduled', 'To Be Scheduled'),
+    ('scheduled', 'Scheduled'),
+    ('completed', 'Completed'),
+]
+
+SERVICE_CHANGE_MODES = [
+    ('no_change', 'No Change'),
+    ('config_only', 'Config Change Only'),
+    ('activation_only', 'Activation Only'),
+    ('install_no_activation', 'Install Without Activation'),
+    ('install_with_activation', 'Install with Activation'),
 ]
 
 TRANSFER_REASONS = [
@@ -77,6 +106,48 @@ class SaleSubscription(models.Model):
     )
     cabal_sequence = fields.Char(string='Contract Number', readonly=True, copy=False)
     contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, required=True)
+    contract_state = fields.Selection(
+        selection=CONTRACT_STATES,
+        string='Contract State',
+        default='pending_contract',
+        tracking=True,
+        help='Lifecycle state of the contract linked to this sale order.',
+    )
+    internet_service_state = fields.Selection(
+        selection=INTERNET_SERVICE_STATES,
+        string='Internet Service State',
+        default='not_active',
+        tracking=True,
+        help='Operational status of the customer internet service for this order.',
+    )
+    iptv_service_state = fields.Selection(
+        selection=INTERNET_SERVICE_STATES,
+        string='IPTV Service State',
+        default='not_active',
+        tracking=True,
+        help='Operational status of the customer IPTV service for this order.',
+    )
+    installation_state = fields.Selection(
+        selection=INSTALLATION_STATES,
+        string='Installation State',
+        default='to_be_scheduled',
+        tracking=True,
+    )
+    configuration_state = fields.Selection(
+        selection=INSTALLATION_STATES,
+        string='Configuration State',
+        default='to_be_scheduled',
+        tracking=True,
+    )
+    service_change_mode = fields.Selection(
+        selection=SERVICE_CHANGE_MODES,
+        string='Service Change Mode',
+        default='no_change',
+        tracking=True,
+        help='Indicates whether this order triggers install, activation, or config-only work.',
+    )
+    install_required = fields.Boolean(string='Install Required', default=False, tracking=True)
+    activation_required = fields.Boolean(string='Activation Required', default=False, tracking=True)
     subscription_state = fields.Selection(
         string='Subscription Status',
         selection=SUBSCRIPTION_STATES,
@@ -130,7 +201,7 @@ class SaleSubscription(models.Model):
         for order in self:
             order.confirmation_url = f"{base_url}/webhook/confirm_sale_order?uuid={order.confirmation_uuid}"
 
-    @api.depends('subscription_state')
+    @api.depends('subscription_state', 'contract_state', 'installation_state', 'quote_confirmed')
     def _compute_progress_stage(self):
         """Compute the progress stage to display in the progress bar."""
         for order in self:
@@ -139,28 +210,41 @@ class SaleSubscription(models.Model):
                 continue
             
             sub_state = order.subscription_state
+            contract_state = order.contract_state
+            quote_confirmed = order.quote_confirmed
+
+            # Upsell flow only shows draft/confirmed on the progress bar
+            if sub_state == '7_upsell':
+                if quote_confirmed or order.state in ('sale', 'done'):
+                    order.progress_stage = 'confirmed'
+                else:
+                    order.progress_stage = 'draft'
+                continue
             
             # Draft stage: 1_draft, 2_renewal, 7_upsell
             if sub_state in ['1_draft', '2_renewal', '7_upsell']:
                 order.progress_stage = 'draft'
-            # Confirmed: 1e_confirm (quotation confirmed, waiting for contract)
-            elif sub_state == '1e_confirm':
+            # Confirmed: (quotation confirmed, waiting for contract)
+            elif sub_state == '1_draft' and quote_confirmed:
                 order.progress_stage = 'confirmed'
-            # Pending contract: 1c_nocontract
-            elif sub_state == '1c_nocontract':
+            # Pending contract: contract_state pending_contract
+            elif contract_state == 'pending_contract':
                 order.progress_stage = 'pending_contract'
-            # Pending client signature: 1a_pending
-            elif sub_state == '1a_pending':
+            # Pending client signature: contract_state pending_customer_signature
+            elif contract_state == 'pending_customer_signature':
                 order.progress_stage = 'pending_client_signature'
-            # Pending Cabal signature: 1d_internal
-            elif sub_state == '1d_internal':
+            # Pending Cabal signature: contract_state pending_cabal_signature
+            elif contract_state == 'pending_cabal_signature':
                 order.progress_stage = 'pending_cabal_signature'
-            # Schedule install: 1b_schedule
-            elif sub_state == '1b_schedule':
+            # Schedule install: installation_state to_be_scheduled
+            elif order.installation_state == 'to_be_scheduled' or order.configuration_state == 'to_be_scheduled':
                 order.progress_stage = 'schedule_install'
-            # Pending install: 1b_install
-            elif sub_state == '1b_install':
+            # Pending install: installation_state scheduled or pending_install
+            elif order.installation_state =='scheduled' or order.configuration_state == 'scheduled':
                 order.progress_stage = 'pending_install'
+            # Active with issues: subscription says active but contract is not active or install not completed or config not completed
+            elif sub_state == '3_progress' and (contract_state != 'active' or order.installation_state != 'completed' or order.configuration_state != 'completed'):
+                order.progress_stage = 'active_with_issues'
             # Active: 3_progress, 5_renewed (NOT 4_paused - that's handled separately)
             elif sub_state in ['3_progress', '5_renewed']:
                 order.progress_stage = 'active'
@@ -251,7 +335,7 @@ class SaleSubscription(models.Model):
     # def _compute_next_action(self):
     #     """Compute the next contextual action based on subscription state and FSM task status"""
     #     for order in self:
-    #         if order.subscription_state == '1b_install':
+    #         if order.installation_state == 'pending_install':
     #             if not order.fsm_task_ids:
     #                 order.next_action = 'create_task'
     #             else:
@@ -271,11 +355,11 @@ class SaleSubscription(models.Model):
     #         else:
     #             order.next_action = False
 
-    @api.depends('subscription_state', 'contract_ids', 'docusign_ids')
+    @api.depends('contract_state', 'contract_ids', 'docusign_ids')
     def _compute_can_resend_contract(self):
         for order in self:
             order.can_resend_contract = (
-                order.subscription_state == '1a_pending'
+                order.contract_state == 'pending_customer_signature'
                 and order.contract_ids
                 and order.docusign_ids
             )
@@ -371,8 +455,8 @@ class SaleSubscription(models.Model):
         
         # Update subscription state to show schedule button
         # Only change state if we're at pending signature stage (don't move backwards)
-        if self.subscription_state in ['1a_pending', '1d_internal']:
-            self.write({'subscription_state': '1b_schedule'})
+        if self.contract_state in ['pending_customer_signature', 'pending_cabal_signature']:
+            self.write({'installation_state': 'to_be_scheduled'})
         
         # Return message with link to task
         return {
@@ -461,38 +545,25 @@ class SaleSubscription(models.Model):
         for record in records:
             record.subscription_state = '3_progress'
 
-    def move_to_next_stage(self, event):
-        raise ValidationError(event)
-        # When contract is completed, move to Pending Install unless status is already In Progress
-        if event == 'Contract Complete':
-            if self.subscription_state not in  ['3_progress']:
-                self.write({'subscription_state': '1d_internal'})
-        return
+    def _complete_config_changes(self):
+        """Placeholder hook: more processing to come."""
+        self.with_context(skip_renewal_completion=True).write({
+            'installation_state': 'completed',
+            'configuration_state': 'completed',
+        })
 
     def signed_manually(self):
-        if self.subscription_state in ['1a_pending'] and self.contract_send_method == 'physical':
+        if self.contract_state == 'pending_customer_signature' and self.contract_send_method == 'physical':
             # Auto-create installation task
             try:
                 self.action_create_install_task()
             except Exception as e:
                 _logger.warning("Failed to auto-create install task: %s", str(e))
                 # If task creation fails, still advance state manually
-                self.write({'subscription_state': '1b_schedule'})
+                self.write({'installation_state': 'to_be_scheduled'})
         else:
             raise UserError('Error: No esta firmado fisicamente.')
 
-    def return_to_progress(self):
-        if self.subscription_state in ['1d_internal', '1b_schedule', '1b_install'] and (self.invoice_ids or self.origin_order_id):
-            target_state = '7_upsell' if self.upsell_from_id else '3_progress'
-            self.write({'subscription_state': target_state})
-
-    def _activate_contracts_on_progress(self):
-        """Promote linked contracts to Active when subscription enters progress."""
-        for order in self:
-            for contract in order.contract_ids:
-                if contract.state not in ['active', 'terminated', 'expired']:
-                    contract.write({'state': 'active'})
-    
 #    def generate_cover_letter(self):
 #        for order in self:
 #            cover_letter_template = self.env.ref('your_module.cover_letter_template')
@@ -508,12 +579,61 @@ class SaleSubscription(models.Model):
         except Exception as e:
             _logger.warning("Failed to auto-create install task: %s", str(e))
             # If task creation fails, still advance state
-            self.write({'state': 'sale', 'subscription_state': '1b_schedule'})
+            self.write({'state': 'sale', 'installation_state': 'to_be_scheduled'})
 
     def write(self, vals):
+        previous_stage = {order.id: order.progress_stage for order in self}
+        previous_contract_state = {order.id: order.contract_state for order in self}
+
         res = super().write(vals)
-        if 'subscription_state' in vals and vals['subscription_state'] == '3_progress':
-            self._activate_contracts_on_progress()
+
+        if self.env.context.get('skip_renewal_completion'):
+            return res
+
+        contract_state_updated_to_active = vals.get('contract_state') == 'active'
+        if contract_state_updated_to_active:
+            for order in self:
+                was_active = previous_contract_state.get(order.id) == 'active'
+                is_active_now = order.contract_state == 'active'
+                if was_active or not is_active_now:
+                    continue
+
+                is_upsell = order.subscription_state == '7_upsell' or bool(order.upsell_from_id)
+                is_renewal = order.subscription_state == '2_renewal' or bool(order.renewal_of_id)
+
+                if (is_upsell or is_renewal) and order.service_change_mode == 'config_only':
+                    order._complete_config_changes()
+
+        state_fields_touched = any(key in vals for key in ['contract_state', 'installation_state', 'configuration_state'])
+        if state_fields_touched:
+            today = fields.Date.context_today(self)
+            for order in self:
+                if not (order.renewal_of_id or order.subscription_state == '2_renewal'):
+                    continue
+
+                all_active_and_done = (
+                    order.contract_state == 'active'
+                    and order.installation_state == 'completed'
+                    and order.configuration_state == 'completed'
+                )
+                if not all_active_and_done:
+                    continue
+
+                updates = {}
+                if order.subscription_state != '3_progress':
+                    updates['subscription_state'] = '3_progress'
+                if order.next_invoice_date and order.next_invoice_date < today:
+                    updates['next_invoice_date'] = today
+                if updates:
+                    order.with_context(skip_renewal_completion=True).write(updates)
+
+                if order.renewal_of_id:
+                    parent_updates = {
+                        'subscription_state': '5_renewed',
+                        'end_date': today,
+                    }
+                    order.renewal_of_id.with_context(skip_renewal_completion=True).write(parent_updates)
+
         return res
 
     def authenicate_jwt(self):
@@ -546,6 +666,18 @@ class SaleSubscription(models.Model):
             raise ValidationError(_("Failed to obtain access token from DocuSign"))
         
         return True
+
+    def _ensure_docusign_config(self):
+        params = self.env['ir.config_parameter'].sudo()
+        required = {
+            'docusign_client_id': params.get_param('docusign_client_id'),
+            'docusign_user_id': params.get_param('docusign_user_id'),
+            'docusign_private_key': params.get_param('docusign_private_key'),
+            'contract_management.docusign_company_signer_email': params.get_param('contract_management.docusign_company_signer_email'),
+        }
+        missing = [key for key, val in required.items() if not val]
+        if missing:
+            raise UserError(_("DocuSign configuration is incomplete: missing %s") % ", ".join(missing))
                 
     # Method to be used in case a contract needs to be transferred
     def action_subscription_transfer_wizard(self):
@@ -553,10 +685,7 @@ class SaleSubscription(models.Model):
             raise ValueError("Expected singleton: sale.order()")
         self.ensure_one()
         if self.is_subscription or self.subscription_state == '7_upsell':
-            # Retrieve DocuSign credentials from the custom model
-            user = self.env.user
-            if not user.access_token or not user.account_id:
-                raise UserError("DocuSign credentials are not active.  Please sign in and get your access token.")
+            self._ensure_docusign_config()
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'action_subscription_transfer_wizard',
@@ -570,11 +699,7 @@ class SaleSubscription(models.Model):
         if self.subscription_id.contract_ids:
             raise UserError("The contract has already been sent via Docusign.  Please review.")
         if self.is_subscription or self.subscription_state == '7_upsell':
-            # Retrieve DocuSign credentials from the custom model
-            user = self.env['res.users'].browse(196)
-#           user = self.env.user
-            if not user.access_token or not user.account_id:
-                raise UserError("DocuSign credentials are not active.  Please sign in and get your access token.")
+            self._ensure_docusign_config()
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'contract.send.method.wizard',
@@ -587,20 +712,37 @@ class SaleSubscription(models.Model):
         _logger.info("[UUID] ===== action_confirm_via_uuid called for order %s (ID: %s) =====", self.name, self.id)
         _logger.info("[UUID] Current subscription_state: %s, is_subscription: %s, origin_order_id: %s", 
                      self.subscription_state, self.is_subscription, self.origin_order_id.name if self.origin_order_id else None)
+        initial_subscription_state = self.subscription_state
         
         # Authenticate using hardcoded user 196 (contratos@cabal.sv) for token consistency
+        self._ensure_docusign_config()
         authenticated = self.authenicate_jwt()
         user = self.env['res.users'].browse(196)
         if authenticated:
             _logger.info("[UUID] Authentication successful for order %s", self.name)
             
-            # Check if this is an upsell BEFORE confirming (super() may change state)
-            is_upsell = self.subscription_state == '7_upsell'
+            # Treat as upsell only when explicitly flagged; any renewal_of_id or origin without upsell marker is renewal
+            explicit_upsell = initial_subscription_state == '7_upsell' or bool(self.upsell_from_id)
+            is_renewal = (
+                initial_subscription_state == '2_renewal'
+                or bool(self.renewal_of_id)
+                or (self.origin_order_id and not explicit_upsell)
+            )
+            is_upsell = explicit_upsell and not is_renewal
+            _logger.info(
+                "[Addendum] Upsell detection (UUID) order=%s state=%s upsell_from_id=%s origin_order_id=%s -> is_upsell=%s",
+                self.name,
+                initial_subscription_state,
+                bool(self.upsell_from_id),
+                bool(self.origin_order_id),
+                is_upsell,
+            )
             if is_upsell:
                 _logger.info("[Addendum] Upsell detected via UUID for order %s - will create addendum after confirmation", self.name)
             
-            res = super(SaleSubscription, self).action_confirm()
-            _logger.info("[UUID] super().action_confirm() completed for order %s", self.name)
+            # res = super(SaleSubscription, self).action_confirm()
+            res = self.action_update_sub_data()
+            _logger.info("[UUID] action_update_sub_data() completed for order %s", self.name)
             
             if self.is_subscription or is_upsell:
                 _logger.info("[UUID] Order %s is a subscription, processing contract workflow", self.name)
@@ -616,24 +758,37 @@ class SaleSubscription(models.Model):
                         raise
                 
                 # NOW move to contract phase (for both upsells and normal subscriptions)
-                self.write({'subscription_state': '1c_nocontract'})
-                _logger.info("[Addendum] Changed subscription_state to 1c_nocontract for order %s", self.name)
+                if is_upsell:
+                    parent_subscription = self.origin_order_id
+                    if parent_subscription:
+                        parent_subscription.write({'contract_state': 'pending_contract'})
+                        _logger.info("[Addendum] Set parent subscription %s to pending_contract for upsell order %s", parent_subscription.name, self.name)
+                    else:
+                        _logger.warning("[Addendum] No parent subscription found to set pending_contract for upsell order %s", self.name)
+                else:
+                    self.write({'contract_state': 'pending_contract'})
+                    _logger.info("[Addendum] Set contract_state to pending_contract for order %s", self.name)
+ #               if is_renewal and not is_upsell and self.subscription_state != '9_pending':
+ #                   self.write({'subscription_state': '9_pending'})
                 
                 # Send for signature (will use addendum template for upsells, full contract for normal subscriptions)
-                if self.contract_send_method == 'whatsapp' and not self.partner_id.whatsapp:
-                    self.write({'contract_send_method': 'email'})
-                else:
-                    if self.partner_id.whatsapp.startswith('+1') and len(self.partner_id.whatsapp) == 12:
-                        match = re.match(r'^\+(\d{1})(\d{10})$', self.partner_id.whatsapp)
-                    elif self.partner_id.whatsapp.startswith('+503') and len(self.partner_id.whatsapp) == 12:
-                        match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
-                    else:
-                        match = re.match(r'^\+(\d{1,3})(\d{4,14})$', self.partner_id.whatsapp)
-                    if match:
-                        country_code = match.group(1)
-                        phone_number = match.group(2)
-                    else:
+                # Normalize WhatsApp only when the send method is WhatsApp and a number is present
+                if self.contract_send_method == 'whatsapp':
+                    whatsapp_number = self.partner_id.whatsapp or ''
+                    if not isinstance(whatsapp_number, str) or not whatsapp_number:
                         self.write({'contract_send_method': 'email'})
+                    else:
+                        if whatsapp_number.startswith('+1') and len(whatsapp_number) == 12:
+                            match = re.match(r'^\+(\d{1})(\d{10})$', whatsapp_number)
+                        elif whatsapp_number.startswith('+503') and len(whatsapp_number) == 12:
+                            match = re.match(r'^\+(\d{1,3})(\d+)$', whatsapp_number)
+                        else:
+                            match = re.match(r'^\+(\d{1,3})(\d{4,14})$', whatsapp_number)
+                        if match:
+                            country_code = match.group(1)
+                            phone_number = match.group(2)
+                        else:
+                            self.write({'contract_send_method': 'email'})
                 self.action_send_for_signature()
             return res
         
@@ -642,7 +797,9 @@ class SaleSubscription(models.Model):
 #       user = self.env.user
         _logger.info("[DEBUG] action_confirm called for order %s, is_subscription=%s, subscription_state=%s", 
                     self.name, self.is_subscription, self.subscription_state)
+        initial_subscription_state = self.subscription_state
         
+        self._ensure_docusign_config()
         authenticated = self.authenicate_jwt()
         if authenticated:
             # Confirm the order first for all subscriptions
@@ -651,7 +808,22 @@ class SaleSubscription(models.Model):
             
             if self.is_subscription or self.subscription_state == '7_upsell':
                 # Check if this is an upsell FIRST (before changing state!)
-                if self.subscription_state == '7_upsell':
+                explicit_upsell = initial_subscription_state == '7_upsell' or bool(self.upsell_from_id)
+                is_renewal = (
+                    initial_subscription_state == '2_renewal'
+                    or bool(self.renewal_of_id)
+                    or (self.origin_order_id and not explicit_upsell)
+                )
+                is_upsell = explicit_upsell and not is_renewal
+                _logger.info(
+                    "[Addendum] Upsell detection order=%s state=%s upsell_from_id=%s origin_order_id=%s -> is_upsell=%s",
+                    self.name,
+                    initial_subscription_state,
+                    bool(self.upsell_from_id),
+                    bool(self.origin_order_id),
+                    is_upsell,
+                )
+                if is_upsell:
                     _logger.info("[Addendum] Upsell detected for order %s - creating addendum", self.name)
                     # Create addendum while state is still '7_upsell'
                     try:
@@ -662,13 +834,20 @@ class SaleSubscription(models.Model):
                         raise
                 
                 # NOW move to contract phase (for both upsells and normal subscriptions)
-                self.write({'subscription_state': '1c_nocontract'})
-                _logger.info("[Addendum] Changed subscription_state to 1c_nocontract for order %s", self.name)
+                if is_upsell:
+                    parent_subscription = self.origin_order_id
+                    if parent_subscription:
+                        parent_subscription.write({'contract_state': 'pending_contract'})
+                        _logger.info("[Addendum] Set parent subscription %s to pending_contract for upsell order %s", parent_subscription.name, self.name)
+                    else:
+                        _logger.warning("[Addendum] No parent subscription found to set pending_contract for upsell order %s", self.name)
+                else:
+                    self.write({'contract_state': 'pending_contract'})
+                    _logger.info("[Addendum] Set contract_state to pending_contract for order %s", self.name)
+                if is_renewal and not is_upsell and self.subscription_state != '9_pending':
+                    self.write({'subscription_state': '9_pending'})
                 
                 # Normal subscription/upsell flow - open wizard to send contract/addendum
-                # Retrieve DocuSign credentials from the custom model
-                if not user.access_token or not user.account_id:
-                    raise UserError("DocuSign credentials are not active.  Please sign in and get your access token.")
                 return {
                     'type': 'ir.actions.act_window',
                     'res_model': 'contract.send.method.wizard',
@@ -678,11 +857,70 @@ class SaleSubscription(models.Model):
                 }
             return res
         else:
-            consent_action = user.generate_consent_url(self)
-            if consent_action:
-                raise UserError('You are now authenticated.  Please try again.')
-            else:
-                raise ValidationError(_("Failed to obtain access token from DocuSign"))
+            raise ValidationError(_("Failed to obtain access token from DocuSign via JWT. Please review DocuSign configuration."))
+
+    def action_update_sub_data(self):
+        user = self.env['res.users'].browse(196)
+#       user = self.env.user
+        _logger.info("[DEBUG] action_update_sub_data called for order %s, is_subscription=%s, subscription_state=%s", 
+                    self.name, self.is_subscription, self.subscription_state)
+        initial_subscription_state = self.subscription_state
+
+        self._ensure_docusign_config()
+        authenticated = self.authenicate_jwt()
+        if authenticated:
+            if self.is_subscription or self.subscription_state == '7_upsell':
+                # Check if this is an upsell FIRST (before changing state!)
+                explicit_upsell = initial_subscription_state == '7_upsell' or bool(self.upsell_from_id)
+                is_renewal = (
+                    initial_subscription_state == '2_renewal'
+                    or bool(self.renewal_of_id)
+                    or (self.origin_order_id and not explicit_upsell)
+                )
+                is_upsell = explicit_upsell and not is_renewal
+                _logger.info(
+                    "[Addendum] Upsell detection order=%s state=%s upsell_from_id=%s origin_order_id=%s -> is_upsell=%s",
+                    self.name,
+                    initial_subscription_state,
+                    bool(self.upsell_from_id),
+                    bool(self.origin_order_id),
+                    is_upsell,
+                )
+                if is_upsell:
+                    _logger.info("[Addendum] Upsell detected for order %s - creating addendum", self.name)
+                    # Create addendum while state is still '7_upsell'
+                    try:
+                        self._create_addendum_for_upsell()
+                        _logger.info("[Addendum] Successfully created addendum for order %s", self.name)
+                    except Exception as e:
+                        _logger.exception("[Addendum] ERROR creating addendum for order %s: %s", self.name, str(e))
+                        raise
+                
+                # NOW move to contract phase (for both upsells and normal subscriptions)
+                if is_upsell:
+                    parent_subscription = self.origin_order_id
+                    if parent_subscription:
+                        parent_subscription.write({'contract_state': 'pending_contract'})
+                        _logger.info("[Addendum] Set parent subscription %s to pending_contract for upsell order %s", parent_subscription.name, self.name)
+                    else:
+                        _logger.warning("[Addendum] No parent subscription found to set pending_contract for upsell order %s", self.name)
+                else:
+                    self.write({'contract_state': 'pending_contract'})
+                    _logger.info("[Addendum] Set contract_state to pending_contract for order %s", self.name)
+                if is_renewal and not is_upsell and self.subscription_state != '9_pending':
+                    self.write({'subscription_state': '9_pending'})
+                
+                # Normal subscription/upsell flow - open wizard to send contract/addendum
+                return {
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'contract.send.method.wizard',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {'default_send_method': self.contract_send_method}
+                }
+            return True
+        else:
+            raise ValidationError(_("Failed to obtain access token from DocuSign via JWT. Please review DocuSign configuration."))
 
 
     def _find_parent_contract(self):
@@ -733,35 +971,6 @@ class SaleSubscription(models.Model):
         for line in one_time_lines:
             one_time_fee += line.price_total
 
-        # Recalculate parent contract totals (monthly_payment and contract_value) to include upsell
-        base_order = self._get_addendum_base_order()
-        contract_value_order = self._get_contract_value_source_order()
-        contract_value_lines = contract_value_order.order_line.filtered(lambda l: l.product_id.recurring_invoice) if contract_value_order else self.env['sale.order.line']
-        monthly_payment_for_value = sum(line.price_total for line in contract_value_lines)
-        monthly_payment_recomputed = monthly_payment_for_value
-
-        # Contract value follows the same logic used when creating contract.management
-        billing_source = base_order if base_order else self
-        contract_value_billing_source = contract_value_order if contract_value_order else billing_source
-        if contract_value_billing_source.contract_term and contract_value_billing_source.plan_id:
-            contract_term_months = contract_value_billing_source.contract_term.term
-            billing_period_months = contract_value_billing_source.plan_id.billing_period_value if contract_value_billing_source.plan_id.billing_period_unit == 'month' else 1
-            duration = (contract_term_months / billing_period_months) if billing_period_months > 0 else 12
-        else:
-            duration = 12
-
-        contract_value_recomputed = monthly_payment_for_value * duration
-        parent_contract.sudo().write({
-            'monthly_payment': monthly_payment_recomputed,
-            'contract_value': contract_value_recomputed,
-        })
-        _logger.info(
-            "[Addendum] Parent contract %s updated: monthly_payment=%.2f, contract_value=%.2f",
-            parent_contract.name,
-            monthly_payment_recomputed,
-            contract_value_recomputed,
-        )
-        
         # Build description of changes
         description_parts = ["Service additions from upsell:"]
         for line in self.order_line:
@@ -786,10 +995,15 @@ class SaleSubscription(models.Model):
         _logger.info("[Addendum] Created addendum %s (ID: %s) for upsell %s", 
                     addendum.name, addendum.id, self.name)
         
-        # Link addendum to order's chatter
+        # Link addendum to order's chatter with a rendered hyperlink
+        addendum_url = "/web#id=%s&model=contract.addendum&view_type=form" % addendum.id
+        # Use Markup so the link renders as HTML while escaping the name
+        body_html = Markup(_("Addendum created: <a href='{url}'>{name}</a>"))
         self.message_post(
-            body=_("Addendum created: <a href='/web#id=%s&model=contract.addendum&view_type=form'>%s</a>") % (addendum.id, addendum.name),
-            subject="Addendum Created for Upsell"
+            body=body_html.format(url=addendum_url, name=html_escape(addendum.name)),
+            subject=_("Addendum Created for Upsell"),
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
         )
         
         # Return action to open the addendum
@@ -806,12 +1020,12 @@ class SaleSubscription(models.Model):
         }
 
     def action_send_contract(self):
-        """Button action to send contract when in 1c_nocontract state without docusign connector."""
+        """Button action to send contract when in pending contract state without docusign connector."""
         self.ensure_one()
-        if self.subscription_state != '1c_nocontract':
-            raise UserError(_('Contract can only be sent when subscription is in Pending Contract state.'))
         if self.docusign_connector_ids:
             raise UserError(_('Contract has already been sent. Use Resend Contract instead.'))
+        if self.contract_state != 'pending_contract':
+            raise UserError(_('Contract can only be sent when contract state is Pending Contract.'))
         
         # Open the send method wizard
         return {
@@ -958,6 +1172,12 @@ class SaleSubscription(models.Model):
             
             _logger.info("[DocuSign] Contract subscription_state=%s, has_addendum=%s", 
                         contract.subscription_state, has_addendum)
+
+            addendum_record = False
+            if has_addendum:
+                addendum_record = self.env['contract.addendum'].search([
+                    ('upsell_subscription_id', '=', contract.id)
+                ], order='create_date desc', limit=1)
             
             if has_addendum:
                 # This is an upsell - force recompute to use addendum template
@@ -1007,6 +1227,15 @@ class SaleSubscription(models.Model):
                     service_lines_created += 1
             _logger.info("[DocuSign] Created %d service lines for contract.management ID=%s", 
                         service_lines_created, k_management.id)
+
+            if connector_id:
+                write_vals = {'contract_management_id': k_management.id}
+                if addendum_record:
+                    write_vals['contract_addendum_id'] = addendum_record.id
+                connector_id.sudo().write(write_vals)
+                _logger.info("[DocuSign] Linked connector %s to contract.management %s%s", 
+                             connector_id.id, k_management.id, 
+                             f" and addendum {addendum_record.id}" if addendum_record else "")
             
             # Step 6: Link docusign connector to contract.management
             if contract.contract_send_method != 'physical' and connector_id:
@@ -1014,6 +1243,9 @@ class SaleSubscription(models.Model):
                 _logger.info("[DocuSign] contract.management updated with docusign_id=%s", connector_id.id)
             
             # Step 7: Send document (after local records are created)
+            base_order = contract._get_addendum_base_order()
+            target_order = base_order if base_order and base_order != contract else contract
+
             if contract.contract_send_method != 'physical':
                 # Send document from Docusign
                 _logger.info("[DocuSign] Calling send_docs() with send_method=%s for connector ID=%s", 
@@ -1054,21 +1286,30 @@ class SaleSubscription(models.Model):
                     if envelope_id:
                         msg_body += f' - Envelope ID: {envelope_id}'
                     
-                    contract.sudo().message_post(body=msg_body, attachment_ids=[document.id])
-                    contract.sudo().write({'state': 'sale', 'subscription_state': '1a_pending'})
-                    _logger.info("[DocuSign] Contract state updated to 'sale', subscription_state='1a_pending'")
+                    target_order.sudo().message_post(body=msg_body, attachment_ids=[document.id])
+                    target_order.sudo().write({'state': 'sale', 'contract_state': 'pending_customer_signature'})
+                    _logger.info("[DocuSign] Contract state updated on %s to 'sale', contract_state='pending_customer_signature'", target_order.name)
+
+                    # If this was an upsell/addendum, leave a note on the upsell order to look at the parent
+                    if target_order != contract:
+                        contract.sudo().message_post(body=_("Addendum sent via DocuSign. See parent subscription %s for envelope status and chatter.") % target_order.name)
                 else:
                     # Don't use 'name' field as error message - it may contain success indicators
                     error_msg = send_contract_result.get('message') or send_contract_result.get('error') or str(send_contract_result)
                     _logger.error("[DocuSign] Failed to send contract ID=%s. Result: %s", 
                                  contract.id, send_contract_result)
+                    target_order.sudo().message_post(body=f'ERROR sending contract {document.name}: {error_msg}')
+                    if target_order != contract:
+                        contract.sudo().message_post(body=_("Addendum send failed. Check parent subscription %s for details.") % target_order.name)
                     raise ValidationError(f"Failed to send contract via DocuSign: {error_msg}")
             else:
                     _logger.info("[DocuSign] Physical contract method - creating print activity for contract ID=%s", 
                                 contract.id)
-                    contract.sudo().message_post(body=f'Contract {document.name} is ready to be printed and signed.', attachment_ids=[document.id])
-                    contract.sudo().write({'state': 'sale', 'subscription_state': '1a_pending'})
-                    contract.create_print_sign_activity()
+                    target_order.sudo().message_post(body=f'Contract {document.name} is ready to be printed and signed.', attachment_ids=[document.id])
+                    target_order.sudo().write({'state': 'sale', 'contract_state': 'pending_customer_signature'})
+                    if target_order != contract:
+                        contract.sudo().message_post(body=_("Addendum ready for physical signature. See parent subscription %s for details." ) % target_order.name)
+                    target_order.create_print_sign_activity()
     #            contract.write({'contract_management_id': k_management.id})
                 # Update the contract with the DocuSign envelope ID
     #            contract.docusign_envelope_id = envelope_id
@@ -1134,7 +1375,9 @@ class SaleSubscription(models.Model):
     def _get_addendum_base_order(self):
         """Return the parent contract/order for addendum rendering."""
         self.ensure_one()
-        if getattr(self, 'origin_order_id', False):
+        # Only use parent order for upsells; renewals and base subscriptions use themselves
+        is_upsell = self.subscription_state == '7_upsell' or getattr(self, 'upsell_from_id', False)
+        if is_upsell and getattr(self, 'origin_order_id', False):
             return self.origin_order_id
         return self
 
@@ -1274,8 +1517,12 @@ class SaleSubscription(models.Model):
         else:
             contract_value = monthly_payment * 12  # Default to 12 if no contract term/plan
 
+        # Use parent subscription for addendum envelopes so connector points to original contract
+        base_order = contract._get_addendum_base_order()
+        connector_sale_id = base_order.id if base_order else contract.id
+
         _logger.info("[DocuSign] Creating docusign.connector record with name=%s, sale_id=%s", 
-                    contract.cabal_sequence, contract.id)
+                    contract.cabal_sequence, connector_sale_id)
         _logger.info("[DocuSign] Custom fields: monthly_payment=%.2f, contract_value=%.2f", monthly_payment, contract_value)
         connector_record = self.env['docusign.connector'].sudo().create({
             'name': contract.cabal_sequence,
@@ -1283,7 +1530,7 @@ class SaleSubscription(models.Model):
             'state': 'new',
             'docs_policy': 'in',
             'model': 'sale',
-            'sale_id': contract.id,
+            'sale_id': connector_sale_id,
             'attachment_ids': [(6, 0, [document.id])],
             'monthly_payment': monthly_payment,
             'contract_value': contract_value
@@ -1502,7 +1749,6 @@ class SaleSubscription(models.Model):
             'plan_id': subscription.plan_id.id,
             'cpe_unit': subscription.cpe_unit.id,
             'cpe_unit_asset': subscription.cpe_unit_asset.id,
-            'is_subscription': subscription.is_subscription,
             'renewal_of_id': subscription.id if subscription_state == '2_renewal' else False,
             'upsell_from_id': subscription.id if subscription_state == '7_upsell' else False,
         }
@@ -1622,7 +1868,7 @@ class ContractUploadWizard(models.TransientModel):
         except Exception as e:
             _logger.warning("Failed to auto-create install task: %s", str(e))
             # If task creation fails, still advance state manually
-            self.subscription_id.write({'subscription_state': '1b_schedule'})
+            self.subscription_id.write({'installation_state': 'to_be_scheduled'})
 
         # Store the contract document in the documents tab of the relevant subscription
         attachment = self.env['ir.attachment'].create({

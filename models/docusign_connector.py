@@ -24,6 +24,20 @@ class OverrideDocumentStatus(models.Model):
     state = fields.Selection([('new', 'New'), ('open', 'Open'),('sent', 'Sent'), ('customer', 'Customer Signed'), ('completed', 'Completed')], default='new')
     monthly_payment = fields.Float(string='Monthly Payment', help='Total of recurring line items with taxes')
     contract_value = fields.Float(string='Contract Value', help='Monthly payment * contract length')
+    contract_management_id = fields.Many2one(
+        'contract.management',
+        string='Contract Record',
+        help='Contract management record generated from this DocuSign envelope.',
+        ondelete='set null',
+        readonly=True,
+    )
+    contract_addendum_id = fields.Many2one(
+        'contract.addendum',
+        string='Contract Addendum',
+        help='Addendum record sent through this DocuSign envelope (upsell flow).',
+        ondelete='set null',
+        readonly=True,
+    )
 
     def send_docs(self, send_method):
         try:
@@ -420,13 +434,13 @@ class OverrideDocumentStatus(models.Model):
             if self.state == 'customer':
                 # Customer signed - awaiting Cabal signature
                 sub = self.env['sale.order'].browse(self.sale_id.id)
-                if sub.subscription_state == '1a_pending':
-                    sub.write({'subscription_state': '1d_internal'})
-                    _logger.info("[DocuSign Status Check] Subscription %s updated to 1d_internal (Pending Cabal Signature)", sub.id)
+                if sub.contract_state == 'pending_customer_signature':
+                    sub.write({'contract_state': 'pending_cabal_signature'})
+                    _logger.info("[DocuSign Status Check] Contract state for subscription %s updated to pending_cabal_signature", sub.id)
             elif self.state == 'completed':
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
-                if sub.subscription_state in ['1a_pending', '1d_internal']:
+                if sub.contract_state in ['pending_customer_signature', 'pending_cabal_signature']:
                     # Auto-create installation task
                     try:
                         sub.action_create_install_task()
@@ -434,7 +448,7 @@ class OverrideDocumentStatus(models.Model):
                     except Exception as e:
                         _logger.warning("[DocuSign Status Check] Failed to auto-create install task: %s", str(e))
                         # If task creation fails, still advance state manually
-                        sub.write({'subscription_state': '1b_schedule'})
+                        sub.write({'installation_state': 'to_be_scheduled'})
                     
                     # Update contract to active when all signatures complete
                     cm = self.env['contract.management'].sudo().search([('name','=',sub.cabal_sequence)]) 
@@ -446,7 +460,7 @@ class OverrideDocumentStatus(models.Model):
                         sub.write({'subscription_state': '3_progress'})
                         _logger.info("[DocuSign Status Check] Renewal %s moved to 3_progress after full signature", sub.id)
                     else:
-                        _logger.info("[DocuSign Status Check] Subscription %s updated to 1b_schedule (Schedule Install)", sub.id)
+                        _logger.info("[DocuSign Status Check] Installation State %s updated to to_be_scheduled (Schedule Install)", sub.id)
             
             # Return notification instead of popup
             return {

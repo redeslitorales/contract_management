@@ -149,15 +149,6 @@ msgid ""
 msgstr "<b>Aquí puedes conectar tu cuenta de Docusign para usarla con Odoo.</b><br/>Puede iniciar sesión directamente en Docusign a través de"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid ""
-"<br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1d_internal'\">Cabal Sign</small><small invisible=\"subscription_state == '1d_internal'\">Cabal Sign</small>"
-msgstr ""
-"<br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1d_internal'\">Signo Cabal</small><small invisible=\"subscription_state == '1d_internal'\">Signo Cabal</small>"
-
-#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
 msgid "<i class=\"fa fa-arrow-left\"/> Back to My Services"
 msgstr "<i class=\"fa fa-arrow-left\"/>  De vuelta a mis servicios"
@@ -177,15 +168,6 @@ msgstr ""
 "                                <small style=\"font-weight: bold; color: #d9534f;\" invisible=\"subscription_state != '8_suspend'\">Suspendido</small>"
 
 #. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid ""
-"<i class=\"fa fa-check-circle-o fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1e_confirm'\"/><i class=\"fa fa-check-circle-o fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1e_confirm'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1e_confirm'\">Confirmed</small><small invisible=\"subscription_state == '1e_confirm'\">Confirmed</small>"
-msgstr ""
-"<i class=\"fa fa-check-circle-o fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1e_confirm'\"/><i class=\"fa fa-check-circle-o fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1e_confirm'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1e_confirm'\">Confirmado</small><small invisible=\"subscription_state == '1e_confirm'\">Confirmado</small>"
-
-#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
 msgid "<i class=\"fa fa-download\"/> Download"
 msgstr "<i class=\"fa fa-download\"/> Descargar"
@@ -198,15 +180,6 @@ msgid ""
 msgstr ""
 "<i class=\"fa fa-file-pdf-o me-2\"/>\n"
 "Documentos firmados"
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid ""
-"<i class=\"fa fa-file-text fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1c_nocontract'\"/><i class=\"fa fa-file-text fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1c_nocontract'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1c_nocontract'\">Contract</small><small invisible=\"subscription_state == '1c_nocontract'\">Contract</small>"
-msgstr ""
-"<i class=\"fa fa-file-text fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1c_nocontract'\"/><i class=\"fa fa-file-text fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1c_nocontract'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1c_nocontract'\">Contrato</small><small invisible=\"subscription_state == '1c_nocontract'\">Contrato</small>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
@@ -248,15 +221,6 @@ msgstr ""
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
 msgid ""
-"<i class=\"fa fa-pencil-square-o fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1a_pending'\"/><i class=\"fa fa-pencil-square-o fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1a_pending'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1a_pending'\">Pending Sign</small><small invisible=\"subscription_state == '1a_pending'\">Pending Sign</small>"
-msgstr ""
-"<i class=\"fa fa-pencil-square-o fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1a_pending'\"/><i class=\"fa fa-pencil-square-o fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1a_pending'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1a_pending'\">Firma pendiente</small><small invisible=\"subscription_state == '1a_pending'\">Firma pendiente</small>"
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid ""
 "<i class=\"fa fa-play-circle fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '3_progress'\"/><i class=\"fa fa-play-circle fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '3_progress' or subscription_state == '4_paused' or subscription_state == '8_suspend' or "
 "subscription_state == '6_churn'\"/><br/>\n"
 "                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '3_progress'\">Active</small><small invisible=\"subscription_state == '3_progress' or subscription_state == '4_paused' or subscription_state == '8_suspend' or subscription_state == '6_churn'\">Active</small>"
@@ -273,15 +237,6 @@ msgid ""
 msgstr ""
 "<i class=\"fa fa-times-circle fa-2x\" style=\"color: #777;\" invisible=\"subscription_state != '6_churn'\"/><br invisible=\"subscription_state != '6_churn'\"/>\n"
 "                                <small style=\"font-weight: bold; color: #777;\" invisible=\"subscription_state != '6_churn'\">Rotado</small>"
-
-#. module: contract_management
-#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
-msgid ""
-"<i class=\"fa fa-wrench fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1b_install'\"/><i class=\"fa fa-wrench fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1b_install'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1b_install'\">Install</small><small invisible=\"subscription_state == '1b_install'\">Install</small>"
-msgstr ""
-"<i class=\"fa fa-wrench fa-2x\" style=\"color: #5cb85c;\" invisible=\"subscription_state != '1b_install'\"/><i class=\"fa fa-wrench fa-2x\" style=\"color: #999;\" invisible=\"subscription_state == '1b_install'\"/><br/>\n"
-"                                <small style=\"font-weight: bold;\" invisible=\"subscription_state != '1b_install'\">Instalar</small><small invisible=\"subscription_state == '1b_install'\">Instalar</small>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
@@ -2137,26 +2092,6 @@ msgid "Payment"
 msgstr "Pago"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1d_internal
-msgid "Pending Cabal Signature"
-msgstr "Firma de Cabal pendiente"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1c_nocontract
-msgid "Pending Contract"
-msgstr "Contrato pendiente"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1b_install
-msgid "Pending Install"
-msgstr "Instalación pendiente"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1a_pending
-msgid "Pending Signature"
-msgstr "Pendiente de firma"
-
-#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__contract_send_method__physical model:ir.model.fields.selection,name:contract_management.selection__contract_send_method_wizard__send_method__physical
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__contract_send_method__physical
 msgid "Physical"
@@ -2288,11 +2223,6 @@ msgstr "Propuesta enviada"
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1_draft
 msgid "Quotation"
 msgstr "Cotización"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1e_confirm
-msgid "Quotation Confirmed"
-msgstr "Cita confirmada"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__quote_confirmed

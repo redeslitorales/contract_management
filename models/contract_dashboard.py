@@ -9,7 +9,7 @@ try:
         SUBSCRIPTION_SUSPENDED_STATE,
     )
 except Exception:
-    SUBSCRIPTION_DRAFT_STATE = ['1_draft', '1a_pending', '1b_install', '1c_nocontract', '1d_internal', '1e_confirm', '2_renewal']
+    SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
     SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
     SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 
@@ -426,11 +426,6 @@ class ContractDashboard(models.Model):
             label = _label(value, subscription_selection)
             color_map = {
                 '1_draft': '#7f8c8d',
-                '1a_pending': '#3498db',
-                '1b_install': '#3498db',
-                '1c_nocontract': '#3498db',
-                '1d_internal': '#3498db',
-                '1e_confirm': '#3498db',
                 '2_renewal': '#2980b9',
                 '3_progress': '#27ae60',
                 '4_paused': '#e67e22',
