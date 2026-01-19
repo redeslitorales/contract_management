@@ -51,4 +51,4 @@ class ProjectTask(models.Model):
                 continue
             
             # Advance subscription to next state (Pending Install)
-            task.sale_order_id.write({'installation_state': 'scheduled'})
+            task.sale_order_id.write({'installation_state': 'scheduled', 'configuration_state': 'scheduled'})

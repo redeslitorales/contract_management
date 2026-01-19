@@ -49,7 +49,7 @@ class SubscriptionClosure(models.Model):
                 ('4', '4 - Good'),
                 ('5', '5 - Excellent')
             ], string='Rate Our Service', required=True)
-        notes = fields.Char(string="Notes", required=True)
+        notes = fields.Char(string="Notes")
     
         problems_experienced = fields.Many2many('subscription.problem', string='Problems Experienced')
         closure_date = fields.Datetime(string='Closure Date', default=fields.Datetime.now)      
@@ -262,6 +262,7 @@ class PauseSubscriptionWizard(models.TransientModel):
 
         # Pause the subscription
         subscription.subscription_state = '4_paused'
+        subscription.internet_service_state = 'paused'
         subscription.sub_pause_start_date = self.pause_start_date
         subscription.sub_pause_end_date = self.pause_end_date
         if self.pause_end_date:
@@ -337,6 +338,7 @@ class ReactivateSubscriptionWizard(models.TransientModel):
                 activated = subscription.enable_onu()
                 if activated:
                     subscription.subscription_state = '	3_progress'
+                    subscription.internet_service_state = 'active'
                     invoice = subscription._create_invoices()
                     posted = invoice.action_post()
         else:

@@ -102,6 +102,18 @@
                                     </div>
                                 
                                     <div style="flex: 0; padding: 0 5px;">→</div>
+
+                                    <!-- Pending activation state once install/config are completed and contract is active -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_activation'">
+                                        <i class="fa fa-bolt fa-2x" style="color: #5cb85c;" title="Pending Activation"/><br/>
+                                        <small style="font-weight: bold;">Pending Activation</small>
+                                    </div>
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_activation'">
+                                        <i class="fa fa-bolt fa-2x" style="color: #999;" title="Pending Activation"/><br/>
+                                        <small>Pending Activation</small>
+                                    </div>
+
+                                    <div style="flex: 0; padding: 0 5px;">→</div>
                                 
                                     <!-- Final Stage - Active/Issues/Paused/Suspended/Churned -->
                                     <!-- Active (3_progress, 4_paused, 5_renewed) -->
@@ -109,10 +121,20 @@
                                         <i class="fa fa-play-circle fa-2x" style="color: #5cb85c;" title="Active"/><br/>
                                         <small style="font-weight: bold;">Active</small>
                                     </div>
+                                    <!-- Renewed (5_renewed) -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'renewed'">
+                                        <i class="fa fa-repeat fa-2x" style="color: #5cb85c;" title="Renewed"/><br/>
+                                        <small style="font-weight: bold;">Renewed</small>
+                                    </div>
                                     <!-- Active with Issues (3_progress, contract not active) -->
                                     <div style="text-align: center; flex: 1;" invisible="progress_stage != 'active_with_issues'">
                                         <i class="fa fa-exclamation-triangle fa-2x" style="color: #f0ad4e;" title="Active with Issues"/><br/>
                                         <small style="font-weight: bold; color: #f0ad4e;">Active w/ Issues</small>
+                                    </div>
+                                    <!-- Paused with Issues (4_paused but contract/install/config not completed) -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'paused_with_issues'">
+                                        <i class="fa fa-pause-circle fa-2x" style="color: #f0ad4e;" title="Paused with Issues"/><br/>
+                                        <small style="font-weight: bold; color: #f0ad4e;">Paused w/ Issues</small>
                                     </div>
                                     <!-- Paused (4_paused) - Clickable -->
                                     <button name="action_reactivate_subscription_wizard" type="object" 
@@ -121,6 +143,11 @@
                                         <i class="fa fa-pause-circle fa-2x" style="color: #f0ad4e;"/><br/>
                                         <small style="font-weight: bold; color: #f0ad4e;">Paused<br/>(Click to Reactivate)</small>
                                     </button>
+                                    <!-- Suspended with Issues (8_suspend but contract/install/config not completed) -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'suspended_with_issues'">
+                                        <i class="fa fa-ban fa-2x" style="color: #d9534f;" title="Suspended with Issues"/><br/>
+                                        <small style="font-weight: bold; color: #d9534f;">Suspended w/ Issues</small>
+                                    </div>
                                     <!-- Suspended (8_suspend) -->
                                     <div style="text-align: center; flex: 1;" invisible="progress_stage != 'suspended'">
                                         <i class="fa fa-ban fa-2x" style="color: #d9534f;"/><br/>
@@ -132,7 +159,7 @@
                                         <small style="font-weight: bold; color: #777;">Churned</small>
                                     </div>
                                     <!-- Default grey state for Active/Paused/Suspended/Churned when none match -->
-                                    <div style="text-align: center; flex: 1;" invisible="progress_stage == 'active' or progress_stage == 'active_with_issues' or progress_stage == 'paused' or progress_stage == 'suspended' or progress_stage == 'churned'">
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage == 'active' or progress_stage == 'renewed' or progress_stage == 'active_with_issues' or progress_stage == 'paused' or progress_stage == 'paused_with_issues' or progress_stage == 'suspended' or progress_stage == 'suspended_with_issues' or progress_stage == 'churned' or progress_stage == 'pending_activation'">
                                         <i class="fa fa-play-circle fa-2x" style="color: #999;" title="Active"/><br/>
                                         <small>Active</small>
                                     </div>

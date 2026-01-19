@@ -112,10 +112,10 @@
 
                         <!-- Services Box -->
                         <div class="border rounded p-3 mb-4">
-                            <!-- Get recurring products and total -->
-                            <t t-set="recurring_lines" t-value="doc.order_line.filtered(lambda l: l.product_template_id and l.product_template_id.recurring_invoice)"/>
-                            <t t-set="monthly_total" t-value="sum(recurring_lines.mapped(lambda l: l.price_unit * l.product_uom_qty))"/>                            
-                            
+                            <!-- Get recurring products and total (safe helper mirrors addendum) -->
+                            <t t-set="recurring_lines" t-value="doc._get_recurring_lines_for_addendum()"/>
+                            <t t-set="monthly_total" t-value="doc._get_addendum_monthly_total(recurring_lines)"/>
+
                             <!-- Products List -->
                             <t t-foreach="recurring_lines" t-as="line">
                                 <div class="row mb-2">
@@ -204,7 +204,9 @@
                                 <t t-esc="months[str(doc.date_order.month)]"/> de 
                                 <t t-esc="doc.date_order.year"/> 
                                 PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, 
-                                el día _______ de _________ del año _________ la cantidad de 
+                                el día <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> del año 
+                                <t t-esc="doc.date_order.year"/> la cantidad de 
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
                                     DE LOS ESTADOS UNIDOS DE AMÉRICA
@@ -509,7 +511,9 @@
                                 <t t-esc="months[str(doc.date_order.month)]"/> de 
                                 <t t-esc="doc.date_order.year"/> 
                                 PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, 
-                                el día _______ de _________ del año _________ la cantidad de 
+                                el día <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> del año 
+                                <t t-esc="doc.date_order.year"/> la cantidad de 
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
                                     DE LOS ESTADOS UNIDOS DE AMÉRICA
@@ -814,7 +818,9 @@
                                 <t t-esc="months[str(doc.date_order.month)]"/> de 
                                 <t t-esc="doc.date_order.year"/> 
                                 PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, 
-                                el día _______ de _________ del año _________ la cantidad de 
+                                el día <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> del año 
+                                <t t-esc="doc.date_order.year"/> la cantidad de 
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
                                     DE LOS ESTADOS UNIDOS DE AMÉRICA
@@ -1027,9 +1033,9 @@
 
                         <!-- Services Box -->
                         <div class="border rounded p-3 mb-4">
-                            <!-- Get recurring products and total -->
-                            <t t-set="recurring_lines" t-value="doc.order_line.filtered(lambda l: l.product_template_id and l.product_template_id.recurring_invoice) if hasattr(doc, 'order_line') and doc.order_line else (doc.subscription_id.order_line.filtered(lambda l: l.product_template_id and l.product_template_id.recurring_invoice) if hasattr(doc, 'subscription_id') and doc.subscription_id and hasattr(doc.subscription_id, 'order_line') and doc.subscription_id.order_line else [])"/>
-                            <t t-set="monthly_total" t-value="sum([((l.price_unit or 0.0) * (l.product_uom_qty or 1.0)) for l in recurring_lines]) if recurring_lines and hasattr(recurring_lines, '__iter__') and len(recurring_lines) > 0 else (doc.recurring_total if hasattr(doc, 'recurring_total') and doc.recurring_total not in (None, False) else (doc.amount_total if hasattr(doc, 'amount_total') and doc.amount_total not in (None, False) else 0.0))"/>                            
+                            <!-- Get recurring products and total (safe helper mirrors addendum) -->
+                            <t t-set="recurring_lines" t-value="doc._get_recurring_lines_for_addendum()"/>
+                            <t t-set="monthly_total" t-value="doc._get_addendum_monthly_total(recurring_lines)"/>                            
                             
                             <!-- Products List -->
                             <t t-foreach="recurring_lines" t-as="line">
@@ -1119,7 +1125,9 @@
                                 <t t-esc="months[str(doc.date_order.month)]"/> de 
                                 <t t-esc="doc.date_order.year"/> 
                                 PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, 
-                                el día _______ de _________ del año _________ la cantidad de 
+                                el día <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> del año 
+                                <t t-esc="doc.date_order.year"/> la cantidad de 
                                 <span class="font-weight-bold">
                                     <t t-esc="doc.contract_value_amount_to_text()"/> 
                                     DE LOS ESTADOS UNIDOS DE AMÉRICA
@@ -1332,9 +1340,9 @@
 
                         <!-- Services Box -->
                         <div class="border rounded p-3 mb-4">
-                            <!-- Get recurring products and total -->
-                            <t t-set="recurring_lines" t-value="doc.order_line.filtered(lambda l: l.product_template_id and l.product_template_id.recurring_invoice) if hasattr(doc, 'order_line') and doc.order_line else (doc.subscription_id.order_line.filtered(lambda l: l.product_template_id and l.product_template_id.recurring_invoice) if hasattr(doc, 'subscription_id') and doc.subscription_id and hasattr(doc.subscription_id, 'order_line') and doc.subscription_id.order_line else [])"/>
-                            <t t-set="monthly_total" t-value="sum([((l.price_unit or 0.0) * (l.product_uom_qty or 1.0)) for l in recurring_lines]) if recurring_lines and hasattr(recurring_lines, '__iter__') and len(recurring_lines) > 0 else (doc.recurring_total if hasattr(doc, 'recurring_total') and doc.recurring_total not in (None, False) else (doc.amount_total if hasattr(doc, 'amount_total') and doc.amount_total not in (None, False) else 0.0))"/>                            
+                            <!-- Get recurring products and total (align with base helpers) -->
+                            <t t-set="recurring_lines" t-value="doc._get_recurring_lines_for_addendum()"/>
+                            <t t-set="monthly_total" t-value="doc._get_addendum_monthly_total(recurring_lines)"/>                            
                             
                             <!-- Products List -->
                             <t t-foreach="recurring_lines" t-as="line">
@@ -1373,6 +1381,88 @@
                             Acepto que la documentación donde conste la información proporcionada para efectos de este contrato, será resguardada por la empresa. 
                             Doy fe de lo establecido en el presente formulario y anexos. Confirmo que he leído y entiendo el contrato y las condiciones de la contratación, 
                             las cuales fueron presentadas a mi persona por el personal de la empresa. Ratifico el contenido del mismo y firmo.
+                        </div>
+
+                        <!-- Signature Section -->
+                        <div class="mt-4 border rounded p-3 mb-4">
+                            <div class="row">
+                                <div class="col-2 text-center">
+                                    <p style="font-size: 13px"><strong>Firma del Cliente</strong></p>
+                                    <p style="color: white;">/sn1/</p> 
+                                </div>
+                                <div class="col-4"/>
+                                <div class="col-2 text-center">
+                                    <p style="font-size: 13px"><strong>Firma del Vendedor</strong></p>
+                                    <p style="color: white;">/sn2/</p> 
+                                </div>
+                                <div class="col-4"/>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-2"/>
+                                <div class="col-4 text-start">
+                                    <div class="mt-4 border-top pt-2">
+                                        <t t-esc="doc.partner_id.name"/>
+                                    </div>
+                                </div>
+                                <div class="col-2"/>
+                                <div class="col-4 text-start">
+                                    <div class="mt-4 border-top pt-2">
+                                        <t t-esc="doc.user_id.name"/>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        
+                        <div style="page-break-before: always;"></div>
+                        <div class="border rounded p-4 mt-4">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h5 class="m-0">PAGARE SIN PROTESTO</h5>
+                                </div>
+                                <div class="col-2"/>
+                                <div class="col-4 text-end">
+                                    Por US$ <strong><t t-esc="doc.contract_value" t-options="{&quot;widget&quot;: &quot;float&quot;, &quot;precision&quot;: 2}"/></strong>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-justify">
+                                TAMANIQUE, 
+                                <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> de 
+                                <t t-esc="doc.date_order.year"/> 
+                                PAGARE(mos) sin protesto en forma incondicional a la orden de REDES LITORALES S.A. DE C.V., en sus oficinas, 
+                                el día <t t-esc="doc.date_order.day"/> de 
+                                <t t-esc="months[str(doc.date_order.month)]"/> del año 
+                                <t t-esc="doc.date_order.year"/> la cantidad de 
+                                <span class="font-weight-bold">
+                                    <t t-esc="doc.contract_value_amount_to_text()"/> 
+                                    DE LOS ESTADOS UNIDOS DE AMÉRICA
+                                </span>, 
+                                más el interés convencional del UNO PUNTO CERO CERO por ciento mensual, calculados a partir de la fecha de suscripción 
+                                del presente documento, pagaré(mos) además a partir de esta última fecha, intereses moratorios sobre el saldo de capital de mora.
+                            </div>
+                        
+                            <div class="row">
+                                <div class="col-2 text-center">
+                                    <p style="font-size: 13px"><strong>Firma del Cliente</strong></p>
+                                    <p style="color: white;">/sn1/</p> 
+                                </div>
+                                <div class="col-4"/>
+                                <div class="col-2"/>
+                                <div class="col-4"/>
+                            </div>
+                            <div class="row">
+                                <div class="col-2"/>
+                                <div class="col-4 text-start">
+                                    <div class="mt-4 border-top pt-2">
+                                        <t t-esc="doc.partner_id.name"/>
+                                    </div>
+                                </div>
+                                <div class="col-2"/>
+                                <div class="col-4">
+                                </div>
+                            </div>
                         </div>
                         <div style="page-break-before: always;"></div>
                         
