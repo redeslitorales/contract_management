@@ -27,7 +27,6 @@ SUBSCRIPTION_STATES = [
     ('6_churn', 'Churned'),  # Closed or ended subscription
     ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
-    ('9_pending', 'Pending'),  # Confirmed but not yet active
 ]
 
 CONTRACT_SEND_METHODS = [
@@ -139,50 +138,25 @@ class ContractManagement(models.Model):
     addendum_ids = fields.One2many('contract.addendum', 'contract_id', string='Addendums')
     addendum_count = fields.Integer(string='Addendum Count', compute='_compute_addendum_count')
 
-    @api.depends('subscription_id.subscription_state', 'subscription_id.contract_state')
+    @api.depends(
+        'subscription_id.subscription_state',
+        'subscription_id.contract_state',
+        'subscription_id.installation_state',
+        'subscription_id.configuration_state',
+        'subscription_id.internet_service_state',
+        'subscription_id.quote_confirmed',
+    )
     def _compute_progress_stage(self):
-        """Compute the progress stage to display in the progress bar."""
+        """Mirror the subscription's progress stage to avoid duplicated logic."""
         for contract in self:
-            if not contract.subscription_id:
+            subscription = contract.subscription_id
+            if not subscription:
                 contract.progress_stage = 'draft'
                 continue
-            
-            sub_state = contract.subscription_id.subscription_state
-            contract_state = contract.subscription_id.contract_state
-            quote_confirmed = contract.subscription_id.quote_confirmed
-            
-            # Draft stage: 1_draft, 2_renewal, 7_upsell
-            if sub_state in ['1_draft', '2_renewal', '7_upsell']:
-                contract.progress_stage = 'draft'
-            # Confirmed: (quotation confirmed, waiting for contract)
-            elif sub_state == '1_draft' and quote_confirmed:
-                contract.progress_stage = 'confirmed'
-            # Pending contract: contract_state pending_contract
-            elif contract_state == 'pending_contract':
-                contract.progress_stage = 'pending_contract'
-            # Pending client signature: contract_state pending_customer_signature
-            elif contract_state == 'pending_customer_signature':
-                contract.progress_stage = 'pending_client_signature'
-            # Pending Cabal signature: contract_state pending_cabal_signature
-            elif contract_state == 'pending_cabal_signature':
-                contract.progress_stage = 'pending_cabal_signature'
-            # Schedule install: to_be_scheduled
-            elif installation_state == 'to_be_scheduled':
-                contract.progress_stage = 'schedule_install'
-            # Pending install: pending_install
-            elif contract.installation_state == 'pending_install':
-                contract.progress_stage = 'pending_install'
-            # Active: 3_progress, 4_paused, 5_renewed
-            elif sub_state in ['3_progress', '4_paused', '5_renewed']:
-                contract.progress_stage = 'active'
-            # Suspended: 8_suspend
-            elif sub_state == '8_suspend':
-                contract.progress_stage = 'suspended'
-            # Churned: 6_churn
-            elif sub_state == '6_churn':
-                contract.progress_stage = 'churned'
-            else:
-                contract.progress_stage = 'draft'
+
+            # Delegate to the subscription's computed stage; it already encapsulates
+            # the full business rules (upsell flow, install/config states, etc.).
+            contract.progress_stage = subscription.progress_stage or 'draft'
 
     def _compute_total_paid(self):
         for contract in self:
@@ -641,18 +615,18 @@ class ContractManagement(models.Model):
                 # Validate transition before promoting to active
                 contract._validate_state_change('active')
                 contract.state = 'active'
-            if not contract.subscription_id:
-                subscription = self.env['sale.order'].create({
-                    'name': contract.name,
-                    'partner_id': contract.partner_id.id,
-                    'order_line': [(0, 0, {
-                        'name': service.name,
-                        'product_id': service.product_id.id,
-                        'product_uom_qty': 1,
-                        'price_unit': service.price,
-                    }) for service in contract.service_ids]
-                })
-                contract.subscription_id = subscription
+#            if not contract.subscription_id:
+#                subscription = self.env['sale.order'].create({
+#                    'name': contract.name,
+#                    'partner_id': contract.partner_id.id,
+#                    'order_line': [(0, 0, {
+#                        'name': service.name,
+#                        'product_id': service.product_id.id,
+#                        'product_uom_qty': 1,
+#                        'price_unit': service.price,
+#                    }) for service in contract.service_ids]
+#                })
+#                contract.subscription_id = subscription
 
     def _terminate_with_checks(self, payment_confirmed=False, equipment_returned=False, via_wizard=False, payment=None):
         for contract in self:
@@ -1246,101 +1220,3 @@ class ContractClause(models.Model):
             ('active', '=', True)
         ])
     
-class DocuSignWebhookController(http.Controller):
-
-    @http.route('/docusign/webhook', type='json', auth='public', methods=['POST'], csrf=False)
-    def docusign_webhook(self, **kwargs):
-        # Get the JSON data from the webhook
-        data = json.loads(request.httprequest.data)
-        
-        # Extract the event and envelope ID
-        event = data.get('event')
-        envelope_id = data.get('data', {}).get('envelopeId')
-        current_user = request.env.user
-
-        if event and envelope_id:
-            # Find the corresponding record in docusign.connector
-            docusign_connector_line = request.env['docusign.connector.lines'].sudo().search([('envelope_id', '=', envelope_id)], limit=1)
-            if docusign_connector_line:
-                docusign_connector = request.env['docusign.connector'].sudo().browse(docusign_connector_line.record_id.id)
-            if docusign_connector:
-                pt = 'dev'
-                if not 'test' in request.httprequest.url_root:
-                    pt = 'prod'
-
-                # Create the JWT assertion
-                now = int(time.time())
-                payload = {
-                    'iss': request.env['ir.config_parameter'].sudo().get_param('docusign_client_id', ''),
-                    'sub': request.env['ir.config_parameter'].sudo().get_param('docusign_user_id', ''),
-                    'aud': platform_type[pt],
-                    'iat': now,
-                    'exp': now + 3600,
-                    'scope': 'signature impersonation'
-                }
-                jwt_assertion = jwt.encode(payload, request.env['ir.config_parameter'].sudo().get_param('docusign_private_key', ''), algorithm='RS256')
-                # Request an access token - default to dev environment unless the request URL does not contain the word test
-                url = "https://{0}/oauth/token".format(platform_type[pt])
-                headers = {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-                data = {
-                    'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                    'assertion': jwt_assertion
-                }
-                response = requests.post(url, headers=headers, data=data)
-                access_token = response.json().get('access_token')
-
-                if not access_token:
-                    raise ValidationError(_("Failed to obtain access token from DocuSign"))
-
-                # Trigger the method from docu_client.py using JWT authentication
-                for connector in docusign_connector:
-                    if event == 'recipient-completed':
-                        connector.state = 'customer'
-                        subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.contract_state == 'pending_customer_signature':  # Was awaiting customer signature
-                            subscription.contract_state = 'pending_cabal_signature'  # Customer signed, awaiting Cabal signature
-                        else:
-                            # Post warning to subscription chatter
-                            subscription.message_post(
-                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_customer_signature' for recipient-completed event.") % (subscription.contract_state or ''),
-                                subject=_('DocuSign State Mismatch Warning'),
-                                message_type='notification',
-                                subtype_xmlid='mail.mt_note'
-                            )
-                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current contract_state=%s, expected=pending_customer_signature", subscription.id, subscription.contract_state)
-                    if event == 'envelope-completed':
-                        connector.state = 'completed'
-                        subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.contract_state in ['pending_cabal_signature', 'pending_customer_signature']:  # Customer signed, awaiting Cabal signature
-                            # Auto-create installation task and move to schedule state
-                            try:
-                                subscription.action_create_install_task()
-                                _logger.info("[DocuSign Webhook] Installation task auto-created for subscription %s", subscription.id)
-                            except Exception as e:
-                                _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
-                                # If task creation fails, still advance state manually
-                                subscription.installation_state = 'to_be_scheduled'
-                        else:
-                            # Post warning to subscription chatter
-                            subscription.message_post(
-                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_customer_signature' or 'pending_cabal_signature' for envelope-completed event.") % (subscription.contract_state or ''),
-                                subject=_('DocuSign State Mismatch Warning'),
-                                message_type='notification',
-                                subtype_xmlid='mail.mt_note'
-                            )
-                            _logger.warning("[DocuSign Webhook] State mismatch for subscription %s: current contract_state=%s, expected pending_cabal_signature", subscription.id, subscription.contract_state)
-                        
-                        # Auto-download signed documents (skip if already present to avoid duplicates)
-                        try:
-                            if not any(connector.connector_line_ids.mapped('signed_attachment_ids')):
-                                connector.download_docs()
-                            else:
-                                _logger.info("[DocuSign Webhook] Signed attachments already present; skipping download for envelope %s", envelope_id)
-                        except Exception as e:
-                            _logger.error("[DocuSign Webhook] Failed to auto-download documents: %s", str(e))
-                    if connector.state != 'completed':
-                        connector.status_docs()
-        
-        return {'status': 'success'}

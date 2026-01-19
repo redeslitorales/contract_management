@@ -455,12 +455,6 @@ class OverrideDocumentStatus(models.Model):
                     if cm:
                         cm[0].write({'state': 'active'})
                         _logger.info("[DocuSign Status Check] Contract %s activated (all signatures complete)", cm[0].id)
-                    # Renewal: move directly to in-progress once fully signed
-                    if sub.renewal_of_id:
-                        sub.write({'subscription_state': '3_progress'})
-                        _logger.info("[DocuSign Status Check] Renewal %s moved to 3_progress after full signature", sub.id)
-                    else:
-                        _logger.info("[DocuSign Status Check] Installation State %s updated to to_be_scheduled (Schedule Install)", sub.id)
             
             # Return notification instead of popup
             return {
