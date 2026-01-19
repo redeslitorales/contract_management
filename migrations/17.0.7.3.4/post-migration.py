@@ -1,5 +1,7 @@
 import logging
 
+from odoo import SUPERUSER_ID, api
+
 _logger = logging.getLogger(__name__)
 
 # Cleanup for legacy states on non-subscription orders (keep constraint happy).
@@ -14,123 +16,123 @@ LEGACY_STATES = (
 
 
 # Maps old subscription_state values to new states while respecting coherence
-# constraints (draft for quotes, progress for confirmed orders).
+# constraints. All legacy values move to draft + sent while retaining their
+# specific contract/installation metadata.
 STATE_FIXES = [
-    (
-        "1a_pending -> draft/progress + pending customer signature",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               contract_state = 'pending_customer_signature',
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1a_pending'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
-    (
-        "1d_internal -> draft/progress + pending cabal signature",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               contract_state = 'pending_cabal_signature',
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1d_internal'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
-    (
-        "1e_confirm -> draft/progress + quote_confirmed",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               quote_confirmed = TRUE,
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1e_confirm'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
-    (
-        "1c_ncontract -> draft/progress + pending_contract",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               contract_state = 'pending_contract',
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1c_ncontract'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
-    (
-        "1b_install -> draft/progress + installation scheduled",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               installation_state = 'scheduled',
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1b_install'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
-    (
-        "1e_schedule -> draft/progress + installation to be scheduled",
-        """
-        UPDATE sale_order so
-           SET subscription_state = CASE WHEN so.state IN ('sale', 'done') THEN '9_pending' ELSE '1_draft' END,
-               installation_state = 'to_be_scheduled',
-               next_invoice_date = CASE
-                   WHEN so.state IN ('sale', 'done')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
-                        )
-                   THEN '2030-12-31'
-                   ELSE so.next_invoice_date
-               END
-         WHERE so.subscription_state = '1e_schedule'
-           AND COALESCE(so.is_subscription, FALSE) = TRUE
-        """,
-    ),
+    {
+        "label": "1a_pending -> draft + pending customer signature",
+        "legacy_state": "1a_pending",
+        "contract_state": "pending_customer_signature",
+        "installation_state": None,
+        "quote_confirmed": None,
+        "set_next_invoice_date": True,
+    },
+    {
+        "label": "1d_internal -> draft + pending cabal signature",
+        "legacy_state": "1d_internal",
+        "contract_state": "pending_cabal_signature",
+        "installation_state": None,
+        "quote_confirmed": None,
+        "set_next_invoice_date": True,
+    },
+    {
+        "label": "1e_confirm -> draft + quote_confirmed",
+        "legacy_state": "1e_confirm",
+        "contract_state": None,
+        "installation_state": None,
+        "quote_confirmed": True,
+        "set_next_invoice_date": True,
+    },
+    {
+        "label": "1c_ncontract -> draft + pending_contract",
+        "legacy_state": "1c_ncontract",
+        "contract_state": "pending_contract",
+        "installation_state": None,
+        "quote_confirmed": None,
+        "set_next_invoice_date": True,
+    },
+    {
+        "label": "1b_install -> draft + installation scheduled",
+        "legacy_state": "1b_install",
+        "contract_state": None,
+        "installation_state": "scheduled",
+        "quote_confirmed": None,
+        "set_next_invoice_date": True,
+    },
+    {
+        "label": "1e_schedule -> draft + installation to be scheduled",
+        "legacy_state": "1e_schedule",
+        "contract_state": None,
+        "installation_state": "to_be_scheduled",
+        "quote_confirmed": None,
+        "set_next_invoice_date": True,
+    },
 ]
+
+
+def _apply_state_fix(env, fix):
+    """Move a legacy subscription_state to draft+sent and log chatter."""
+
+    cr = env.cr
+    cr.execute(
+        """
+        SELECT id
+          FROM sale_order
+         WHERE subscription_state = %s
+           AND COALESCE(is_subscription, FALSE) = TRUE
+        """,
+        (fix["legacy_state"],),
+    )
+    order_ids = [row[0] for row in cr.fetchall()]
+    if not order_ids:
+        _logger.info(
+            "[contract_management][migration] %s: no rows to update", fix["label"]
+        )
+        return
+
+    cr.execute(
+        """
+        UPDATE sale_order AS so
+           SET subscription_state = '1_draft',
+               state = 'sent',
+               contract_state = CASE WHEN %(contract_state)s IS NOT NULL THEN %(contract_state)s ELSE contract_state END,
+               installation_state = CASE WHEN %(installation_state)s IS NOT NULL THEN %(installation_state)s ELSE installation_state END,
+               quote_confirmed = CASE WHEN %(quote_confirmed)s IS NOT NULL THEN %(quote_confirmed)s ELSE quote_confirmed END,
+               next_invoice_date = CASE
+                   WHEN %(set_next_invoice_date)s
+                        AND so.state IN ('sale', 'done')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM sale_order_invoice_rel rel WHERE rel.order_id = so.id
+                        )
+                   THEN '2030-12-31'
+                   ELSE so.next_invoice_date
+               END
+         WHERE so.id = ANY(%(order_ids)s)
+        """,
+        {
+            "contract_state": fix["contract_state"],
+            "installation_state": fix["installation_state"],
+            "quote_confirmed": fix["quote_confirmed"],
+            "set_next_invoice_date": fix["set_next_invoice_date"],
+            "order_ids": order_ids,
+        },
+    )
+
+    env["sale.order"].browse(order_ids).message_post(
+        body=(
+            f"Subscription state migrated from {fix['legacy_state']} to 1_draft; "
+            f"order state set to sent (post-migration 17.0.7.3.4)."
+        )
+    )
+
+    _logger.info(
+        "[contract_management][migration] %s: %s rows updated", fix["label"], cr.rowcount
+    )
 
 
 def migrate(cr, version):
     """Normalize legacy subscription states after removing intermediate statuses."""
-    if not version:
-        return
+    env = api.Environment(cr, SUPERUSER_ID, {})
 
     _logger.warning("[contract_management][migration] START post-migration 17.0.7.3.4")
 
@@ -149,9 +151,8 @@ def migrate(cr, version):
         cr.rowcount,
     )
 
-    for label, query in STATE_FIXES:
-        cr.execute(query)
-        _logger.info("[contract_management][migration] %s: %s rows updated", label, cr.rowcount)
+    for fix in STATE_FIXES:
+        _apply_state_fix(env, fix)
 
     # Align contract_state from contract.management when it has a terminal/active status.
     cr.execute(
@@ -253,6 +254,26 @@ def migrate(cr, version):
     )
     _logger.warning(
         "[contract_management][migration] Internet service set to not_active when no CPE assigned rows=%s",
+        cr.rowcount,
+    )
+
+    # Compute install/config states for all subscriptions: complete when in progress, otherwise to be scheduled.
+    cr.execute(
+        """
+        UPDATE sale_order
+           SET installation_state = CASE
+                   WHEN subscription_state = '3_progress' THEN 'completed'
+                   ELSE 'to_be_scheduled'
+               END,
+               configuration_state = CASE
+                   WHEN subscription_state = '3_progress' THEN 'completed'
+                   ELSE 'to_be_scheduled'
+               END
+         WHERE COALESCE(is_subscription, FALSE) = TRUE
+        """
+    )
+    _logger.warning(
+        "[contract_management][migration] Computed installation/configuration state from subscription_state rows=%s",
         cr.rowcount,
     )
 

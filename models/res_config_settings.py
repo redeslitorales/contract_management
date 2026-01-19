@@ -24,3 +24,9 @@ class ResConfigSettings(models.TransientModel):
         help='Email address to receive notifications when customers intend to cancel their contracts',
         config_parameter='contract_management.contract_cancellation_email'
     )
+
+    contract_confirmation_secret = fields.Char(
+        string='Quote Confirmation Secret',
+        help='HMAC secret used to sign public quote confirmation links. Change to rotate links.',
+        config_parameter='contract_management.confirm_secret',
+    )

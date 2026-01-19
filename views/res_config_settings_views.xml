@@ -45,6 +45,19 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Security">
+                        <setting>
+                            <label for="contract_confirmation_secret" string="Quote Confirmation Secret"/>
+                            <div class="text-muted">
+                                HMAC secret used to sign public quote confirmation links. Change to rotate links.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="contract_confirmation_secret" password="True" placeholder="generate a long random string"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
