@@ -6,11 +6,6 @@
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="priority">99</field>
         <field name="arch" type="xml">
-            <!-- Hide action_quotation_send button when state is sale or cancel -->
-            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send'][2]" position="attributes">
-                <attribute name="invisible">state in ["sale", "cancel"]</attribute>
-            </xpath>
-            
             <!-- Hide action_preview_sale_order button -->
             <xpath expr="//button[@name='action_preview_sale_order']" position="attributes">
                 <attribute name="invisible">True</attribute>

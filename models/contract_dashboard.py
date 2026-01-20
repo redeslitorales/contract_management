@@ -68,6 +68,7 @@ class ContractDashboard(models.Model):
     avg_value_sig_customer = fields.Float(string='Signature Customer Avg Value', compute='_compute_statistics', store=False)
     avg_value_sig_completed = fields.Float(string='Signature Completed Avg Value', compute='_compute_statistics', store=False)
     signature_summary_html = fields.Html(string='Signature Summary Table', compute='_compute_statistics', sanitize=False)
+    progress_stage_summary_html = fields.Html(string='Progress Stage Summary', compute='_compute_statistics', sanitize=False)
     
     # Financial summary
     total_contract_value = fields.Float(string='Total Contract Value', compute='_compute_statistics', store=False)
@@ -179,6 +180,36 @@ class ContractDashboard(models.Model):
                 ('Completed', dashboard.total_sig_completed, dashboard.total_value_sig_completed, dashboard.avg_value_sig_completed, 'action_view_sig_completed'),
                 ('Open', dashboard.total_sig_open, dashboard.total_value_sig_open, dashboard.avg_value_sig_open, 'action_view_sig_open'),
             ])
+
+            # Progress stage summary (driven by subscription progress_stage propagated to contracts)
+            stage_rows = []
+            stage_definitions = [
+                ('Draft', 'draft', 'action_view_stage_draft'),
+                ('Confirmed', 'confirmed', 'action_view_stage_confirmed'),
+                ('Pending Contract', 'pending_contract', 'action_view_stage_pending_contract'),
+                ('Pending Client Sign', 'pending_client_signature', 'action_view_stage_pending_client_signature'),
+                ('Pending Cabal Sign', 'pending_cabal_signature', 'action_view_stage_pending_cabal_signature'),
+                ('Schedule Install/Config', 'schedule_install', 'action_view_stage_schedule_install'),
+                ('Pending Install/Config', 'pending_install', 'action_view_stage_pending_install'),
+                ('Pending Activation', 'pending_activation', 'action_view_stage_pending_activation'),
+                ('Active', 'active', 'action_view_stage_active'),
+                ('Renewed', 'renewed', 'action_view_stage_renewed'),
+                ('Paused', 'paused', 'action_view_stage_paused'),
+                ('Suspended', 'suspended', 'action_view_stage_suspended'),
+                ('Churned', 'churned', 'action_view_stage_churned'),
+                ('Active w/ Issues', 'active_with_issues', 'action_view_stage_active_with_issues'),
+                ('Paused w/ Issues', 'paused_with_issues', 'action_view_stage_paused_with_issues'),
+                ('Suspended w/ Issues', 'suspended_with_issues', 'action_view_stage_suspended_with_issues'),
+            ]
+
+            for label, code, action in stage_definitions:
+                stage_contracts = contracts.filtered(lambda c, code=code: c.progress_stage == code)
+                count = len(stage_contracts)
+                total_val = sum(stage_contracts.mapped('total_paid'))
+                avg_val = total_val / count if count else 0
+                stage_rows.append((label, count, total_val, avg_val, action))
+
+            dashboard.progress_stage_summary_html = dashboard._build_state_summary_table(stage_rows)
             
             # Expiration tracking
             today = fields.Date.today()
@@ -340,6 +371,60 @@ class ContractDashboard(models.Model):
         domain = self._get_filtered_domain()
         domain.append(('docusign_status', '=', 'completed'))
         return self._create_action('Signature: Completed', domain)
+
+    # Progress stage actions
+    def _action_view_progress_stage(self, stage_code, title):
+        domain = self._get_filtered_domain()
+        domain.append(('progress_stage', '=', stage_code))
+        return self._create_action(title, domain)
+
+    def action_view_stage_draft(self):
+        return self._action_view_progress_stage('draft', 'Progress: Draft')
+
+    def action_view_stage_confirmed(self):
+        return self._action_view_progress_stage('confirmed', 'Progress: Confirmed')
+
+    def action_view_stage_pending_contract(self):
+        return self._action_view_progress_stage('pending_contract', 'Progress: Pending Contract')
+
+    def action_view_stage_pending_client_signature(self):
+        return self._action_view_progress_stage('pending_client_signature', 'Progress: Pending Client Signature')
+
+    def action_view_stage_pending_cabal_signature(self):
+        return self._action_view_progress_stage('pending_cabal_signature', 'Progress: Pending Cabal Signature')
+
+    def action_view_stage_schedule_install(self):
+        return self._action_view_progress_stage('schedule_install', 'Progress: Schedule Install/Config')
+
+    def action_view_stage_pending_install(self):
+        return self._action_view_progress_stage('pending_install', 'Progress: Pending Install/Config')
+
+    def action_view_stage_pending_activation(self):
+        return self._action_view_progress_stage('pending_activation', 'Progress: Pending Activation')
+
+    def action_view_stage_active(self):
+        return self._action_view_progress_stage('active', 'Progress: Active')
+
+    def action_view_stage_renewed(self):
+        return self._action_view_progress_stage('renewed', 'Progress: Renewed')
+
+    def action_view_stage_paused(self):
+        return self._action_view_progress_stage('paused', 'Progress: Paused')
+
+    def action_view_stage_suspended(self):
+        return self._action_view_progress_stage('suspended', 'Progress: Suspended')
+
+    def action_view_stage_churned(self):
+        return self._action_view_progress_stage('churned', 'Progress: Churned')
+
+    def action_view_stage_active_with_issues(self):
+        return self._action_view_progress_stage('active_with_issues', 'Progress: Active w/ Issues')
+
+    def action_view_stage_paused_with_issues(self):
+        return self._action_view_progress_stage('paused_with_issues', 'Progress: Paused w/ Issues')
+
+    def action_view_stage_suspended_with_issues(self):
+        return self._action_view_progress_stage('suspended_with_issues', 'Progress: Suspended w/ Issues')
 
     def _get_filtered_domain(self):
         """Build domain based on dashboard filters."""
