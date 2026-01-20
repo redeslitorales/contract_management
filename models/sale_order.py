@@ -24,7 +24,6 @@ SUBSCRIPTION_STATES = [
     ('6_churn', 'Churned'),  # Closed or ended subscription
     ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
-    ('9_transferred', 'Transferred'),  # Destination subscription after service transfer
 ]
 
 CONTRACT_SEND_METHODS = [
@@ -1997,6 +1996,19 @@ class SubscriptionTransferWizard(models.TransientModel):
     to_label = fields.Char(string='To Label', compute='_compute_labels')
     confirm_ack = fields.Boolean(string='I confirm the transfer details are correct')
 
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        ctx = self.env.context or {}
+        from_id = (
+            ctx.get('default_from_subscription_id')
+            or ctx.get('active_id')
+            or (ctx.get('active_ids') and ctx['active_ids'][0])
+        )
+        if from_id:
+            res.setdefault('from_subscription_id', from_id)
+        return res
+
     def _build_label(self, subscription):
         if not subscription:
             return ''
@@ -2158,13 +2170,27 @@ class SubscriptionTransferWizard(models.TransientModel):
             'is_wireless_connection': is_wireless_connection,
             'origin_order_id': from_sub.id,
             'is_transfer': True,
-            'subscription_state': '9_transferred',
+            'start_date': fields.Date.context_today(self),
+            'next_invoice_date': fields.Date.context_today(self),
+            'installation_state': 'completed',
+            'configuration_state': 'completed',
         }
         if cpe_unit or cpe_unit_asset:
             to_sub_vals['internet_service_state'] = 'active'
         if cpe_stb or cpe_stb_asset or iptv_account:
             to_sub_vals['iptv_service_state'] = 'active'
         to_sub.write(_filter_field_vals(to_sub, to_sub_vals))
+
+        # Confirm destination subscription and invoice immediately after transfer
+        invoice = False
+        try:
+            to_sub.action_confirm()
+            invoice = to_sub._create_invoices()
+            if invoice:
+                invoice.action_post()
+        except Exception as e:
+            _logger.warning("[Transfer] Confirm/invoice failed for destination subscription %s: %s", to_sub.id, e)
+            to_sub.message_post(body=_("Invoice on transfer failed: %s") % e)
 
         # Prepare cross-links for chatter/context
         link_to_sub = Markup("<a href=\"/web#id=%s&model=sale.order&view_type=form\">%s</a>" % (to_sub.id, html_escape(to_sub.display_name)))
@@ -2200,11 +2226,7 @@ class SubscriptionTransferWizard(models.TransientModel):
                 note_lines = result.get('notes') or []
                 if note_lines:
                     msg = "\n".join(note_lines)
-                    to_sub.env.user.notify_info(
-                        message=msg,
-                        title=_("SmartOLT transfer update"),
-                        sticky=True,
-                    )
+                    to_sub.message_post(body=_("SmartOLT transfer update:\n%s") % msg)
         except Exception as e:
             _logger.warning(
                 "SmartOLT update after transfer failed (from %s to %s): %s",
