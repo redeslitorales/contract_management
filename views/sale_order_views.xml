@@ -3,6 +3,7 @@
         <field name="name">sale.order.form.inherit</field>
         <field name="model">sale.order</field>
         <field name="priority" eval="200"/>
+        <!-- Inherit the standard sale order form (subscription view may not be present) -->
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <!-- Add horizontal subscription progress bar in sheet -->
@@ -144,15 +145,19 @@
                                         <small style="font-weight: bold; color: #f0ad4e;">Paused<br/>(Click to Reactivate)</small>
                                     </button>
                                     <!-- Suspended with Issues (8_suspend but contract/install/config not completed) -->
-                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'suspended_with_issues'">
+                                    <button name="reactivate_service" type="object"
+                                            style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                            invisible="progress_stage != 'suspended_with_issues'">
                                         <i class="fa fa-ban fa-2x" style="color: #d9534f;" title="Suspended with Issues"/><br/>
-                                        <small style="font-weight: bold; color: #d9534f;">Suspended w/ Issues</small>
-                                    </div>
+                                        <small style="font-weight: bold; color: #d9534f;">Suspended w/ Issues<br/>(Click to Reactivate)</small>
+                                    </button>
                                     <!-- Suspended (8_suspend) -->
-                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'suspended'">
+                                    <button name="reactivate_service" type="object"
+                                            style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                            invisible="progress_stage != 'suspended'">
                                         <i class="fa fa-ban fa-2x" style="color: #d9534f;"/><br/>
-                                        <small style="font-weight: bold; color: #d9534f;">Suspended</small>
-                                    </div>
+                                        <small style="font-weight: bold; color: #d9534f;">Suspended<br/>(Click to Reactivate)</small>
+                                    </button>
                                     <!-- Churned (6_churn) -->
                                     <div style="text-align: center; flex: 1;" invisible="progress_stage != 'churned'">
                                         <i class="fa fa-times-circle fa-2x" style="color: #777;"/><br/>
@@ -178,6 +183,9 @@
             </xpath>
             
             <!-- Add smart buttons for contracts -->
+            <xpath expr="//div[@name='button_box']" position="attributes">
+                <attribute name="invisible">is_subscription</attribute>
+            </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button class="oe_stat_button" type="object" name="action_view_contracts"
                         icon="fa-briefcase" invisible="contract_count == 0">
@@ -190,19 +198,20 @@
                 </button>
                 -->
             </xpath>
-            
-            <xpath expr="//form[1]/header[1]/button[@name='action_confirm'][2]" position="attributes">
-                <attribute name="invisible">contract_state != 'pending_contract'</attribute>
+            <xpath expr="//form/header/button[@name='action_quotation_send']" position="attributes">
+                <attribute name="invisible">True</attribute>
             </xpath>
-            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send']" position="attributes">
-                <attribute name="invisible">subscription_state != '1_draft'</attribute>
+            <xpath expr="//form/header/button[@name='action_confirm']" position="attributes">
+                <attribute name="invisible">True</attribute>
             </xpath>
-            <xpath expr="//form[1]/header[1]/button[@name='action_draft']" position="attributes">
-                <attribute name="invisible">subscription_state != '1_draft'</attribute>
+            <xpath expr="//form/header//button[@name='action_draft']" position="attributes">
+                <attribute name="invisible">True</attribute>
             </xpath>
-            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send'][3]" position="replace"/>
-            <xpath expr="//form[1]/header[1]/button[@name='action_quotation_send'][2]" position="replace"/>
-            <xpath expr="//form[1]/header[1]" position="inside">
+            <xpath expr="//div[contains(@class,'oe_button_box')]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//form/header" position="inside">
                 <!-- Keep contract_state in scope for header modifiers even when Status tab is restricted -->
                 <field name="contract_state" invisible="1"/>
                 <field name="can_resend_contract" invisible="1"/>
@@ -233,12 +242,7 @@
             <xpath expr="//form[1]/header[1]/button[@name='action_get_signature']" position="attributes">
                 <attribute name="invisible">True</attribute>
             </xpath>
--->            
-            <!-- Suppress subscription_state badge from base sale.order view -->
-            <xpath expr="//form[1]/sheet[1]/field[@name='subscription_state'][2]" position="attributes">
-                <attribute name="invisible">True</attribute>
-            </xpath>
-            
+-->                        
             <!-- Make order lines readonly when not in draft stage -->
             <xpath expr="//field[@name='order_line']" position="attributes">
                 <attribute name="readonly">progress_stage != 'draft'</attribute>
