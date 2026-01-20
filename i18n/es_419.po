@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e-20231127\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-01-20 00:42+0000\n"
-"PO-Revision-Date: 2026-01-19 18:51-0600\n"
+"PO-Revision-Date: 2026-01-19 19:45-0600\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -2389,7 +2389,7 @@ msgstr "Etiqueta Desde"
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__from_subscription_id
 msgid "From Subscription"
-msgstr "De suscripción"
+msgstr "Suscripción para Rotar"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__from_summary
@@ -4610,11 +4610,8 @@ msgstr "A Label"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__to_subscription_id
-#, fuzzy
 msgid "To Subscription"
-msgstr ""
-"<i class=\"fa fa-times-circle fa-2x\" style=\"color: #777;\" invisible=\"subscription_state != '6_churn'\"/><br invisible=\"subscription_state != '6_churn'\"/>\n"
-"                                <small style=\"font-weight: bold; color: #777;\" invisible=\"subscription_state != '6_churn'\">Rotado</small>"
+msgstr "Suscripción destino"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__to_summary
