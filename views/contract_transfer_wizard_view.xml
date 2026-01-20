@@ -7,8 +7,8 @@
             <form string="Service Transfer Wizard">
                 <sheet>
                     <group modifiers="{'invisible': [['state', '!=', 'select']]}">
-                        <field name="from_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}"/>
-                        <field name="to_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}"/>
+                        <field name="from_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}" string="Suscriptor Actual"/>
+                        <field name="to_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}" string="Nuevo Suscriptor"/>
                         <field name="transfer_date"/>
                         <separator string="The destination subscription must have an active contract." colspan="2" class="text-warning"/>
                     </group>
