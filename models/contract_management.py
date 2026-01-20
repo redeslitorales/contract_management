@@ -132,7 +132,7 @@ class ContractManagement(models.Model):
     progress_stage = fields.Char(
         string='Progress Stage',
         compute='_compute_progress_stage',
-        store=False,
+        store=True,
         help='Determines which stage to show in the progress bar based on subscription state'
     )
     addendum_ids = fields.One2many('contract.addendum', 'contract_id', string='Addendums')

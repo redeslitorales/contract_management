@@ -12,6 +12,9 @@
                     'res_model': 'subscription.transfer.wizard',
                     'view_mode': 'form',
                     'target': 'new',
+                    'context': {
+                        'default_from_subscription_id': record and record.id or False,
+                    },
                 }
             </field>
         </record>

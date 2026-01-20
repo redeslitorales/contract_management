@@ -169,6 +169,11 @@ class SubscriptionClose(models.Model):
             },
         }
 
+    def reactivate_service(self):
+        """Alias used by UI buttons to reopen the reactivation wizard."""
+        self.ensure_one()
+        return self.action_reactivate_subscription_wizard()
+
 #  Redefining methods from the sale_subscription.sale_order.py file to accommadate CPE 
 
     def _get_order_digest(self, origin='', template='sale_subscription.sale_order_digest', lang=None):

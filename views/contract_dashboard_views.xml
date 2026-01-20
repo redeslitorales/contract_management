@@ -28,7 +28,7 @@
                         </group>
                     </group>
                     
-                    <group name="summary_row" string="Summary" col="2" class="o_full_width">
+                    <group name="summary_row" string="Summary" col="3" class="o_full_width">
                         <group col="1" class="o_vertical_alignment_top">
                             <separator string="Summary by Contract Status"/>
                             <field name="state_summary_html" widget="html" nolabel="1"/>
@@ -36,6 +36,10 @@
                         <group col="1" class="o_vertical_alignment_top">
                             <separator string="Summary by Signature Status"/>
                             <field name="signature_summary_html" widget="html" nolabel="1"/>
+                        </group>
+                        <group col="1" class="o_vertical_alignment_top">
+                            <separator string="Summary by Progress Stage"/>
+                            <field name="progress_stage_summary_html" widget="html" nolabel="1"/>
                         </group>
                     </group>
                     

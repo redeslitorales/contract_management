@@ -4,15 +4,40 @@
         <field name="name">subscription.transfer.wizard.form</field>
         <field name="model">subscription.transfer.wizard</field>
         <field name="arch" type="xml">
-            <form string="Subscription Transfer Wizard">
-                <group>
-                    <field name="subscription_id"/>
-                    <field name="new_customer_id"/>
-                    <field name="transfer_date"/>
-                    <field name="transfer_reason"/>
-                </group>
+            <form string="Service Transfer Wizard">
+                <sheet>
+                    <group modifiers="{'invisible': [['state', '!=', 'select']]}">
+                        <field name="from_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}"/>
+                        <field name="to_subscription_id" options="{'no_create': True}" context="{'contract_transfer_label': True}"/>
+                        <field name="transfer_date"/>
+                        <separator string="The destination subscription must have an active contract." colspan="2" class="text-warning"/>
+                    </group>
+
+                    <group modifiers="{'invisible': [['state', '!=', 'confirm']]}">
+                        <separator string="Review transfer details" colspan="2" class="oe_read_only"/>
+                        <group col="2" name="transfer_summary_grid">
+                            <group col="1">
+                                <label string="From" for="from_summary" class="o_form_label"/>
+                                <field name="from_label" nolabel="1" readonly="1" class="oe_inline text-muted"/>
+                                <field name="from_summary" nolabel="1" readonly="1" class="oe_inline"/>
+                            </group>
+                            <group col="1">
+                                <label string="To" for="to_summary" class="o_form_label"/>
+                                <field name="to_label" nolabel="1" readonly="1" class="oe_inline text-muted"/>
+                                <field name="to_summary" nolabel="1" readonly="1" class="oe_inline"/>
+                            </group>
+                        </group>
+                        <group col="2">
+                            <label string="Acknowledgement" for="confirm_ack" class="o_form_label"/>
+                            <field name="confirm_ack" nolabel="1" class="oe_inline"/>
+                        </group>
+                    </group>
+
+                    <field name="state" invisible="1"/>
+                </sheet>
                 <footer>
-                    <button string="Transfer" type="object" name="transfer_subscription" class="btn-primary"/>
+                    <button string="Review" type="object" name="action_review" class="btn-primary" modifiers="{'invisible': [['state', '!=', 'select']]}"/>
+                    <button string="Transfer" type="object" name="transfer_subscription" class="btn-primary" modifiers="{'invisible': [['state', '!=', 'confirm']]}"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>

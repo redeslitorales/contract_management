@@ -24,6 +24,7 @@ SUBSCRIPTION_STATES = [
     ('6_churn', 'Churned'),  # Closed or ended subscription
     ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
+    ('9_transferred', 'Transferred'),  # Destination subscription after service transfer
 ]
 
 CONTRACT_SEND_METHODS = [
@@ -152,7 +153,10 @@ class SaleSubscription(models.Model):
     subscription_state = fields.Selection(
         string='Subscription Status',
         selection=SUBSCRIPTION_STATES,
-        compute='_compute_subscription_state', store=True, tracking=True, group_expand='_group_expand_states',
+        store=True,
+        tracking=True,
+        group_expand='_group_expand_states',
+        readonly=False,
     )
     contract_ids = fields.One2many('contract.management', 'subscription_id', string="Contracts")
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
@@ -166,6 +170,7 @@ class SaleSubscription(models.Model):
     # next_action = fields.Char(string='Next Action', compute='_compute_next_action')
     transfer_date = fields.Date(string="Date of Transfer")
     transfer_reason = fields.Selection(string="Transfer Reason", selection=TRANSFER_REASONS)
+    is_transfer = fields.Boolean(string='Is Transfer', default=False, tracking=True)
     previous_partner_id = fields.Many2one('res.partner', string="Previous Client")
     terms_conditions_ids = fields.Many2many('sale.terms.conditions', string='Terms and Conditions')
     cover_letter_id = fields.Many2one('sale.cover.letter', string='Cover Letter', compute='_compute_cover_letter', store=True)
@@ -192,9 +197,23 @@ class SaleSubscription(models.Model):
     progress_stage = fields.Char(
         string='Progress Stage',
         compute='_compute_progress_stage',
-        store=False,
+        store=True,
         help='Determines which stage to show in the progress bar based on subscription state'
     )
+
+    def _get_transfer_display_name(self):
+        self.ensure_one()
+        sub_name = self.cabal_sequence or self.name or ''
+        partner = self.partner_id.display_name or ''
+        if sub_name and partner:
+            return '%s - %s' % (sub_name, partner)
+        return sub_name or partner
+
+    def name_get(self):
+        res = super().name_get()
+        if not self.env.context.get('contract_transfer_label'):
+            return res
+        return [(order.id, order._get_transfer_display_name()) for order in self]
     
     @api.depends('confirmation_uuid')
     def _get_confirmation_secret(self):
@@ -444,6 +463,8 @@ class SaleSubscription(models.Model):
     def _compute_contract_count(self):
         for order in self:
             order.contract_count = len(order.contract_ids)
+
+    # subscription_state intentionally left without compute/inverse to allow explicit writes
     
     # FSM Integration - Commented out until FSM modules installed in test env
     # @api.depends('fsm_task_ids')
@@ -799,18 +820,18 @@ class SaleSubscription(models.Model):
         if missing:
             raise UserError(_("DocuSign configuration is incomplete: missing %s") % ", ".join(missing))
                 
-    # Method to be used in case a contract needs to be transferred
+    # Method to be used in case a service needs to be transferred
     def action_subscription_transfer_wizard(self):
-        if not self:
-            raise ValueError("Expected singleton: sale.order()")
         self.ensure_one()
-        if self.is_subscription or self.subscription_state == '7_upsell':
-            self._ensure_docusign_config()
         return {
             'type': 'ir.actions.act_window',
-            'res_model': 'action_subscription_transfer_wizard',
+            'res_model': 'subscription.transfer.wizard',
             'view_mode': 'form',
-            'target': 'new'
+            'target': 'new',
+            'context': {
+                'default_from_subscription_id': self.id,
+                'default_transfer_date': fields.Date.context_today(self),
+            },
         }
 
     # Method to be used in case a contract needs to be sentm, but the contract is in confirmed status
@@ -1953,55 +1974,263 @@ class SubscriptionTransferWizard(models.TransientModel):
     _name = 'subscription.transfer.wizard'
     _description = 'Subscription Transfer Wizard'
 
-    subscription_id = fields.Many2one('sale.order', string='Subscription', required=True)
-    new_customer_id = fields.Many2one('res.partner', string='New Customer', required=True)
-    transfer_date = fields.Date(string="Effective Date of Transfer")
-    transfer_reason = fields.Selection(string="Transfer Reason", selection=[
-        ('sold', 'Transfer of Ownership of Property'),
-        ('rental', 'New Renter'),
-        ('death', 'Death'),
-        ('otro', 'Otro')
-    ])
-    contract_option = fields.Selection([
-        ('remaining_period', 'Remaining Period'),
-        ('standard_period', 'Standard Contract Period')
-    ], string='Contract Option', required=True, default='standard_period')
+    state = fields.Selection(
+        [('select', 'Select Subscriptions'), ('confirm', 'Confirm Transfer')],
+        default='select',
+        required=True,
+    )
+    from_subscription_id = fields.Many2one('sale.order', string='From Subscription', required=True)
+    to_subscription_id = fields.Many2one(
+        'sale.order',
+        string='To Subscription',
+        required=True,
+        domain="[('contract_state', '=', 'active'), ('id', '!=', from_subscription_id)]",
+    )
+    transfer_date = fields.Date(
+        string='Effective Date of Transfer',
+        default=fields.Date.context_today,
+        required=True,
+    )
+    from_summary = fields.Html(string='From Summary', compute='_compute_summaries', sanitize=False)
+    to_summary = fields.Html(string='To Summary', compute='_compute_summaries', sanitize=False)
+    from_label = fields.Char(string='From Label', compute='_compute_labels')
+    to_label = fields.Char(string='To Label', compute='_compute_labels')
+    confirm_ack = fields.Boolean(string='I confirm the transfer details are correct')
 
-    @api.onchange('transfer_reason')
-    def _onchange_transfer_reason(self):
-        if self.transfer_reason == 'death':
-            self.contract_option = 'remaining_period'
-        else:
-            self.contract_option = False
+    def _build_label(self, subscription):
+        if not subscription:
+            return ''
+
+        sub_name = subscription.cabal_sequence or subscription.name or ''
+        partner = subscription.partner_id.display_name or ''
+        if sub_name and partner:
+            return '%s - %s' % (sub_name, partner)
+        return sub_name or partner
+
+    def _build_summary(self, subscription):
+        if not subscription:
+            return ''
+
+        parts = []
+        parts.append(_('Partner: %s') % html_escape(subscription.partner_id.display_name or ''))
+        if subscription.partner_shipping_id:
+            parts.append(_('Service Address: %s') % html_escape(subscription.partner_shipping_id.contact_address or ''))
+        parts.append(_('Contract: %s') % html_escape(subscription.cabal_sequence or subscription.name or ''))
+        if subscription.start_date:
+            parts.append(_('Start: %s') % subscription.start_date)
+        if subscription.end_date:
+            parts.append(_('End: %s') % subscription.end_date)
+
+        # Basic service/equipment hints (shown only if fields exist)
+        equipment = []
+        for fname, label in [
+            ('cpe_unit', _('ONT/Router')),
+            ('cpe_stb', _('STB')),
+            ('download_speed_profile_id', _('Download Profile')),
+            ('upload_speed_profile_id', _('Upload Profile')),
+        ]:
+            if fname in subscription._fields:
+                val = subscription[fname]
+                if val:
+                    equipment.append('%s: %s' % (label, html_escape(val.display_name if hasattr(val, 'display_name') else str(val))))
+
+        if equipment:
+            parts.append(_('Equipment/Config: %s') % ', '.join(equipment))
+
+        return Markup('<br/>').join(parts)
+
+    @api.depends('from_subscription_id', 'to_subscription_id', 'transfer_date')
+    def _compute_summaries(self):
+        for wiz in self:
+            wiz.from_summary = wiz._build_summary(wiz.from_subscription_id)
+            wiz.to_summary = wiz._build_summary(wiz.to_subscription_id)
+
+    @api.depends('from_subscription_id', 'to_subscription_id')
+    def _compute_labels(self):
+        for wiz in self:
+            wiz.from_label = wiz._build_label(wiz.from_subscription_id)
+            wiz.to_label = wiz._build_label(wiz.to_subscription_id)
+
+    def action_review(self):
+        self.ensure_one()
+        # Validate selections before showing confirmation
+        if not self.from_subscription_id or not self.to_subscription_id:
+            raise ValidationError(_('Select both the source and destination subscriptions before reviewing.'))
+        if self.from_subscription_id == self.to_subscription_id:
+            raise ValidationError(_('The source and destination subscriptions must be different.'))
+
+        self.write({'state': 'confirm'})
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'subscription.transfer.wizard',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'new',
+        }
+
+    def _validate_destination_contract(self, to_subscription):
+        has_active_contract = (
+            to_subscription.contract_state == 'active'
+            or bool(to_subscription.contract_ids.filtered(lambda c: c.state == 'active'))
+        )
+        if not has_active_contract:
+            raise ValidationError(_('The destination subscription must have an active contract before transferring service.'))
 
     def transfer_subscription(self):
         self.ensure_one()
-        subscription = self.subscription_id
-        new_customer = self.new_customer_id
-        if not subscription or not new_customer:
-            raise UserError('Please select a subscription and a new customer.')
-        subscription.previous_partner_id = subscription.partner_id
-        subscription.partner_id = new_customer.id
-        subscription.transfer_date = self.transfer_date
-        subscription.transfer_reason = self.transfer_reason
-        subscription.action_open_contract_send_method_wizard()
-        if self.contract_option == 'remaining_period':
-            start_date = date.today()
-            end_date = subscription.contract_ids.end_date
-        else:
-            start_date = date.today()
-            contract_term = subscription.contract_term.term
-            end_date = start_date + relativedelta(months=contract_term)
-        self.env['mail.message'].create({
-            'body': f'Subscription transferred on {subscription.transfer_date} from {subscription.previous_partner_id.name} to {new_customer.name} for {subscription.transfer_reason}.',
-            'model': 'sale.order',
-            'res_id': subscription.id,
-            'message_type': 'notification',
-        })
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'reload',
+        from_sub = self.from_subscription_id
+        to_sub = self.to_subscription_id
+        from_fields = from_sub._fields
+        to_fields = to_sub._fields
+
+        if self.state != 'confirm' or not self.confirm_ack:
+            raise ValidationError(_('Please review and confirm the transfer details before proceeding.'))
+
+        def _field(record, name):
+            return record[name] if name in record._fields else False
+
+        def _filter_field_vals(record, vals):
+            return {key: value for key, value in vals.items() if key in record._fields}
+
+        if not from_sub or not to_sub:
+            raise ValidationError(_('Select both the source and destination subscriptions.'))
+        if from_sub == to_sub:
+            raise ValidationError(_('The source and destination subscriptions must be different.'))
+
+        self._validate_destination_contract(to_sub)
+
+        # Require the destination contract to end no earlier than the source contract
+        from_end_date = from_sub.end_date
+        to_end_date = to_sub.end_date
+        if from_end_date:
+            if not to_end_date or to_end_date < from_end_date:
+                raise ValidationError(
+                    _('The destination contract must end on or after the source contract (%s). Please extend the destination contract before transferring.')
+                    % from_end_date
+                )
+
+        if any([
+            _field(to_sub, 'cpe_unit'),
+            _field(to_sub, 'cpe_unit_asset'),
+            _field(to_sub, 'cpe_stb'),
+            _field(to_sub, 'cpe_stb_asset'),
+        ]):
+            raise ValidationError(_('The destination subscription already has equipment assigned. Clear it before transferring.'))
+
+        transfer_date = self.transfer_date or fields.Date.context_today(self)
+
+        # Capture data before clearing the source subscription
+        cpe_unit = _field(from_sub, 'cpe_unit')
+        cpe_unit_asset = _field(from_sub, 'cpe_unit_asset')
+        cpe_stb = _field(from_sub, 'cpe_stb')
+        cpe_stb_asset = _field(from_sub, 'cpe_stb_asset')
+        iptv_account = _field(from_sub, 'iptv_account')
+        ip_address = _field(from_sub, 'ip_address')
+        is_shared_connection = _field(from_sub, 'is_shared_connection')
+        is_wireless_connection = _field(from_sub, 'is_wireless_connection')
+
+        # Clear source subscription and close it
+        from_sub_vals = {
+            'cpe_unit': False,
+            'cpe_unit_asset': False,
+            'cpe_stb': False,
+            'cpe_stb_asset': False,
+            'iptv_account': False,
+            'ip_address': False,
+            'is_shared_connection': False,
+            'is_wireless_connection': False,
+            'download_speed_profile_id': False,
+            'upload_speed_profile_id': False,
+            'end_date': transfer_date,
+            'subscription_state': '6_churn',
         }
+        from_sub.write(_filter_field_vals(from_sub, from_sub_vals))
+
+        # Assign captured values to the destination subscription
+        to_sub_vals = {
+            'cpe_unit': cpe_unit.id if cpe_unit else False,
+            'cpe_unit_asset': cpe_unit_asset.id if cpe_unit_asset else False,
+            'cpe_stb': cpe_stb.id if cpe_stb else False,
+            'cpe_stb_asset': cpe_stb_asset.id if cpe_stb_asset else False,
+            'iptv_account': iptv_account,
+            'ip_address': ip_address,
+            'is_shared_connection': is_shared_connection,
+            'is_wireless_connection': is_wireless_connection,
+            'origin_order_id': from_sub.id,
+            'is_transfer': True,
+            'subscription_state': '9_transferred',
+        }
+        if cpe_unit or cpe_unit_asset:
+            to_sub_vals['internet_service_state'] = 'active'
+        if cpe_stb or cpe_stb_asset or iptv_account:
+            to_sub_vals['iptv_service_state'] = 'active'
+        to_sub.write(_filter_field_vals(to_sub, to_sub_vals))
+
+        # Prepare cross-links for chatter/context
+        link_to_sub = Markup("<a href=\"/web#id=%s&model=sale.order&view_type=form\">%s</a>" % (to_sub.id, html_escape(to_sub.display_name)))
+        link_from_sub = Markup("<a href=\"/web#id=%s&model=sale.order&view_type=form\">%s</a>" % (from_sub.id, html_escape(from_sub.display_name)))
+
+        # Terminate contracts linked to the source subscription and log why
+        contracts_to_terminate = from_sub.contract_ids.filtered(lambda c: c.state in ('active', 'renewal_due', 'expired'))
+        for contract in contracts_to_terminate:
+            contract.write({'state': 'terminated'})
+            contract.message_post(body=Markup(_('Contract terminated due to service transfer to %(dest)s on %(date)s.')) % {
+                'dest': link_to_sub,
+                'date': transfer_date,
+            })
+
+        # Reassign assets to the destination subscription and partner
+        if cpe_unit_asset and 'subscription_id' in cpe_unit_asset._fields:
+            cpe_unit_asset.sudo().write({
+                'partner_id': to_sub.partner_id.id,
+                'subscription_id': to_sub.id,
+                'client_name': to_sub.partner_id.name,
+            })
+        if cpe_stb_asset and 'subscription_id' in cpe_stb_asset._fields:
+            cpe_stb_asset.sudo().write({
+                'partner_id': to_sub.partner_id.id,
+                'subscription_id': to_sub.id,
+                'client_name': to_sub.partner_id.name,
+            })
+
+        # Update SmartOLT context (location + speeds) after transfer
+        try:
+            if hasattr(to_sub, "smartolt_push_transfer_update"):
+                result = to_sub.smartolt_push_transfer_update(from_sub) or {}
+                note_lines = result.get('notes') or []
+                if note_lines:
+                    msg = "\n".join(note_lines)
+                    to_sub.env.user.notify_info(
+                        message=msg,
+                        title=_("SmartOLT transfer update"),
+                        sticky=True,
+                    )
+        except Exception as e:
+            _logger.warning(
+                "SmartOLT update after transfer failed (from %s to %s): %s",
+                from_sub.id,
+                to_sub.id,
+                e,
+            )
+            to_sub.message_post(body=_("SmartOLT update after transfer failed: %s") % e)
+
+        _logger.info(
+            "[Transfer] Auto-invoicing skipped during subscription transfer (from %s to %s)",
+            from_sub.id,
+            to_sub.id,
+        )
+
+        # Log chatter notes on both subscriptions with cross-links
+        from_sub.message_post(body=Markup(_('Service transferred to %(dest)s on %(date)s.')) % {
+            'dest': link_to_sub,
+            'date': transfer_date,
+        })
+        to_sub.message_post(body=Markup(_('Service transferred from %(src)s on %(date)s.')) % {
+            'src': link_from_sub,
+            'date': transfer_date,
+        })
+
+        return {'type': 'ir.actions.act_window_close'}
     
 class ContractUploadWizard(models.TransientModel):
     _name = 'contract.upload.wizard'
