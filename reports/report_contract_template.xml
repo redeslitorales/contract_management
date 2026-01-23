@@ -12,7 +12,7 @@
 					    
 					    <t t-set="months" t-value="{                             '1': 'enero',                             '2': 'febrero',                             '3': 'marzo',                             '4': 'abril',                             '5': 'mayo',                             '6': 'junio',                             '7': 'julio',                             '8': 'agosto',                             '9': 'septiembre',                             '10': 'octubre',                             '11': 'noviembre',                             '12': 'diciembre'                         }"/>
 					    
-					    <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
+                        <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
                         
                         <t t-set="tipo_fact" t-value="document_types.get(doc.partner_id.property_account_position_id.sv_document, '')"/>
 
@@ -319,7 +319,7 @@
 					    
 					    <t t-set="months" t-value="{                             '1': 'enero',                             '2': 'febrero',                             '3': 'marzo',                             '4': 'abril',                             '5': 'mayo',                             '6': 'junio',                             '7': 'julio',                             '8': 'agosto',                             '9': 'septiembre',                             '10': 'octubre',                             '11': 'noviembre',                             '12': 'diciembre'                         }"/>
 					    
-					    <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
+                        <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
                         
                         <t t-set="tipo_fact" t-value="document_types.get(doc.partner_id.property_account_position_id.sv_document, '')"/>
 
@@ -626,7 +626,7 @@
 					    
 					    <t t-set="months" t-value="{                             '1': 'enero',                             '2': 'febrero',                             '3': 'marzo',                             '4': 'abril',                             '5': 'mayo',                             '6': 'junio',                             '7': 'julio',                             '8': 'agosto',                             '9': 'septiembre',                             '10': 'octubre',                             '11': 'noviembre',                             '12': 'diciembre'                         }"/>
 					    
-					    <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
+                        <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
                         
                         <t t-set="tipo_fact" t-value="document_types.get(doc.partner_id.property_account_position_id.sv_document, '')"/>
 
@@ -933,7 +933,7 @@
 					    
 					    <t t-set="months" t-value="{                             '1': 'enero',                             '2': 'febrero',                             '3': 'marzo',                             '4': 'abril',                             '5': 'mayo',                             '6': 'junio',                             '7': 'julio',                             '8': 'agosto',                             '9': 'septiembre',                             '10': 'octubre',                             '11': 'noviembre',                             '12': 'diciembre'                         }"/>
 					    
-					    <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
+                        <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
                         
                         <t t-set="tipo_fact" t-value="document_types.get(doc.partner_id.property_account_position_id.sv_document, '')"/>
 
@@ -1240,7 +1240,7 @@
 					    
 					    <t t-set="months" t-value="{                             '1': 'enero',                             '2': 'febrero',                             '3': 'marzo',                             '4': 'abril',                             '5': 'mayo',                             '6': 'junio',                             '7': 'julio',                             '8': 'agosto',                             '9': 'septiembre',                             '10': 'octubre',                             '11': 'noviembre',                             '12': 'diciembre'                         }"/>
 					    
-					    <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
+                        <t t-set="document_types" t-value="{                             'Factura': 'Factura Consumidor Final',                              'CCF': 'Comprobante de Crédito fiscal',                             'FSUJEx': 'Factura de sujeto excluido'                         }"/>
                         
                         <t t-set="tipo_fact" t-value="document_types.get(doc.partner_id.property_account_position_id.sv_document, '')"/>
 

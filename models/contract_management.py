@@ -1,6 +1,7 @@
 from odoo import models, fields, api, http, _
 from odoo.http import request
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import float_compare
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import time
@@ -12,22 +13,13 @@ import requests
 import logging
 from odoo.addons.odoo_docusign.models import docu_client
 
+
 _logger = logging.getLogger(__name__)
 
+# Shared subscription state groups (imported by other modules)
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
 SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
 SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
-
-SUBSCRIPTION_STATES = [
-    ('1_draft', 'Quotation'),  # Quotation for a new subscription
-    ('2_renewal', 'Renewal Quotation'),  # Renewal Quotation for existing subscription
-    ('3_progress', 'In Progress'),  # Active Subscription or confirmed renewal for active subscription
-    ('4_paused', 'Paused'),  # Active subscription with paused invoicing
-    ('5_renewed', 'Renewed'),  # Active or ended subscription that has been renewed
-    ('6_churn', 'Churned'),  # Closed or ended subscription
-    ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
-    ('8_suspend', 'Suspended'),  # Suspended
-]
 
 CONTRACT_SEND_METHODS = [
         ('whatsapp', 'WhatsApp'),
@@ -628,7 +620,7 @@ class ContractManagement(models.Model):
 #                })
 #                contract.subscription_id = subscription
 
-    def _terminate_with_checks(self, payment_confirmed=False, equipment_returned=False, via_wizard=False, payment=None):
+    def _terminate_with_checks(self, payment_confirmed=False, equipment_returned=False, via_wizard=False, payment=None, applied_termination_cost=None):
         for contract in self:
             if contract.state != 'terminated':
                 contract._validate_state_change('terminated')
@@ -639,10 +631,17 @@ class ContractManagement(models.Model):
 
             # Log the termination context for auditability
             payment_label = payment.display_name if payment else _('None')
-            contract.message_post(body=_('Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. (via wizard: %s)') % (
+            applied_cost_label = _('Not provided') if applied_termination_cost is None else '$%.2f' % applied_termination_cost
+            override_note = ''
+            if applied_termination_cost is not None and float_compare(applied_termination_cost or 0.0, contract.early_termination_cost or 0.0, precision_digits=2) != 0:
+                override_note = _(' (overridden from $%.2f)') % (contract.early_termination_cost or 0.0)
+
+            contract.message_post(body=_('Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. Applied termination cost: %s%s. (via wizard: %s)') % (
                 _('Yes') if payment_confirmed else _('No'),
                 _('Yes') if equipment_returned else _('No'),
                 payment_label,
+                applied_cost_label,
+                override_note,
                 _('Yes') if via_wizard else _('No'),
             ))
 

@@ -26,9 +26,11 @@
             <field name="model">docusign.connector</field>
             <field name="inherit_id" ref="odoo_docusign.docusign_connector_res_partner_tree"/>
             <field name="arch" type="xml">
-                <xpath expr="//tree/field[@name='model']" position="after">
+                <xpath expr="//tree/field[@name='model']" position="replace">
+                    <field name="model"/>
                     <field name="contract_management_id"/>
                     <field name="contract_addendum_id"/>
+                    <field name="sale_id" optional="show"/>
                 </xpath>
             </field>
         </record>

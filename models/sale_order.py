@@ -16,14 +16,8 @@ _logger = logging.getLogger(__name__)
 SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
 
 SUBSCRIPTION_STATES = [
-    ('1_draft', 'Quotation'),  # Quotation for a new subscription
-    ('2_renewal', 'Renewal Quotation'),  # Renewal Quotation for existing subscription
-    ('3_progress', 'In Progress'),  # Active Subscription or confirmed renewal for active subscription
-    ('4_paused', 'Paused'),  # Active subscription with paused invoicing
-    ('5_renewed', 'Renewed'),  # Active or ended subscription that has been renewed
-    ('6_churn', 'Churned'),  # Closed or ended subscription
-    ('7_upsell', 'Upsell'),  # Quotation or SO upselling a subscription
     ('8_suspend', 'Suspended'),  # Suspended
+    ('9_transfer', 'Transfer'),  # Transfer
 ]
 
 CONTRACT_SEND_METHODS = [
@@ -149,13 +143,11 @@ class SaleSubscription(models.Model):
     )
     install_required = fields.Boolean(string='Install Required', default=False, tracking=True)
     activation_required = fields.Boolean(string='Activation Required', default=False, tracking=True)
+    # Extend existing subscription_state instead of redefining it to avoid selection override warnings
     subscription_state = fields.Selection(
-        string='Subscription Status',
-        selection=SUBSCRIPTION_STATES,
-        store=True,
+        selection_add=SUBSCRIPTION_STATES,
         tracking=True,
         group_expand='_group_expand_states',
-        readonly=False,
     )
     contract_ids = fields.One2many('contract.management', 'subscription_id', string="Contracts")
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
@@ -179,6 +171,13 @@ class SaleSubscription(models.Model):
     quote_confirmed = fields.Boolean(string='Quote Confirmed', default=False)
     contract_term = fields.Many2one('dte.base.contract', string="Contract Term")
     contract_value = fields.Float(string = "Contract Value")
+    last_invoice_date = fields.Date(string='Last Invoice Date', compute='_compute_last_invoice_date', store=False)
+    termination_cost = fields.Monetary(
+        string='Termination Cost',
+        currency_field='currency_id',
+        compute='_compute_termination_cost',
+        store=False,
+    )
     renewal_of_id = fields.Many2one(
         'sale.order',
         string='Renewal Of',
@@ -364,6 +363,20 @@ class SaleSubscription(models.Model):
                     order.progress_stage = 'confirmed'
             else:
                 order.progress_stage = 'draft'
+
+    def _compute_last_invoice_date(self):
+        for order in self:
+            invoices = order.invoice_ids.filtered(
+                lambda inv: inv.state == 'posted' and getattr(inv, 'move_type', 'out_invoice') == 'out_invoice'
+            )
+            dates = [inv.invoice_date for inv in invoices if inv.invoice_date]
+            order.last_invoice_date = max(dates) if dates else False
+
+    def _compute_termination_cost(self):
+        Contract = self.env['contract.management'].sudo()
+        for order in self:
+            contract = Contract.search([('subscription_id', '=', order.id)], order='create_date desc', limit=1)
+            order.termination_cost = contract.early_termination_cost if contract else 0.0
 
     @api.depends('order_line.product_id.categ_id')
     def _compute_cover_letter(self):
@@ -1307,6 +1320,16 @@ class SaleSubscription(models.Model):
             # Persist contract_value so QWeb reports (contract PDFs) render the correct amount
             contract.sudo().write({'contract_value': contract_value})
             
+            # Step 0: Choose delivery method with WhatsApp-first, email fallback
+            send_method = contract.contract_send_method or 'whatsapp'
+            if send_method == 'whatsapp' and not contract.partner_id.whatsapp:
+                send_method = 'email'
+                contract.sudo().write({'contract_send_method': send_method})
+                _logger.info(
+                    "[DocuSign] Partner has no WhatsApp; falling back to email for contract ID=%s",
+                    contract.id,
+                )
+
             # Step 1: Generate contract number
             if contract.is_subscription and not contract.cabal_sequence:
                 contract.sudo().cabal_sequence = contract._get_cabal_sequence()
@@ -1344,7 +1367,7 @@ class SaleSubscription(models.Model):
             
             # Step 4: Create the connector and connector line records (if not physical)
             connector_id = None
-            if contract.contract_send_method != 'physical':
+            if send_method != 'physical':
                 _logger.info("[DocuSign] Creating DocuSign connector for contract ID=%s", contract.id)
                 connector_id = self._send_document_to_docusign(contract, document)
                 _logger.info("[DocuSign] DocuSign connector created: ID=%s, name=%s", 
@@ -1421,7 +1444,7 @@ class SaleSubscription(models.Model):
                              f" and addendum {addendum_record.id}" if addendum_record else "")
             
             # Step 6: Link docusign connector to contract.management
-            if contract.contract_send_method != 'physical' and connector_id:
+            if send_method != 'physical' and connector_id:
                 k_management.sudo().write({'docusign_id': connector_id.id})
                 _logger.info("[DocuSign] contract.management updated with docusign_id=%s", connector_id.id)
             
@@ -1429,11 +1452,11 @@ class SaleSubscription(models.Model):
             base_order = contract._get_addendum_base_order()
             target_order = base_order if base_order and base_order != contract else contract
 
-            if contract.contract_send_method != 'physical':
+            if send_method != 'physical':
                 # Send document from Docusign
                 _logger.info("[DocuSign] Calling send_docs() with send_method=%s for connector ID=%s", 
-                            contract.contract_send_method, connector_id.id)
-                send_contract_result = connector_id.send_docs(contract.contract_send_method)
+                            send_method, connector_id.id)
+                send_contract_result = connector_id.send_docs(send_method)
                 _logger.info("[DocuSign] send_docs() result: %s", send_contract_result)
                 
                 # Treat any 2xx-style success or "Successful" result as success

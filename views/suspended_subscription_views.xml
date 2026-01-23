@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_suspended_subscriptions_tree" model="ir.ui.view">
+        <field name="name">sale.order.suspended.subscriptions.tree</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <tree string="Suspended Subscriptions" create="false" default_order="start_date desc">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="start_date"/>
+                <field name="last_invoice_date"/>
+                <field name="contract_term"/>
+                <field name="termination_cost" widget="monetary"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_suspended_subscriptions" model="ir.actions.act_window">
+        <field name="name">Suspended Subscriptions</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[("is_subscription", "=", True), ("subscription_state", "=", "8_suspend")]</field>
+        <field name="context">{"search_default_is_subscription": 1}</field>
+        <field name="views" eval="[(ref('view_suspended_subscriptions_tree'), 'tree')]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No suspended subscriptions found.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_suspended_subscriptions" name="Suspended Subscriptions"
+              parent="menu_contract_management_root" action="action_suspended_subscriptions" sequence="20"/>
+</odoo>

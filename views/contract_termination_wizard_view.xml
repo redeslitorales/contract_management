@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <form string="Terminate Contract" create="0" class="o_form_nosave">
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="cost,approval,equipment,closure"/>
+                    <field name="state" widget="statusbar" statusbar_visible="cost,approval,payment,equipment,closure"/>
                 </header>
 
                 <sheet>
@@ -14,27 +14,72 @@
                         <field name="contract_id" invisible="1"/>
                         <field name="subscription_id" invisible="1"/>
                         <field name="requires_manager_approval" invisible="1"/>
+                        <field name="cost_override_requested" invisible="1"/>
                         <field name="manager_approved" invisible="1"/>
                     </group>
 
                     <!-- Step 1: Early Termination Cost -->
                     <group invisible="state != 'cost'" col="1" class="o_colspan_2">
-                        <group string="Early Termination Fee">
-                            <field name="early_termination_cost" readonly="1" widget="monetary"/>
-                            <label for="payment_confirmed" class="o_form_label" string="Confirm the customer has paid the early termination cost."/>
-                            <field name="payment_confirmed"/>
-                            <field name="partner_id" invisible="1"/>
-                            <field name="payment_id" domain="[('partner_id', '=', partner_id)]"/>
+                        <group string="Early Termination Fee" col="4" class="o_colspan_2">
+                            <field name="early_termination_cost" readonly="1" widget="monetary" invisible="cost_override_requested" colspan="2"/>
+                            <field name="applied_termination_cost" readonly="1" widget="monetary" invisible="not cost_override_requested" colspan="2"/>
+                            <group col="2" colspan="2">
+                                <label for="payment_confirmed" class="o_form_label" string="Confirm the customer has paid the early termination cost." invisible="customer_requests_waiver"/>
+                                <field name="payment_confirmed" invisible="customer_requests_waiver" nolabel="1" class="oe_inline"/>
+                                <label for="customer_requests_waiver" class="o_form_label" string="Customer requests waiver/reduction" invisible="payment_confirmed"/>
+                                <field name="customer_requests_waiver" invisible="payment_confirmed" nolabel="1" class="oe_inline"/>
+                            </group>
                         </group>
+
+                        <group string="Waiver or Reduction Request" col="2" class="o_colspan_2" invisible="not customer_requests_waiver or payment_confirmed">
+                            <label for="cost_override_request_reason" class="o_form_label" string="Request a waiver or reduction. Provide justification and optional documents." colspan="2"/>
+                            <field name="cost_override_request_reason" nolabel="1" placeholder="Describe the justification for waiving or reducing the fee." colspan="2"/>
+                            <field name="cost_override_attachment_ids" widget="many2many_binary" colspan="2"/>
+                            <button string="Submit Override Request" type="object" name="action_request_cost_override" class="btn-primary" invisible="cost_override_requested"/>
+                            <group string="Override Requested" col="2" class="o_inner_group" invisible="not cost_override_requested">
+                                <field name="cost_override_request_user_id" readonly="1"/>
+                                <field name="cost_override_request_datetime" readonly="1"/>
+                            </group>
+                            <group string="Override Approval" col="2" class="o_inner_group" invisible="not cost_override_applied">
+                                <field name="cost_override_applied" readonly="1"/>
+                                <field name="cost_override_user_id" readonly="1"/>
+                                <field name="cost_override_datetime" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <field name="partner_id" invisible="1"/>
+                        <label for="payment_id" class="o_form_label" string="Payment covering the fee" invisible="not payment_confirmed"/>
+                        <field name="payment_id" domain="[('partner_id', '=', partner_id)]" invisible="not payment_confirmed" nolabel="1"/>
                     </group>
 
                     <!-- Step 2: Manager Approval -->
                     <group invisible="state != 'approval'" col="1" class="o_colspan_2">
+                        <group string="Override Review" col="2" class="o_colspan_2">
+                            <field name="applied_termination_cost" widget="monetary"/>
+                            <field name="cost_override_reason" nolabel="1" placeholder="Manager approval notes"/>
+                            <field name="cost_override_applied" readonly="1"/>
+                            <field name="cost_override_user_id" readonly="1"/>
+                            <field name="cost_override_datetime" readonly="1"/>
+                            <field name="cost_override_attachment_ids" widget="many2many_binary" readonly="1"/>
+                            <button string="Approve Override &amp; Continue" type="object" name="action_apply_cost_override" class="btn-primary" groups="contract_management.group_contract_management_manager" invisible="cost_override_applied"/>
+                        </group>
                         <group string="Manager Approval">
                             <label for="manager_approved" class="o_form_label" string="Early termination cost is under $100. Manager approval required."/>
                             <field name="manager_approved" readonly="1"/>
                             <field name="manager_user_id" readonly="1"/>
                             <button string="Approve &amp; Continue" type="object" name="action_manager_approve" class="btn-primary" groups="contract_management.group_contract_management_manager" invisible="manager_approved"/>
+                        </group>
+                    </group>
+
+                    <!-- Step 3: Payment Confirmation (after manager-approved reduction) -->
+                    <group invisible="state != 'payment'" col="1" class="o_colspan_2">
+                        <group string="Termination Cost Payment" col="2" class="o_colspan_2">
+                            <field name="applied_termination_cost" readonly="1" widget="monetary"/>
+                            <label for="payment_confirmed" class="o_form_label" string="Confirm the approved termination cost has been paid."/>
+                            <field name="payment_confirmed" nolabel="1" class="oe_inline"/>
+                            <label for="payment_id" class="o_form_label" string="Payment covering the approved fee"/>
+                            <field name="payment_id" domain="[('partner_id', '=', partner_id)]" nolabel="1"/>
+                            <label for="payment_id" class="o_form_label" string="Payment must match the termination cost exactly and be unapplied to invoices." colspan="2"/>
                         </group>
                     </group>
 
@@ -69,6 +114,7 @@
 
                 <footer>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button string="Abandon" type="object" name="action_abandon" class="btn-secondary"/>
                     <button string="Back" type="object" name="action_back_to_cost" class="btn-secondary" invisible="state == 'cost'"/>
                     <button string="Next" type="object" name="action_next_step" class="btn-primary" invisible="state == 'closure'"/>
                     <button string="Confirm Termination" type="object" name="action_confirm_termination" class="btn-danger" invisible="state != 'closure'"/>

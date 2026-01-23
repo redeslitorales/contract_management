@@ -9,3 +9,4 @@ from . import product_category
 from . import res_config_settings
 from . import contract_termination_wizard
 from . import project_task
+from . import termination_request
