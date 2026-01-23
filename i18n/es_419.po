@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e-20231127\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-20 00:42+0000\n"
-"PO-Revision-Date: 2026-01-19 19:45-0600\n"
+"POT-Creation-Date: 2026-01-23 01:07+0000\n"
+"PO-Revision-Date: 2026-01-22 19:09-0600\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -16,6 +16,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 3.8\n"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid " (overridden from $%.2f)"
+msgstr " (anulado de $%.2f)"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.portal_my_contract
@@ -149,6 +156,7 @@ msgid "/st2/"
 msgstr "/st2/"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__service_rating__1
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__1
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__1
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__1
@@ -156,6 +164,7 @@ msgid "1 - Very Poor"
 msgstr "1 - Muy  mal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__service_rating__2
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__2
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__2
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__2
@@ -163,6 +172,7 @@ msgid "2 - Poor"
 msgstr "2- Mal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__service_rating__3
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__3
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__3
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__3
@@ -170,6 +180,7 @@ msgid "3 - Average"
 msgstr "3 - Normal"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__service_rating__4
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__4
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__4
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__4
@@ -177,6 +188,7 @@ msgid "4 - Good"
 msgstr "4- Buena"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__service_rating__5
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__service_rating__5
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure__service_rating__5
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_closure_wizard__service_rating__5
@@ -384,7 +396,6 @@ msgstr "<i j=\"0/\">Volver al Sitio Web / Return to Website</i>"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_confirmed_template
-#, fuzzy
 msgid ""
 "<i class=\"fa fa-info-circle me-2\"/>\n"
 "                                            Una vez firmado, procederemos con la instalación del servicio."
@@ -716,13 +727,6 @@ msgid "<strong>Total Value</strong><br/>"
 msgstr "<strong>Valor total</strong><br/>"
 
 #. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/contract_termination_wizard.py:0
-#, python-format
-msgid "A contract manager must approve because the early termination cost is under $100."
-msgstr "Un gestor de contratos debe aprobarlo porque el coste de la terminación anticipada es inferior a 100 dólares."
-
-#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 msgid ""
 "A partir de la fecha de firma de la presente Adenda, las partes acuerdan que\n"
@@ -734,6 +738,27 @@ msgstr ""
 "                                <strong>se sustituye en su totalidad</strong> la sección <strong>denominada \"SERVICIOS CONTRATADOS\"</strong> del Contrato "
 "Original,\n"
 "                                quedando sin efecto cualquier versión anterior de dicha sección."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "A supervisor must apply and approve the cost override before confirming termination."
+msgstr "Un supervisor debe solicitar y aprobar la sobreescritura de costes antes de confirmar la terminación."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "A supervisor must apply the override request before continuing."
+msgstr "Un supervisor debe aplicar la solicitud de anulación antes de continuar."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "A supervisor must approve the requested override or waiver before confirming termination."
+msgstr "Un supervisor debe aprobar la anulación o exención solicitada antes de confirmar el despido."
 
 #. module: contract_management
 #. odoo-python
@@ -761,6 +786,16 @@ msgstr "ANEXO 1: SERVICIOS CONTRATADOS (VIGENTES)"
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
 msgid "ANEXO 2: PAGARÉ SIN PROTESTO"
 msgstr "ANEXO 2: PAGARÉ SIN PROTESTO"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Abandon"
+msgstr "Abandonar"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__accepted_better_offer
+msgid "Accepted Better Offer"
+msgstr "Acepté una mejor oferta"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__accepted_better_offer
@@ -871,6 +906,20 @@ msgstr "Estado de la actividad"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__activity_type_icon
 msgid "Activity Type Icon"
 msgstr "Ícono de tipo de actividad"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Add a justification before requesting an override or waiver."
+msgstr "Añade una justificación antes de solicitar una anulación o exención."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Add approval notes before applying a modified or waived termination cost."
+msgstr "Añade notas de aprobación antes de aplicar un coste de terminación modificado o exento."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__addendum_count
@@ -1018,6 +1067,13 @@ msgid "All equipment returned"
 msgstr "Todo el equipo devuelto"
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "An override has already been approved."
+msgstr "Ya se ha aprobado una anulación."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__sub_pause_end_date
 msgid "Anticipated Reactivation Date"
 msgstr "Fecha de reactivación anticipada"
@@ -1028,9 +1084,41 @@ msgid "Applicable Contract Templates"
 msgstr "Plantillas de contratos aplicables"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__applied_termination_cost
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__applied_termination_cost
+msgid "Applied Termination Cost"
+msgstr "Coste de terminación aplicado"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Applied termination cost cannot be negative."
+msgstr "El coste de terminación aplicada no puede ser negativo."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Apply the cost override and capture a reason before continuing."
+msgstr "Aplica la anulación de coste y captura una razón antes de continuar."
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Approve & Continue"
 msgstr "Aprobar y continuar"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Approve Override & Continue"
+msgstr "Aprobar, anular y continuar"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Approve or deny the waiver request before continuing."
+msgstr "Aprueba o deniega la solicitud de exención antes de continuar."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__manager_user_id
@@ -1093,6 +1181,11 @@ msgid "Back"
 msgstr "Volver"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__bandwidth
+msgid "Bandwidth"
+msgstr "Ancho de Banda"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_res_users__base_uri
 msgid "Base URI"
 msgstr "Base URI"
@@ -1112,6 +1205,11 @@ msgstr "Contrato Empresarial"
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__tv_included
 msgid "Cable TV"
 msgstr "TV Cable"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__can_override_cost
+msgid "Can Override Cost"
+msgstr "Puede anular el coste"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__can_resend_contract
@@ -1170,14 +1268,26 @@ msgid "Cantidad:"
 msgstr "Cantidad:"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__carrier
+msgid "Carrier"
+msgstr "Transportista"
+
+#. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_addendum__monthly_payment_change
 msgid "Change in monthly payment amount (positive = increase, negative = decrease)"
 msgstr "Cambio en el importe del pago mensual (positivo = aumento, negativo = disminución)"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__6_churn
-msgid "Churned"
-msgstr "Rotado"
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__customer_requests_waiver
+msgid "Check if the customer is asking to reduce or waive the termination fee."
+msgstr "Comprueba si el cliente está pidiendo reducir o eximir la tasa de terminación."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Check the waiver/reduction request box before submitting a justification."
+msgstr "Marca la casilla de solicitud de exención/reducción antes de presentar una justificación."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__clause
@@ -1342,6 +1452,11 @@ msgid "Confirm that this addendum has been physically signed?"
 msgstr "¿Confirmar que este anexo ha sido firmado físicamente?"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Confirm the approved termination cost has been paid."
+msgstr "Confirma que se ha pagado el coste aprobado de la terminación."
+
+#. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__payment_confirmed
 msgid "Confirm the client has paid the early termination cost shown above."
 msgstr "Confirma que el cliente ha pagado el coste de terminación anticipada que se muestra arriba."
@@ -1362,6 +1477,13 @@ msgid "Confirm the customer returned all issued equipment."
 msgstr "Confirma que el cliente devolvió todo el equipo entregado."
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Confirm the termination cost payment before continuing."
+msgstr "Confirma el pago del coste de terminación antes de continuar."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__confirmation_url
 msgid "Confirmation URL"
 msgstr "URL de confirmación"
@@ -1378,6 +1500,7 @@ msgstr "Contactado"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__contract_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__contract_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__contract_id
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_addendum_search
 msgid "Contract"
@@ -1532,6 +1655,11 @@ msgid "Contract Term Distribution"
 msgstr "Distribución por Plazo de Contrato"
 
 #. module: contract_management
+#: model:ir.model,name:contract_management.model_contract_termination_request
+msgid "Contract Termination Request"
+msgstr "Solicitud de rescisión de contrato"
+
+#. module: contract_management
 #: model:ir.model,name:contract_management.model_contract_termination_wizard
 msgid "Contract Termination Wizard"
 msgstr "Asistente de Terminación de Contratos"
@@ -1620,8 +1748,8 @@ msgstr "Contrato rescindido debido a la transferencia de servicio a %(dest)s el 
 #. odoo-python
 #: code:addons/contract_management/models/contract_management.py:0
 #, python-format
-msgid "Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. (via wizard: %s)"
-msgstr "Contrato rescindido. Pago confirmado: %s. Equipo devuelto: %s. Pago: %s. (vía asistente: %s)"
+msgid "Contract terminated. Payment confirmed: %s. Equipment returned: %s. Payment: %s. Applied termination cost: %s%s. (via wizard: %s)"
+msgstr "Contrato rescindido. Pago confirmado: %s. Equipo devuelto: %s. Pago: %s. Coste de terminación aplicada: %s%s. (vía asistente: %s)"
 
 #. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_management__early_termination_cost
@@ -1684,6 +1812,46 @@ msgid "Correo Electronico:"
 msgstr "Correo Electrónico:"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_applied
+msgid "Cost Override Applied"
+msgstr "Anulación de costes aplicada"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_datetime
+msgid "Cost Override Datetime"
+msgstr "Fecha de anulación de coste"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_reason
+msgid "Cost Override Reason"
+msgstr "Razón de anulación de coste"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_request_datetime
+msgid "Cost Override Request Datetime"
+msgstr "Fecha y hora de la solicitud de anulación de costes"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_request_reason
+msgid "Cost Override Request Reason"
+msgstr "Motivo de la solicitud de anulación de costes"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_request_user_id
+msgid "Cost Override Request User"
+msgstr "Usuario de solicitud de anulación de coste"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_requested
+msgid "Cost Override Requested"
+msgstr "Solicitación de sobreescritura de costes"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_user_id
+msgid "Cost Override User"
+msgstr "Usuario de Anulación de Costes"
+
+#. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/controllers/controllers.py:0
 #, python-format
@@ -1738,6 +1906,7 @@ msgstr "Creado el"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__create_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__create_uid
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__create_uid
@@ -1758,6 +1927,7 @@ msgstr "Creado por"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__create_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__create_date
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__create_date
@@ -1776,6 +1946,7 @@ msgstr "Creado el"
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__partner_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__partner_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__partner_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__partner_id
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_addendum_search
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
 msgid "Customer"
@@ -1793,6 +1964,11 @@ msgstr "El %s del cliente no tiene ninguna dirección de correo electrónico con
 #: model:ir.model.fields,help:contract_management.field_contract_management__access_url
 msgid "Customer Portal URL"
 msgstr "URL para cliente"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__customer_requests_waiver
+msgid "Customer Requests Waiver"
+msgstr "Exención de solicitudes de clientes"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__docusign_connector__state__customer
@@ -1819,6 +1995,12 @@ msgstr "El cliente no tiene un número de WhatsApp configurado."
 #, python-format
 msgid "Customer does not have an email address configured."
 msgstr "El cliente no tiene una dirección de correo electrónico configurada."
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__customer_requests_waiver
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Customer requests waiver/reduction"
+msgstr "El cliente solicita exención/reducción"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_rejected_template
@@ -1898,6 +2080,11 @@ msgid "Describe the changes being made to the contract..."
 msgstr "Describe los cambios que se están haciendo en el contrato..."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Describe the justification for waiving or reducing the fee."
+msgstr "Describe la justificación para eximir o reducir la tasa."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__description
 #: model:ir.model.fields,field_description:contract_management.field_sale_terms_conditions__description
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_addendum_form
@@ -1937,6 +2124,7 @@ msgstr "Desarrollador"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__display_name
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__display_name
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__display_name
@@ -2097,6 +2285,11 @@ msgid "Docusign Settings"
 msgstr "Configuración de Docusign"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__state__done
+msgid "Done"
+msgstr "Hecho"
+
+#. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
@@ -2143,6 +2336,7 @@ msgstr "Terminación anticipada"
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__early_termination_cost
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__early_termination_cost
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__wizard_state__cost
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__cost
 msgid "Early Termination Cost"
 msgstr "Coste de terminación anticipada"
@@ -2241,10 +2435,16 @@ msgid "End: %s"
 msgstr "Fin: %s"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__wizard_state__equipment
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__equipment
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Equipment Return"
 msgstr "Retorno de Equipos"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__equipment_returned
+msgid "Equipment Returned"
+msgstr "Equipo devuelto"
 
 #. module: contract_management
 #. odoo-python
@@ -2389,7 +2589,7 @@ msgstr "Etiqueta Desde"
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__from_subscription_id
 msgid "From Subscription"
-msgstr "Suscripción para Rotar"
+msgstr "De suscripción"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__from_summary
@@ -2470,6 +2670,7 @@ msgstr "Confirmo que los detalles de la transferencia son correctos"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__id
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__id
@@ -2536,7 +2737,6 @@ msgstr "Si se encuentra seleccionado, algunos mensajes tienen error de envío."
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_management__renewal_state__in_progress
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__3_progress
 msgid "In Progress"
 msgstr "En progreso"
 
@@ -2563,6 +2763,7 @@ msgid "Information"
 msgstr "Información"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__wizard_state__closure
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__closure
 msgid "Information Collection"
 msgstr "Colección de información"
@@ -2626,6 +2827,13 @@ msgid "Invalid state transition from %(current)s to %(target)s. Allowed next sta
 msgstr "Transición de estado inválida de %(current)s a %(target)s. Permitido a continuación: %(allowed)s"
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Invoice on transfer failed: %s"
+msgstr "Factura al transferir fallida: %s"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__message_is_follower
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__message_is_follower
 msgid "Is Follower"
@@ -2646,6 +2854,11 @@ msgstr ""
 "                                identificado como:"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__last_invoice_date
+msgid "Last Invoice Date"
+msgstr "Fecha de última facturación"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__write_uid
 msgid "Last Updated By"
 msgstr "Última actualización por"
@@ -2661,6 +2874,7 @@ msgstr "Última actualización el"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__write_uid
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__write_uid
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__write_uid
@@ -2681,6 +2895,7 @@ msgstr "Actualizado por"
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_send_method_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_service__write_date
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__write_date
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__write_date
@@ -2797,10 +3012,21 @@ msgid "Manage Cover Letters"
 msgstr "Gestionar cartas de presentación"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__wizard_state__approval
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__approval
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Manager Approval"
 msgstr "Aprobación del responsable"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__manager_approved
+msgid "Manager Approved"
+msgstr "Aprobado por el Gerente"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__manager_user_id
+msgid "Manager User"
+msgstr "Usuario Gerente"
 
 #. module: contract_management
 #. odoo-python
@@ -2808,6 +3034,11 @@ msgstr "Aprobación del responsable"
 #, python-format
 msgid "Manager approval is required because the early termination cost is under $100."
 msgstr "Se requiere la aprobación del responsable porque el coste de la terminación anticipada es inferior a 100 dólares."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Manager approval notes"
+msgstr "Notas de aprobación del director"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__manager_approved
@@ -2850,6 +3081,7 @@ msgstr "DocuSign desaparecido"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__monthly_payment
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__monthly_payment
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__monthly_payment
 #: model:ir.model.fields,field_description:contract_management.field_docusign_connector__monthly_payment
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__monthly_payment
@@ -3101,6 +3333,11 @@ msgid "No sent DocuSign envelope found to resend."
 msgstr "No se encontró ningún sobre enviado a DocuSign para reenviar."
 
 #. module: contract_management
+#: model_terms:ir.actions.act_window,help:contract_management.action_suspended_subscriptions
+msgid "No suspended subscriptions found."
+msgstr "No se encontraron suscripciones suspendidas."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__non_compliant_count
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_dashboard_form
 msgid "Non Compliant"
@@ -3153,11 +3390,24 @@ msgid "Not a valid request for user info."
 msgstr "No es una solicitud válida de información de usuario."
 
 #. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_management.py:0
+#, python-format
+msgid "Not provided"
+msgstr "No proporcionado"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__notes
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__notes
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__notes
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__notes
 msgid "Notes"
 msgstr "Notas"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
+msgid "Nuevo Suscriptor"
+msgstr "Nuevo Suscriptor"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__message_needaction_counter
@@ -3214,6 +3464,20 @@ msgstr "Solo un gestor de contratos puede aprobar esta terminación. Si no eres 
 
 #. module: contract_management
 #. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Only a contract manager can override or waive the termination cost."
+msgstr "Solo un gestor de contratos puede anular o eximir el coste de terminación."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Only a contract manager or administrator can override the termination cost."
+msgstr "Solo un gestor o administrador de contratos puede anular el coste de terminación."
+
+#. module: contract_management
+#. odoo-python
 #: code:addons/contract_management/models/contract_management.py:0
 #, python-format
 msgid "Only active or renewal-due contracts can be terminated."
@@ -3241,6 +3505,7 @@ msgid "Only signed addendums can be activated."
 msgstr "Solo se pueden activar los anexos firmados."
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__state__open
 #: model:ir.model.fields.selection,name:contract_management.selection__docusign_connector__state__open
 msgid "Open"
 msgstr "Abierto"
@@ -3266,9 +3531,79 @@ msgid "Other Info"
 msgstr "Otra información"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__other_reason
+msgid "Other Reason"
+msgstr "Otra razón"
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__transfer_reason__otro
 msgid "Otro"
 msgstr "Otro"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_applied
+msgid "Override Applied"
+msgstr "Anulación aplicada"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Override Approval"
+msgstr "Aprobación de anulación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_user_id
+msgid "Override Approved By"
+msgstr "Anulación aprobada por"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_datetime
+msgid "Override Approved On"
+msgstr "Anulación aprobada en"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_reason
+msgid "Override Reason"
+msgstr "Motivo de anulación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_request_reason
+msgid "Override Request Justification"
+msgstr "Justificación de la solicitud de anulación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_requested
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Override Requested"
+msgstr "Solicitada anulación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_request_user_id
+msgid "Override Requested By"
+msgstr "Anulación solicitada por"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_request_datetime
+msgid "Override Requested On"
+msgstr "Solicitada anulación en"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Override Review"
+msgstr "Revisión de Override"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Override or waiver requested by %(user)s. Justification: %(reason)s"
+msgstr "Anulación o exención solicitada por %(user)s. Justificación: %(reason)s"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Override request reviewed by %(user)s. Termination cost remains $%(amount).2f. Notes: %(reason)s"
+msgstr "Solicitud de anulación revisada por %(user)s. El coste de la terminación sigue siendo %(amount).2f dólares. Notas: %(reason)s"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -3349,14 +3684,40 @@ msgstr "Pausar Suscripción"
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__internet_service_state__paused
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__iptv_service_state__paused
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__4_paused
 msgid "Paused"
 msgstr "En pausa"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__payment_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__payment_id
 msgid "Payment"
 msgstr "Pago"
+
+#. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_request__wizard_state__payment
+#: model:ir.model.fields.selection,name:contract_management.selection__contract_termination_wizard__state__payment
+msgid "Payment Confirmation"
+msgstr "Confirmación del pago"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__payment_confirmed
+msgid "Payment Confirmed"
+msgstr "Pago confirmado"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Payment covering the approved fee"
+msgstr "Pago que cubre la tasa aprobada"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Payment covering the fee"
+msgstr "Pago que cubre la tasa"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Payment must match the termination cost exactly and be unapplied to invoices."
+msgstr "El pago debe igualar exactamente el coste de cancelación y no aplicarse a las facturas."
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__contract_state__pending_cabal_signature
@@ -3414,13 +3775,6 @@ msgstr "Por favor, añade notas sobre este despido."
 #, python-format
 msgid "Please check \"Client paid early termination cost\" before continuing."
 msgstr "Por favor, revisa \"Coste de terminación anticipada pagada por el cliente\" antes de continuar."
-
-#. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/contract_termination_wizard.py:0
-#, python-format
-msgid "Please confirm the client has paid the early termination cost to proceed."
-msgstr "Por favor, confirme que el cliente ha pagado el coste de la terminación anticipada para proceder."
 
 #. module: contract_management
 #. odoo-python
@@ -3504,6 +3858,7 @@ msgid "Problems"
 msgstr "Problemas"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__problems_experienced
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__problems_experienced
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__problems_experienced
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__problems_experienced
@@ -3542,11 +3897,6 @@ msgstr "Resumen de la etapa de progreso"
 #: model:crm.stage,name:contract_management.crm_stage_proposal_sent
 msgid "Proposal Sent"
 msgstr "Propuesta enviada"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__1_draft
-msgid "Quotation"
-msgstr "Cotización"
 
 #. module: contract_management
 #. odoo-python
@@ -3624,6 +3974,7 @@ msgid "Reactivation Date"
 msgstr "Fecha de reactivación"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__reason
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_closure_form
 msgid "Reason"
 msgstr "Razón"
@@ -3731,11 +4082,6 @@ msgid "Renewal Owner"
 msgstr "Propietario de la renovación"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__2_renewal
-msgid "Renewal Quotation"
-msgstr "Cotización de la renovación"
-
-#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__renewal_state
 msgid "Renewal State"
 msgstr "Estado de Renovación"
@@ -3758,14 +4104,14 @@ msgid "Renewals"
 msgstr "Renovaciones"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__5_renewed
-msgid "Renewed"
-msgstr "Renovado"
-
-#. module: contract_management
 #: model:ir.actions.report,name:contract_management.action_rental_contract
 msgid "Rental Property Contract"
 msgstr "Contrato de Servicio para Propiedades Alquiladas"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Request a waiver or reduction. Provide justification and optional documents."
+msgstr "Solicita una exención o reducción. Proporciona justificación y documentos opcionales."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__requires_manager_approval
@@ -3901,6 +4247,13 @@ msgstr "Suscripciones seleccionadas"
 
 #. module: contract_management
 #. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Select a payment that matches the termination cost."
+msgstr "Selecciona un pago que iguale el coste de finalización."
+
+#. module: contract_management
+#. odoo-python
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
 msgid "Select both the source and destination subscriptions before reviewing."
@@ -3912,13 +4265,6 @@ msgstr "Selecciona tanto la suscripción de origen como la de destino antes de r
 #, python-format
 msgid "Select both the source and destination subscriptions."
 msgstr "Selecciona tanto la suscripción de origen como la de destino."
-
-#. module: contract_management
-#. odoo-python
-#: code:addons/contract_management/models/contract_termination_wizard.py:0
-#, python-format
-msgid "Select the payment that covers the early termination cost shown above."
-msgstr "Selecciona el pago que cubra el coste de cancelación anticipada que se muestra arriba."
 
 #. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__payment_id
@@ -3986,6 +4332,11 @@ msgstr "Nombre del Servicio"
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
 msgid "Service Pauses"
 msgstr "Pauses de servicio"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__service_rating
+msgid "Service Rating"
+msgstr "Valoración del servicio"
 
 #. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__contract_addendum__addendum_type__service_removal
@@ -4140,8 +4491,12 @@ msgstr "Firmado el:"
 #. odoo-python
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
-msgid "SmartOLT transfer update"
-msgstr "Actualización de transferencia SmartOLT"
+msgid ""
+"SmartOLT transfer update:\n"
+"%s"
+msgstr ""
+"Actualización de transferencia SmartOLT:\n"
+"%s"
 
 #. module: contract_management
 #. odoo-python
@@ -4184,6 +4539,7 @@ msgid "Start: %s"
 msgstr "Inicio: %s"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__state
 #: model:ir.model.fields,field_description:contract_management.field_docusign_connector__state
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__state
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_search
@@ -4222,8 +4578,21 @@ msgid "Step"
 msgstr "Paso"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Submit Override Request"
+msgstr "Solicitud de Envío de Anulación"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Submit an override request with justification before approval."
+msgstr "Presenta una solicitud de anulación con justificación antes de la aprobación."
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__subscription_id
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_contract_upload_wizard__subscription_id
 #: model:ir.model.fields,field_description:contract_management.field_pause_subscription_wizard__subscription_id
@@ -4299,7 +4668,8 @@ msgid "Subscription Status"
 msgstr "Estado de la suscripción"
 
 #. module: contract_management
-#: model:ir.actions.server,name:contract_management.action_subscription_transfer_wizard model:ir.model,name:contract_management.model_subscription_transfer_wizard
+#: model:ir.actions.act_window,name:contract_management.action_subscription_transfer_wizard
+#: model:ir.model,name:contract_management.model_subscription_transfer_wizard
 msgid "Subscription Transfer Wizard"
 msgstr "Asistente de transferencia de suscripciones"
 
@@ -4343,11 +4713,28 @@ msgid "Summary by Signature Status"
 msgstr "Resumen por estado de firma"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__cost_override_attachment_ids
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__cost_override_attachment_ids
+msgid "Supporting Documents"
+msgstr "Documentos de apoyo"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
+msgid "Suscriptor Actual"
+msgstr "Suscriptor Actual"
+
+#. module: contract_management
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__internet_service_state__suspended
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__iptv_service_state__suspended
 #: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__8_suspend
 msgid "Suspended"
 msgstr "Suspendido"
+
+#. module: contract_management
+#: model:ir.actions.act_window,name:contract_management.action_suspended_subscriptions model:ir.ui.menu,name:contract_management.menu_suspended_subscriptions
+#: model_terms:ir.ui.view,arch_db:contract_management.view_suspended_subscriptions_tree
+msgid "Suspended Subscriptions"
+msgstr "Suscripciones suspendidas"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.business_contract_template model_terms:ir.ui.view,arch_db:contract_management.hotel_contract_template
@@ -4399,6 +4786,11 @@ msgid "Telephone"
 msgstr "Teléfono"
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__telephone_included
+msgid "Telephone Included"
+msgstr "Teléfono incluido"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__telephone_included
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure_wizard__telephone_included
 msgid "Telephone Included?"
@@ -4443,6 +4835,33 @@ msgstr "Valor medio terminado"
 #: model:ir.model.fields,field_description:contract_management.field_contract_dashboard__total_value_terminated
 msgid "Terminated Total Value"
 msgstr "Valor Total terminado"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_sale_order__termination_cost
+msgid "Termination Cost"
+msgstr "Coste de terminación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Termination Cost Payment"
+msgstr "Pago del coste de terminación"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_wizard__request_id
+msgid "Termination Request"
+msgstr "Solicitud de terminación"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "Termination cost overridden from $%(original).2f to $%(new).2f by %(user)s. Reason: %(reason)s"
+msgstr "El coste de terminación se anula de %(original).2f a %(new).2f dólares por %(user)s. Motivo: %(reason)s"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_contract_termination_wizard__applied_termination_cost
+msgid "Termination cost to enforce; defaults to the computed early termination cost and can be overridden by a supervisor."
+msgstr "Coste de terminación para hacer cumplir; por defecto corresponde al coste calculado de terminación anticipada y puede ser anulado por un supervisor."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
@@ -4507,25 +4926,29 @@ msgstr "La suscripción de destino debe tener un contrato activo."
 #. odoo-python
 #: code:addons/contract_management/models/contract_termination_wizard.py:0
 #, python-format
-msgid "The payment amount ($%.2f) does not match the early termination cost ($%.2f). Please select a payment with the exact amount."
-msgstr "El importe del pago (%.2f $) no coincide con el coste de la cancelación anticipada (%.2f $). Por favor, selecciona un pago con la cantidad exacta."
+msgid "The manager approving the termination must differ from the user who initiated the request."
+msgstr "El gestor que aprueba la terminación debe diferir del usuario que inició la solicitud."
 
 #. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/contract_termination_wizard.py:0
 #, python-format
-msgid ""
-"The selected payment amount does not match the early termination cost (expected %(expected).2f, got %(actual).2f). Please choose a payment for the exact amount."
-msgstr ""
-"La cantidad de pago seleccionada no coincide con el coste de cancelación anticipada (esperado %(expected).2f, got %(actual).2f). Por favor, elige un pago para "
-"la cantidad exacta."
+msgid "The manager approving the waiver or reduction must differ from the user who requested it."
+msgstr "El gestor que aprueba la renuncia o reducción debe diferir del usuario que la solicitó."
 
 #. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/contract_termination_wizard.py:0
 #, python-format
-msgid "The selected payment belongs to %(payment_partner)s. Please choose a payment from %(contract_partner)s."
-msgstr "El pago seleccionado pertenece a %(payment_partner)s. Por favor, elige un pago de %(contract_partner)s."
+msgid "The payment amount ($%.2f) does not match the termination cost to apply ($%.2f). Please select a payment with the exact amount."
+msgstr "La cantidad del pago (%.2f $) no coincide con el coste de finalización para aplicar (%.2f $). Por favor, selecciona un pago con la cantidad exacta."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "The selected payment has already been applied to an invoice. Choose an unapplied payment that matches the termination cost."
+msgstr "El pago seleccionado ya se ha aplicado a una factura. Elige un pago no aplicado que iguale el coste de la cancelación."
 
 #. module: contract_management
 #. odoo-python
@@ -4611,12 +5034,32 @@ msgstr "A Label"
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__to_subscription_id
 msgid "To Subscription"
-msgstr "Suscripción destino"
+msgstr ""
+"<i class=\"fa fa-times-circle fa-2x\" style=\"color: #777;\" invisible=\"subscription_state != '6_churn'\"/><br invisible=\"subscription_state != '6_churn'\"/>\n"
+"                                <small style=\"font-weight: bold; color: #777;\" invisible=\"subscription_state != '6_churn'\">Rotado</small>"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__to_summary
 msgid "To Summary"
 msgstr "Al resumen"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid "To continue, confirm the early termination fee is paid or submit a waiver/reduction request."
+msgstr "Para continuar, confirma que se ha pagado la penalización por terminación anticipada o presenta una solicitud de exención o reducción."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/contract_termination_wizard.py:0
+#, python-format
+msgid ""
+"To continue, either confirm the termination cost is paid (and manager approval is present when the amount is under $100), approve a waiver with $0 applied cost, "
+"or approve a reduction and confirm the reduced cost is paid."
+msgstr ""
+"Para continuar, o bien confirma que se ha pagado el coste de terminación (y que el gestor haya la aprobación cuando la cantidad sea inferior a 100 dólares), "
+"aprueba una exención con 0 dólares de coste aplicado, o aprueba una reducción y confirma que el coste reducido está pagado."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_addendum_template_es
@@ -4686,6 +5129,7 @@ msgid "Total of recurring line items with taxes"
 msgstr "Total de partidas recurrentes con impuestos"
 
 #. module: contract_management
+#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__9_transfer
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
 msgid "Transfer"
 msgstr "Transferir"
@@ -4701,9 +5145,9 @@ msgid "Transfer of Ownership of Property"
 msgstr "Transferencia de Propiedad de la Propiedad"
 
 #. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__9_transferred
-msgid "Transferred"
-msgstr "Transferido"
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__tv_included
+msgid "Tv Included"
+msgstr "Televisión incluida"
 
 #. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_addendum__activity_exception_decoration
@@ -4739,6 +5183,11 @@ msgid "Unable to confirm quotation. Please contact support."
 msgstr "No se puede confirmar la cotización. Por favor, contacta con soporte."
 
 #. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__upload
+msgid "Upload"
+msgstr "Subir"
+
+#. module: contract_management
 #: model:ir.actions.act_window,name:contract_management.action_contract_upload_wizard
 msgid "Upload Contract"
 msgstr "Contrato de Subida"
@@ -4760,11 +5209,6 @@ msgstr "Velocidad de subida"
 #: model:ir.model.fields,field_description:contract_management.field_subscription_closure__upload
 msgid "Upload Speed (Mbps)"
 msgstr "Velocidad de subida (Mbps)"
-
-#. module: contract_management
-#: model:ir.model.fields.selection,name:contract_management.selection__sale_order__subscription_state__7_upsell
-msgid "Upsell"
-msgstr "Venta adicional"
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_sale_order__upsell_from_id
@@ -4797,6 +5241,11 @@ msgid "View contract statistics by status, partner, term, and expiration date."
 msgstr "Consulta las estadísticas de contratos por estado, socio, plazo y fecha de expiración."
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
+msgid "Waiver or Reduction Request"
+msgstr "Solicitud de exención o reducción"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__website_message_ids
 #: model:ir.model.fields,field_description:contract_management.field_contract_management__website_message_ids
 msgid "Website Messages"
@@ -4822,6 +5271,11 @@ msgstr "WhatsApp"
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "Whatsapp:"
 msgstr "<i class=\"fa fa-whatsapp me-1\"/>  Envía un mensaje"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__wizard_state
+msgid "Wizard State"
+msgstr "Estado Mágico"
 
 #. module: contract_management
 #: model:ir.model,name:contract_management.model_pause_subscription_wizard
