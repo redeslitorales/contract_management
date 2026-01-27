@@ -4,6 +4,7 @@ from odoo.tools.misc import html_escape
 from odoo.tools import float_round
 from markupsafe import Markup
 from datetime import date, timedelta
+import calendar
 import hmac
 import hashlib
 from dateutil.relativedelta import relativedelta
@@ -153,6 +154,13 @@ class SaleSubscription(models.Model):
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
     docusign_ids = fields.One2many('docusign.connector', 'sale_id', string="DocuSign Envelopes")
     can_resend_contract = fields.Boolean(string='Can Resend Contract', compute='_compute_can_resend_contract')
+    payment_change_log_ids = fields.One2many(
+        'payment.day.change.log',
+        'subscription_id',
+        string='Payment Day Changes',
+        readonly=True,
+        copy=False,
+    )
     
     # FSM Integration - Commented out until FSM modules installed in test env
     # fsm_task_ids = fields.One2many('project.task', 'sale_order_id', string="Install Tasks", 
@@ -286,16 +294,6 @@ class SaleSubscription(models.Model):
                     order.progress_stage = 'suspended_with_issues'
                     continue
 
-                # Active with issues should also override contract-sign steps
-                if sub_state == '3_progress' and (
-                    contract_state != 'active'
-                    or order.installation_state != 'completed'
-                    or order.configuration_state != 'completed'
-                    or order.internet_service_state != 'active'
-                ):
-                    order.progress_stage = 'active_with_issues'
-                    continue
-
                 # Pending contract: contract_state pending_contract
                 if contract_state == 'pending_contract':
                     order.progress_stage = 'pending_contract'
@@ -311,6 +309,14 @@ class SaleSubscription(models.Model):
                 # Pending install: installation_state scheduled or pending_install
                 elif order.installation_state =='scheduled' or order.configuration_state == 'scheduled':
                     order.progress_stage = 'pending_install'
+                # Active with issues should override contract-sign steps, but only after we surface scheduling states
+                elif sub_state == '3_progress' and (
+                    contract_state != 'active'
+                    or order.installation_state != 'completed'
+                    or order.configuration_state != 'completed'
+                    or order.internet_service_state != 'active'
+                ):
+                    order.progress_stage = 'active_with_issues'
                 # Contract is active and install/config are done; awaiting activation flagging
                 elif (
                     contract_state == 'active'
@@ -689,6 +695,21 @@ class SaleSubscription(models.Model):
     def _get_cabal_sequence(self):
         return self.env['ir.sequence'].sudo().next_by_code('sus.contract.cabal')
     
+    def _cm_get_billing_period_delta(self):
+        """Return the billing delta for this subscription's plan."""
+        self.ensure_one()
+        plan = self.plan_id
+        value = (getattr(plan, 'billing_period_value', 1) or 1)
+        unit = getattr(plan, 'billing_period_unit', 'month') or 'month'
+
+        if unit == 'day':
+            return relativedelta(days=value)
+        if unit == 'week':
+            return relativedelta(days=7 * value)
+        if unit == 'year':
+            return relativedelta(years=value)
+        return relativedelta(months=value)
+
     def get_confirmation_url(self):
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         return f"{base_url}/confirm_order/{self.confirmation_uuid}"
@@ -1190,32 +1211,86 @@ class SaleSubscription(models.Model):
         }
 
     def action_quotation_send(self):
-        """Override to conditionally send quotation email automatically.
-        
-        - Production (web.base.url starts with https://servicio.): Send automatically
-        - Test/Dev environments: Open standard email composer dialog
-        """
+        """Override to send quote automatically in prod, preferring WhatsApp when requested."""
         self.ensure_one()
-        
-        # Check environment based on web.base.url
+
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
         is_production = base_url.startswith('https://servicio.')
-        
-        _logger.info("[QuoteSend] action_quotation_send called for order %s (ID: %s), base_url=%s, is_production=%s", 
-                    self.name, self.id, base_url, is_production)
-        
-        # In test/dev environments, use standard email composer
+
+        _logger.info(
+            "[QuoteSend] action_quotation_send order=%s id=%s base_url=%s is_production=%s",
+            self.name,
+            self.id,
+            base_url,
+            is_production,
+        )
+
         if not is_production:
-            _logger.info("[QuoteSend] Non-production environment detected, opening email composer dialog")
+            _logger.info("[QuoteSend] Non-production environment, opening email composer dialog")
             return super().action_quotation_send()
-        
-        # Production: Automatic sending
-        _logger.info("[QuoteSend] Production environment detected, sending automatically")
-        
-        # Validate customer has an email
+
+        partner_for_comm = self.partner_id.commercial_partner_id or self.partner_id
+        prefers_whatsapp = bool(getattr(partner_for_comm, 'preference_wa', False))
+        whatsapp_number = partner_for_comm.whatsapp or ''
+        can_use_whatsapp = prefers_whatsapp and bool(whatsapp_number)
+
+        if can_use_whatsapp:
+            confirmation_link = self.confirmation_url or self.get_portal_url()
+            message_body = _(
+                "Hola %(name)s, tu cotizacion %(order)s esta lista. "
+                "Revisa y confirma aqui: %(link)s"
+            ) % {
+                'name': partner_for_comm.name,
+                'order': self.name,
+                'link': confirmation_link,
+            }
+
+            try:
+                self.env['whatsapp.comm']._send_cloud_text(
+                    to_phone=whatsapp_number,
+                    body=message_body,
+                    log_vals={
+                        'partner_id': partner_for_comm.id,
+                        'sale_order': self.id,
+                        'template_name': 'quote_confirmation_whatsapp',
+                    },
+                )
+
+                if self.state in ('draft', 'sent'):
+                    self.write({'state': 'sent'})
+
+                self.message_post(
+                    body=_('Quotation sent automatically via WhatsApp to %s.') % whatsapp_number,
+                    subtype_xmlid='mail.mt_note',
+                    message_type='comment',
+                )
+
+                _logger.info("[QuoteSend] WhatsApp message queued successfully for order %s", self.name)
+
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Quotation Queued'),
+                        'message': _('Quotation will be sent via WhatsApp to %s shortly.') % whatsapp_number,
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            except Exception as exc:
+                _logger.warning(
+                    "[QuoteSend] WhatsApp send failed for order %s, falling back to email: %s",
+                    self.name,
+                    exc,
+                    exc_info=True,
+                )
+
         if not self.partner_id.email:
-            _logger.warning("[QuoteSend] Order %s: Customer %s has no email address", 
-                          self.name, self.partner_id.name)
+            _logger.warning(
+                "[QuoteSend] Order %s: Customer %s has no email address",
+                self.name,
+                self.partner_id.name,
+            )
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -1226,36 +1301,37 @@ class SaleSubscription(models.Model):
                     'sticky': False,
                 }
             }
-        
-        # Get the quotation email template
+
         template = self.env.ref('sale.email_template_edi_sale', raise_if_not_found=False)
         if not template:
             _logger.error("[QuoteSend] Email template 'sale.email_template_edi_sale' not found")
             raise UserError(_('Quotation email template not found. Please contact administrator.'))
-        
-        _logger.info("[QuoteSend] Queueing email using template ID=%s to customer %s (%s)", 
-                    template.id, self.partner_id.name, self.partner_id.email)
-        
+
+        _logger.info(
+            "[QuoteSend] Queueing email using template ID=%s to customer %s (%s)",
+            template.id,
+            self.partner_id.name,
+            self.partner_id.email,
+        )
+
         try:
-            # Queue the email for async sending (more robust than force_send)
-            # force_send=False means it will be queued and sent by mail queue cron
             template.send_mail(self.id, force_send=False, raise_exception=False)
-            
-            # Mark quotation as sent
+
             if self.state in ('draft', 'sent'):
                 self.write({'state': 'sent'})
 
-            # Log to chatter for production auto-send to keep audit trail
             template_name = template.display_name or template.name or _('quotation template')
             self.message_post(
-                body=_('Quotation sent automatically to %s using template %s.') % (self.partner_id.email, template_name),
+                body=_('Quotation sent automatically to %s using template %s.') % (
+                    self.partner_id.email,
+                    template_name,
+                ),
                 subtype_xmlid='mail.mt_note',
                 message_type='comment',
             )
-            
+
             _logger.info("[QuoteSend] Email queued successfully for order %s", self.name)
-            
-            # Return a success notification
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -1266,7 +1342,7 @@ class SaleSubscription(models.Model):
                     'sticky': False,
                 }
             }
-            
+
         except Exception as e:
             _logger.exception("[QuoteSend] Failed to queue email for order %s", self.name)
             return {
@@ -1804,97 +1880,118 @@ class SaleSubscription(models.Model):
                 'default_subscription_id': self.id,
             }
         }
+
+    def action_open_change_payment_day_wizard(self):
+        self.ensure_one()
+        payment_day = (self.next_invoice_date or fields.Date.context_today(self)).day
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Change Payment Day'),
+            'res_model': 'change.payment.date.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_subscription_id': self.id,
+                'default_payment_day': payment_day,
+            },
+        }
+
+    def action_open_change_payment_day_batch_wizard(self):
+        self.ensure_one()
+        partner = self.partner_id.commercial_partner_id or self.partner_id
+        default_day = (self.next_invoice_date or fields.Date.context_today(self)).day
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Align Payment Day (All Subs)'),
+            'res_model': 'change.payment.date.batch.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_partner_id': partner.id,
+                'default_payment_day': default_day,
+            },
+        }
     def send_quote_via_whatsapp(self, records):
 
         auth_token = self.env['ir.config_parameter'].get_param('fc_auth_token', '')
         fc_url_base = self.env['ir.config_parameter'].get_param('fc_url_base', '')
         fc_url_send = self.env['ir.config_parameter'].get_param('fc_url_send', '')
-        fc_url_verify = self.env['ir.config_parameter'].get_param('fc_url_verify', '')
         namespace = self.env['ir.config_parameter'].get_param('wa_namespace', '')
-        logo = self.env['ir.config_parameter'].get_param('wa_logo_file', '')
-        message_template = "confirmacion_de_orden"
+        message_template = self.env['ir.config_parameter'].get_param('wa_template_quote', 'confirmacion_de_orden')
 
-        for rec in self:
-            
-            if rec.partner_id.whatsapp:
-                client_phone = rec.partner_id.whatsapp
-                
-                # Generate the PDF quote
-                attachment = self.env['ir.attachment'].search([('res_model', '=', 'sale.order'), ('res_id', '=', rec.id), ('mimetype', '=', 'application/pdf')], limit=1)
-                pdf_url = '/web/content/%s?download=true' % (attachment.id)
-                pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+        WhatsApp = self.env['whatsapp.comm']
 
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': f"Bearer {auth_token}"
-                }
-                payload = {
-                    "to": client_phone,
-                    "type": "template",
-                    "template": {
+        responses = []
+        for rec in records:
+            if not rec.partner_id.whatsapp:
+                raise ValidationError("Cliente no tiene numero de WhatsApp registrado")
+
+            normalized_phone = WhatsApp.normalize_phone(rec.partner_id.whatsapp)
+            if not normalized_phone:
+                raise ValidationError("Número de teléfono inválido")
+
+            client_phone = f"+{normalized_phone}"
+            context_info = f"quote {rec.id} to {rec.partner_id.name} ({client_phone})"
+            recipient_phone, _ = WhatsApp._apply_test_mode_phone(client_phone, context_info)
+
+            # Render the quote PDF so we can attach it as a document header.
+            pdf_content, _ = self.env.ref('sale.action_report_saleorder')._render_qweb_pdf(rec.id)
+            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+
+            headers = {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': 'application/json',
+                'Authorization': auth_token,
+            }
+
+            payload = {
+                "from": {"phone_number": "+50379401214"},
+                "provider": "whatsapp",
+                "to": [{"phone_number": recipient_phone}],
+                "data": {
+                    "message_template": {
+                        "storage": "conversation",
+                        "template_name": message_template,
                         "namespace": namespace,
-                        "name": message_template,
-                        "language": {
-                            "policy": "deterministic",
-                            "code": "en"
-                        },
-                        "components": [
-                            {
-                                "type": "header",
-                                "parameters": [
-                                    {
-                                        "type": "document",
-                                        "document": {
-                                            "link": f"data:application/pdf;base64,{pdf_base64}",
-                                            "filename": f"{rec.name}.pdf"
-                                        }
-                                    }
-                                ]
+                        "language": {"policy": "deterministic", "code": "es"},
+                        "rich_template_data": {
+                            "header": {
+                                "type": "document",
+                                "document": {
+                                    "link": f"data:application/pdf;base64,{pdf_base64}",
+                                    "filename": f"{rec.name}.pdf",
+                                },
                             },
-                            {
-                                "type": "body",
-                                "parameters": [
-                                    {
-                                        "type": "text",
-                                        "text": rec.partner_id.name
-                                    }
-                                ]
-                            },
-                            {
-                                "type": "button",
+                            "body": {"params": [{"data": rec.partner_id.name}]},
+                            "button": {
                                 "sub_type": "url",
                                 "index": "0",
                                 "parameters": [
-                                    {
-                                        "type": "text",
-                                        "text": rec.confirmation_url
-                                    }
-                                ]
-                            }
-                        ]
+                                    {"type": "text", "text": f"{rec.confirmation_url}&send_method=whatsapp"}
+                                ],
+                            },
+                        },
                     }
-                }
-                #               payload = '{ "from": { "phone_number": "+50379401214" }, "provider": "whatsapp", "to": [ { "phone_number": "'+str(client_phone)+'" } ], "data": { "message_template": { "storage": "conversation", "template_name": "'+message_template+'", "namespace": "'+namespace+'", "language": { "policy": "deterministic", "code": "'+lang_code+'" }, "rich_template_data": { "header": { "type": "document", "document":{ "link": "'+link+'", "filename": f"{rec.name}.pdf"} }, "body": { "params": [ {"data": "'+str(rec.partner_id.name)+'"} ] }, "button": {"sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": "'+str(rec.confirmation_url)+'&send_method=whatapp'"}] } } } } }"
-                wa_sent = requests.post(fc_url_base+'/'+fc_url_send, headers=headers, data=payload)
-                response = wa_sent.json()
-                if wa_sent.status_code == 202:
-                    time.sleep(2.5)
-                    wa_verify = requests.get(fc_url_base+fc_url_verify+str(response['request_id']),headers=headers)
-                    response_ver = wa_verify.json()
-                    self.message_post(body="Notificacion por WhatsApp "+str(response_ver['outbound_messages'][0]['status']).title()+" con request ID: "+str(response['request_id']))
-                else:
-                    self.message_post(body="Notificacion por WhatsApp FALLIDA con codigo "+str(wa_sent.status_code))
-                    helpdesk_ticket = self.env['helpdesk.ticket'].sudo().create({
-                        'name': "Unable to Send WhatsApp",
-                        'description': "WhatsApp Notification to "+str(client_phone)+" was "+str(response),
-                        'message_needaction': True, 'ticket_type_id': 4
-                        })
+                },
+            }
 
+            wa_sent = requests.post(f"{fc_url_base}/{fc_url_send}", headers=headers, json=payload, timeout=30)
+            response = wa_sent.json()
+            responses.append(response)
+
+            if 'request_id' in response:
+                rec.message_post(body="Notificacion por WhatsApp enviada con Request ID " + str(response['request_id']))
             else:
-                raise ValidationError("Cliente no tiene numero de WhatsApp registrado")
+                rec.message_post(body="Notificacion por WhatsApp FALLIDA con codigo " + str(wa_sent.status_code))
+                self.env['helpdesk.ticket'].sudo().create({
+                    'name': "Unable to Send WhatsApp",
+                    'description': "WhatsApp Notification to " + str(client_phone) + " was " + str(response),
+                    'message_needaction': True,
+                    'ticket_type_id': 4,
+                })
 
-            return response
+        return responses
 
     # Redefining methods from the sale_subscription.sale_order.py file to accommodate CPE 
 
@@ -2322,4 +2419,440 @@ class ContractUploadWizard(models.TransientModel):
         return {
             'type': 'ir.actions.client',
             'tag': 'reload',
+        }
+
+
+
+class PaymentDayChangeLog(models.Model):
+    _name = 'payment.day.change.log'
+    _description = 'Payment Day Change Log'
+    _order = 'change_date desc'
+
+    subscription_id = fields.Many2one('sale.order', string='Subscription', required=True, ondelete='cascade')
+    change_date = fields.Datetime(string='Changed On', default=fields.Datetime.now, readonly=True)
+    changed_by_id = fields.Many2one('res.users', string='Changed By', default=lambda self: self.env.user, readonly=True)
+    previous_next_invoice_date = fields.Date(string='Previous Next Invoice Date', readonly=True)
+    new_next_invoice_date = fields.Date(string='New Next Invoice Date', readonly=True)
+    prorated_amount = fields.Monetary(string='Prorated Amount', readonly=True, currency_field='currency_id')
+    currency_id = fields.Many2one('res.currency', string='Currency', required=True)
+
+
+class ChangePaymentDateWizard(models.TransientModel):
+    _name = 'change.payment.date.wizard'
+    _description = 'Change Payment Date Wizard'
+
+    subscription_id = fields.Many2one(
+        'sale.order',
+        string='Subscription',
+        required=True,
+        default=lambda self: self._default_subscription_id(),
+    )
+    payment_day = fields.Integer(string='Payment Day', required=True, default=lambda self: self._default_payment_day())
+    currency_id = fields.Many2one(related='subscription_id.currency_id', readonly=True)
+    current_next_invoice_date = fields.Date(related='subscription_id.next_invoice_date', readonly=True)
+    stub_start_date = fields.Date(compute='_compute_dates', store=False)
+    stub_end_date = fields.Date(compute='_compute_dates', store=False)
+    new_next_invoice_date = fields.Date(compute='_compute_dates', store=False)
+    stub_days = fields.Integer(compute='_compute_dates', store=False)
+    full_period_days = fields.Integer(compute='_compute_dates', store=False)
+    stub_ratio = fields.Float(compute='_compute_dates', store=False)
+    stub_amount = fields.Monetary(string='Prorated Total', compute='_compute_dates', store=False, currency_field='currency_id')
+
+    @api.model
+    def _default_subscription_id(self):
+        ctx = self.env.context or {}
+        return ctx.get('default_subscription_id')
+
+    @api.model
+    def _default_payment_day(self):
+        ctx = self.env.context or {}
+        subscription_id = ctx.get('default_subscription_id')
+        subscription = self.env['sale.order'].browse(subscription_id) if subscription_id else None
+        if subscription and subscription.exists():
+            base_date = subscription.next_invoice_date or fields.Date.context_today(subscription)
+            return base_date.day
+        return fields.Date.context_today(self).day
+
+    @api.constrains('payment_day')
+    def _check_payment_day(self):
+        for wizard in self:
+            if wizard.payment_day < 1 or wizard.payment_day > 31:
+                raise ValidationError(_('Payment day must be between 1 and 31.'))
+
+    @api.depends('subscription_id', 'payment_day')
+    def _compute_dates(self):
+        today = fields.Date.context_today(self)
+        for wizard in self:
+            subscription = wizard.subscription_id
+            wizard.stub_start_date = False
+            wizard.stub_end_date = False
+            wizard.new_next_invoice_date = False
+            wizard.stub_days = 0
+            wizard.full_period_days = 0
+            wizard.stub_ratio = 0.0
+            wizard.stub_amount = 0.0
+
+            if not subscription:
+                continue
+
+            stub_start = subscription.next_invoice_date or subscription.start_date or today
+            billing_delta = subscription._cm_get_billing_period_delta() if hasattr(subscription, '_cm_get_billing_period_delta') else relativedelta(months=1)
+            stub_end_of_cycle = stub_start + billing_delta - timedelta(days=1)
+            full_period_days = (stub_end_of_cycle - stub_start).days + 1
+
+            payment_day = wizard.payment_day or stub_start.day
+            desired_day = min(payment_day, calendar.monthrange(stub_start.year, stub_start.month)[1])
+            next_date = subscription.next_invoice_date
+            is_next_in_past = bool(next_date and next_date < today)
+            if next_date and next_date.day == desired_day and not is_next_in_past:
+                wizard.stub_start_date = stub_start
+                wizard.stub_end_date = stub_start
+                wizard.new_next_invoice_date = next_date
+                wizard.stub_days = 0
+                wizard.full_period_days = full_period_days
+                wizard.stub_ratio = 0.0
+                wizard.stub_amount = 0.0
+                continue
+
+            target_date = self._compute_target_date(stub_start, payment_day)
+            stub_end = target_date - timedelta(days=1) if target_date else False
+            stub_days = (target_date - stub_start).days if target_date else 0
+            ratio = (stub_days / full_period_days) if full_period_days and stub_days > 0 else 0.0
+
+            recurring_lines = subscription.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+            recurring_total = sum(recurring_lines.mapped('price_total')) if recurring_lines else 0.0
+
+            wizard.stub_start_date = stub_start
+            wizard.stub_end_date = stub_end
+            wizard.new_next_invoice_date = target_date
+            wizard.stub_days = stub_days
+            wizard.full_period_days = full_period_days
+            wizard.stub_ratio = ratio
+            wizard.stub_amount = recurring_total * ratio
+
+    def _compute_target_date(self, stub_start, payment_day):
+        if not stub_start or not payment_day:
+            return False
+
+        def clamp_day(base_date):
+            last_day = calendar.monthrange(base_date.year, base_date.month)[1]
+            return min(payment_day, last_day)
+
+        try:
+            candidate = stub_start.replace(day=clamp_day(stub_start))
+        except ValueError:
+            return False
+
+        if candidate <= stub_start:
+            next_month = stub_start + relativedelta(months=1)
+            candidate = next_month.replace(day=clamp_day(next_month))
+
+        return candidate
+
+    def action_confirm(self):
+        self.ensure_one()
+        subscription = self.subscription_id
+        if not subscription:
+            raise ValidationError(_('A subscription is required to change the payment day.'))
+
+        today = fields.Date.context_today(self)
+        if subscription.next_invoice_date:
+            desired_day = min(self.payment_day, calendar.monthrange(subscription.next_invoice_date.year, subscription.next_invoice_date.month)[1])
+            if subscription.next_invoice_date.day == desired_day and subscription.next_invoice_date >= today:
+                raise ValidationError(_('Payment day is already %s; no prorated invoice is needed.') % desired_day)
+
+        stub_start = self.stub_start_date or subscription.next_invoice_date or fields.Date.context_today(self)
+        new_payment_date = self.new_next_invoice_date
+        if not new_payment_date:
+            raise ValidationError(_('Select a payment day that results in a valid future date.'))
+        if new_payment_date <= stub_start:
+            raise ValidationError(_('The next payment date must be after the last invoiced period.'))
+
+        if self.stub_ratio <= 0:
+            raise ValidationError(_('The prorated period must be greater than zero days.'))
+
+        invoices = subscription.invoice_ids.filtered(lambda inv: inv.state == 'posted')
+        overdue_invoices = invoices.filtered(lambda inv: inv.invoice_date_due and inv.invoice_date_due < today and inv.payment_state in ('not_paid', 'partial'))
+        if overdue_invoices:
+            raise ValidationError(_('Cannot change payment day while overdue invoices exist (e.g., %s).') % overdue_invoices[0].display_name)
+
+        dunning_invoices = invoices.filtered(lambda inv: getattr(inv, 'dunning_level_id', False))
+        if dunning_invoices:
+            raise ValidationError(_('Cannot change payment day while dunning is in progress (e.g., %s).') % dunning_invoices[0].display_name)
+
+        unpaid_invoices = invoices.filtered(lambda inv: inv.payment_state not in ('paid', 'reversed', 'in_payment'))
+        if unpaid_invoices:
+            raise ValidationError(_('Current period must be fully paid or already in payment before changing the payment day (unpaid: %s).') % unpaid_invoices[0].display_name)
+
+        last_change = subscription.payment_change_log_ids.sorted('change_date', reverse=True)[:1]
+        if last_change:
+            if stub_start and last_change.change_date and last_change.change_date.date() >= stub_start:
+                raise ValidationError(_('Only one payment day change is allowed per billing cycle. Last change was on %s.') % last_change.change_date.date())
+            delta_days = (today - last_change.change_date.date()).days if last_change.change_date else 0
+            if delta_days < 30:
+                raise ValidationError(_('Wait %s more day(s) before changing the payment day again.') % (30 - delta_days))
+
+        recurring_lines = subscription.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        if not recurring_lines:
+            raise ValidationError(_('This subscription has no recurring lines to invoice.'))
+
+        previous_next_invoice_date = subscription.next_invoice_date
+
+        invoice_vals = subscription._prepare_invoice()
+        invoice_vals.update({
+            'invoice_origin': f"{subscription.name} - payment day change",
+            'invoice_date': fields.Date.context_today(self),
+            'invoice_line_ids': [],
+        })
+
+        stub_end = self.stub_end_date or (new_payment_date - timedelta(days=1))
+
+        for line in recurring_lines:
+            line_vals = line._prepare_invoice_line()
+            base_qty = line_vals.get('quantity', line.product_uom_qty)
+            line_vals['quantity'] = (base_qty or 0.0) * self.stub_ratio
+            line_vals['name'] = f"{line_vals.get('name', line.name)} (Prorated {self.stub_days}/{self.full_period_days} days: {stub_start} to {stub_end})"
+            invoice_vals['invoice_line_ids'].append((0, 0, line_vals))
+
+        invoice = self.env['account.move'].sudo().create(invoice_vals)
+        invoice.action_post()
+
+        subscription.sudo().write({'next_invoice_date': new_payment_date})
+        self.env['payment.day.change.log'].sudo().create({
+            'subscription_id': subscription.id,
+            'previous_next_invoice_date': previous_next_invoice_date,
+            'new_next_invoice_date': new_payment_date,
+            'prorated_amount': invoice.amount_total,
+            'currency_id': subscription.currency_id.id,
+        })
+        subscription.message_post(
+            body=_('Payment day changed to %s. Stub invoice %s covers %s to %s (%s days).') % (
+                new_payment_date,
+                invoice.display_name,
+                stub_start,
+                stub_end,
+                self.stub_days,
+            )
+        )
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'res_id': invoice.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {'default_move_type': invoice.move_type},
+        }
+
+
+class ChangePaymentDateBatchWizard(models.TransientModel):
+    _name = 'change.payment.date.batch.wizard'
+    _description = 'Batch Change Payment Date Wizard'
+
+    partner_id = fields.Many2one('res.partner', string='Customer', required=True)
+    payment_day = fields.Integer(string='Payment Day', required=True, default=lambda self: fields.Date.context_today(self).day)
+    subscription_ids = fields.Many2many('sale.order', string='Active Subscriptions', compute='_compute_subscriptions', readonly=True)
+    subscription_count = fields.Integer(string='Subscription Count', compute='_compute_subscriptions', readonly=True)
+
+    @api.depends('partner_id')
+    def _compute_subscriptions(self):
+        active_states = ['3_progress', '4_paused', '5_renewed']
+        for wizard in self:
+            partner = wizard.partner_id.commercial_partner_id if wizard.partner_id else False
+            subscriptions = self.env['sale.order']
+            if partner:
+                subscriptions = self.env['sale.order'].search([
+                    ('partner_id.commercial_partner_id', '=', partner.id),
+                    ('is_subscription', '=', True),
+                    ('subscription_state', 'in', active_states),
+                ])
+            wizard.subscription_ids = subscriptions
+            wizard.subscription_count = len(subscriptions)
+
+    @api.constrains('payment_day')
+    def _check_payment_day(self):
+        for wizard in self:
+            if wizard.payment_day < 1 or wizard.payment_day > 31:
+                raise ValidationError(_('Payment day must be between 1 and 31.'))
+
+    def _compute_target_payment_date(self, stub_start, payment_day):
+        if not stub_start or not payment_day:
+            return False
+
+        def clamp_day(base_date):
+            last_day = calendar.monthrange(base_date.year, base_date.month)[1]
+            return min(payment_day, last_day)
+
+        try:
+            candidate = stub_start.replace(day=clamp_day(stub_start))
+        except ValueError:
+            return False
+
+        if candidate <= stub_start:
+            next_month = stub_start + relativedelta(months=1)
+            candidate = next_month.replace(day=clamp_day(next_month))
+
+        return candidate
+
+    def _validate_subscription(self, subscription):
+        today = fields.Date.context_today(self)
+        invoices = subscription.invoice_ids.filtered(lambda inv: inv.state == 'posted')
+        overdue_invoices = invoices.filtered(lambda inv: inv.invoice_date_due and inv.invoice_date_due < today and inv.payment_state in ('not_paid', 'partial'))
+        if overdue_invoices:
+            raise ValidationError(_('Cannot change payment day while overdue invoices exist (e.g., %s).') % overdue_invoices[0].display_name)
+
+        dunning_invoices = invoices.filtered(lambda inv: getattr(inv, 'dunning_level_id', False))
+        if dunning_invoices:
+            raise ValidationError(_('Cannot change payment day while dunning is in progress (e.g., %s).') % dunning_invoices[0].display_name)
+
+        unpaid_invoices = invoices.filtered(lambda inv: inv.payment_state not in ('paid', 'reversed', 'in_payment'))
+        if unpaid_invoices:
+            raise ValidationError(_('Current period must be fully paid or already in payment before changing the payment day (unpaid: %s).') % unpaid_invoices[0].display_name)
+
+        last_change = subscription.payment_change_log_ids.sorted('change_date', reverse=True)[:1]
+        if last_change:
+            stub_start = subscription.next_invoice_date or subscription.start_date or today
+            if stub_start and last_change.change_date and last_change.change_date.date() >= stub_start:
+                raise ValidationError(_('Only one payment day change is allowed per billing cycle for %s. Last change was on %s.') % (subscription.display_name, last_change.change_date.date()))
+            delta_days = (today - last_change.change_date.date()).days if last_change.change_date else 0
+            if delta_days < 30:
+                raise ValidationError(_('Wait %s more day(s) before changing the payment day again for %s.') % (30 - delta_days, subscription.display_name))
+
+        recurring_lines = subscription.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        if not recurring_lines:
+            raise ValidationError(_('Subscription %s has no recurring lines to invoice.') % subscription.display_name)
+
+    def _get_stub_info(self, subscription):
+        self.ensure_one()
+        today = fields.Date.context_today(self)
+        stub_start = subscription.next_invoice_date or subscription.start_date or today
+        billing_delta = subscription._cm_get_billing_period_delta() if hasattr(subscription, '_cm_get_billing_period_delta') else relativedelta(months=1)
+        stub_end_of_cycle = stub_start + billing_delta - timedelta(days=1)
+        full_period_days = (stub_end_of_cycle - stub_start).days + 1
+
+        next_date = subscription.next_invoice_date
+        is_next_in_past = bool(next_date and next_date < today)
+
+        current_day = min(self.payment_day, calendar.monthrange(stub_start.year, stub_start.month)[1])
+        if next_date and next_date.day == current_day and not is_next_in_past:
+            return {
+                'stub_start': stub_start,
+                'stub_end': stub_start,
+                'full_period_days': full_period_days,
+                'stub_days': 0,
+                'ratio': 0,
+                'new_next_invoice_date': next_date,
+                'needs_change': False,
+            }
+
+        target_date = self._compute_target_payment_date(stub_start, self.payment_day)
+        if not target_date:
+            raise ValidationError(_('Select a payment day that results in a valid future date for %s.') % subscription.display_name)
+
+        # If the subscription is already aligned to this payment day, skip proration for it.
+        if next_date and next_date == target_date and not is_next_in_past:
+            return {
+                'stub_start': stub_start,
+                'stub_end': stub_start,
+                'full_period_days': full_period_days,
+                'stub_days': 0,
+                'ratio': 0,
+                'new_next_invoice_date': target_date,
+                'needs_change': False,
+            }
+
+        if target_date <= stub_start:
+            raise ValidationError(_('The next payment date must be after the last invoiced period for %s.') % subscription.display_name)
+
+        stub_days = (target_date - stub_start).days
+        ratio = (stub_days / full_period_days) if full_period_days and stub_days > 0 else 0.0
+        if ratio <= 0:
+            raise ValidationError(_('The prorated period must be greater than zero days for %s.') % subscription.display_name)
+        stub_end = target_date - timedelta(days=1)
+        return {
+            'stub_start': stub_start,
+            'stub_end': stub_end,
+            'full_period_days': full_period_days,
+            'stub_days': stub_days,
+            'ratio': ratio,
+            'new_next_invoice_date': target_date,
+            'needs_change': True,
+        }
+
+    def action_confirm(self):
+        self.ensure_one()
+        partner = self.partner_id.commercial_partner_id or self.partner_id
+        subscriptions = self.subscription_ids
+        if not subscriptions:
+            raise ValidationError(_('No active subscriptions found for this customer.'))
+
+        invoice_vals = None
+        invoice_lines = []
+        stub_info_map = {}
+        changed_subscriptions = []
+
+        for subscription in subscriptions:
+            stub_info = self._get_stub_info(subscription)
+
+            # Skip subscriptions already aligned to the selected payment day
+            if not stub_info.get('needs_change', True):
+                continue
+
+            self._validate_subscription(subscription)
+            stub_info_map[subscription.id] = stub_info
+            changed_subscriptions.append(subscription)
+
+            if invoice_vals is None:
+                invoice_vals = subscription._prepare_invoice()
+                invoice_vals.update({
+                    'partner_id': partner.id,
+                    'invoice_origin': f"{partner.display_name} - payment day change (batch)",
+                    'invoice_date': fields.Date.context_today(self),
+                    'invoice_line_ids': [],
+                })
+
+            for line in subscription.order_line.filtered(lambda l: l.product_id.recurring_invoice):
+                line_vals = line._prepare_invoice_line()
+                base_qty = line_vals.get('quantity', line.product_uom_qty) or 0.0
+                line_vals['quantity'] = base_qty * stub_info['ratio']
+                line_vals['name'] = f"{line_vals.get('name', line.name)} ({subscription.name}: Prorated {stub_info['stub_days']}/{stub_info['full_period_days']} days: {stub_info['stub_start']} to {stub_info['stub_end']})"
+                invoice_lines.append((0, 0, line_vals))
+
+        if not invoice_lines or not invoice_vals:
+            raise ValidationError(_('No subscriptions require a payment day change.'))
+
+        invoice_vals['invoice_line_ids'] = invoice_lines
+        invoice = self.env['account.move'].sudo().create(invoice_vals)
+        invoice.action_post()
+
+        for subscription in changed_subscriptions:
+            info = stub_info_map.get(subscription.id)
+            previous_date = subscription.next_invoice_date
+            subscription.sudo().write({'next_invoice_date': info['new_next_invoice_date']})
+            sub_lines = invoice.invoice_line_ids.filtered(lambda l: any(sl.order_id == subscription for sl in l.sale_line_ids))
+            stub_amount = sum(sub_lines.mapped('price_total'))
+            self.env['payment.day.change.log'].sudo().create({
+                'subscription_id': subscription.id,
+                'previous_next_invoice_date': previous_date,
+                'new_next_invoice_date': info['new_next_invoice_date'],
+                'prorated_amount': stub_amount,
+                'currency_id': subscription.currency_id.id,
+            })
+            subscription.message_post(
+                body=_('Payment day changed to %s via consolidated stub invoice %s covering %s to %s (%s days).') % (
+                    info['new_next_invoice_date'],
+                    invoice.display_name,
+                    info['stub_start'],
+                    info['stub_end'],
+                    info['stub_days'],
+                )
+            )
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'res_id': invoice.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {'default_move_type': invoice.move_type},
         }

@@ -5,6 +5,7 @@ from . import sale_order
 from . import subscription_closure
 from . import docusign_connector
 from . import res_users
+from . import res_partner
 from . import product_category
 from . import res_config_settings
 from . import contract_termination_wizard

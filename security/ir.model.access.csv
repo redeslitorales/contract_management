@@ -21,4 +21,7 @@ access_contract_termination_wizard_user,access.contract.termination.wizard.user,
 access_subscription_transfer_wizard,access.subscription.transfer.wizard,model_subscription_transfer_wizard,base.group_user,1,1,1,0
 access_contract_termination_request_user,access.contract.termination.request.user,model_contract_termination_request,base.group_user,1,1,1,1
 contract_management_access_termination_request_user,contract_management.access_termination_request_user,contract_management.model_contract_termination_request,base.group_user,1,1,1,1
+access_change_payment_date_wizard,access.change.payment.date.wizard,model_change_payment_date_wizard,base.group_user,1,1,1,0
+access_change_payment_date_batch_wizard,access.change.payment.date.batch.wizard,model_change_payment_date_batch_wizard,base.group_user,1,1,1,0
+access_payment_day_change_log,access.payment.day.change.log,model_payment_day_change_log,base.group_user,1,0,1,0
 

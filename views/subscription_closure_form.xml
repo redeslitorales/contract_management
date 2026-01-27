@@ -65,4 +65,12 @@
     <menuitem id="menu_subscription_closure_root" name="Subscription Management" sequence="10"/>
     <menuitem id="menu_sub_closure" name="Closures" parent="menu_subscription_closure_root" action="action_subscription_closure" sequence="10"/>
     <menuitem id="menu_sub_closure_config" name="Configuration" parent="menu_subscription_closure_root" sequence="10"/>
+
+    <!-- User manual shortcut under subscriptions -->
+    <record id="action_contract_manual_user" model="ir.actions.act_url">
+        <field name="name">User Guide</field>
+        <field name="url">/contract_management/static/description/user_guide.html</field>
+        <field name="target">new</field>
+    </record>
+    <menuitem id="menu_contract_manual_user" name="User Guide" parent="menu_subscription_closure_root" action="action_contract_manual_user" sequence="90"/>
 </odoo>

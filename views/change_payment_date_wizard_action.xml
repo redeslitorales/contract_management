@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_change_payment_date_wizard" model="ir.actions.act_window">
+        <field name="name">Change Payment Day</field>
+        <field name="res_model">change.payment.date.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_change_payment_date_wizard"/>
+    </record>
+</odoo>

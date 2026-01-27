@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_payment_day_batch_cm" model="ir.ui.view">
+        <field name="name">res.partner.form.payment.day.batch.cm</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_open_change_payment_day_batch_wizard"
+                    type="object"
+                    class="oe_stat_button"
+                    icon="fa-calendar-check-o"
+                    invisible="subscription_count == 0">
+                    <field name="subscription_count" widget="statinfo" string="Align Pay Day"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_change_payment_date_batch_wizard" model="ir.ui.view">
+        <field name="name">change.payment.date.batch.wizard.form</field>
+        <field name="model">change.payment.date.batch.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Align Payment Day (All Subscriptions)">
+                <group>
+                    <field name="partner_id" options="{'no_create': True}"/>
+                    <field name="payment_day"/>
+                    <field name="subscription_count" readonly="1"/>
+                </group>
+                <group string="Active Subscriptions">
+                    <field name="subscription_ids" widget="many2many_tags" readonly="1"/>
+                </group>
+                <footer>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button string="Create Stub Invoice and Align" type="object" name="action_confirm" class="btn-primary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_change_payment_date_batch_wizard" model="ir.actions.act_window">
+        <field name="name">Align Payment Day (All Subs)</field>
+        <field name="res_model">change.payment.date.batch.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_change_payment_date_batch_wizard"/>
+    </record>
+</odoo>

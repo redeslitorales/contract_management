@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_change_payment_date_wizard" model="ir.ui.view">
+        <field name="name">change.payment.date.wizard.form</field>
+        <field name="model">change.payment.date.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Change Payment Day">
+                <group>
+                    <field name="subscription_id" readonly="1"/>
+                    <field name="payment_day"/>
+                    <field name="current_next_invoice_date" readonly="1"/>
+                    <field name="new_next_invoice_date" readonly="1"/>
+                    <field name="stub_start_date" readonly="1"/>
+                    <field name="stub_end_date" readonly="1"/>
+                    <field name="stub_days" readonly="1"/>
+                    <field name="stub_amount" readonly="1" string="Prorated Total (to be invoiced)"/>
+                </group>
+                <footer>
+                    <button string="Confirm" type="object" name="action_confirm" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

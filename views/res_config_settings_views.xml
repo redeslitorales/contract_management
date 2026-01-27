@@ -57,6 +57,17 @@
                                 </div>
                             </div>
                         </setting>
+                        <setting>
+                            <label for="wa_template_quote" string="Quote WhatsApp Template"/>
+                            <div class="text-muted">
+                                Template name used to send quotes over WhatsApp (legacy provider).
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="wa_template_quote" placeholder="confirmacion_de_orden"/>
+                                </div>
+                            </div>
+                        </setting>
                     </block>
                 </app>
             </xpath>

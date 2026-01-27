@@ -30,3 +30,9 @@ class ResConfigSettings(models.TransientModel):
         help='HMAC secret used to sign public quote confirmation links. Change to rotate links.',
         config_parameter='contract_management.confirm_secret',
     )
+
+    wa_template_quote = fields.Char(
+        string='Quote WhatsApp Template',
+        help='Template name used to send quotes over WhatsApp (legacy provider).',
+        config_parameter='wa_template_quote',
+    )

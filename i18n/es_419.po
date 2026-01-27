@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e-20231127\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-23 01:07+0000\n"
-"PO-Revision-Date: 2026-01-22 19:09-0600\n"
+"POT-Creation-Date: 2026-01-23 14:01+0000\n"
+"PO-Revision-Date: 2026-01-23 08:03-0600\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -388,11 +388,12 @@ msgstr ""
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_confirmed_template model_terms:ir.ui.view,arch_db:contract_management.quote_rejected_template
-#, fuzzy
 msgid ""
 "<i class=\"fa fa-home me-2\"/>\n"
 "                                        Volver al Sitio Web / Return to Website"
-msgstr "<i j=\"0/\">Volver al Sitio Web / Return to Website</i>"
+msgstr ""
+"<i class=\"fa fa-home me-2\"/>\n"
+"                                        Volver al Sitio Web / Return to Website"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_confirmed_template
@@ -496,11 +497,12 @@ msgstr ""
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_rejected_template
-#, fuzzy
 msgid ""
 "<i class=\"fa fa-whatsapp me-2\"/>\n"
 "                                                        Por WhatsApp"
-msgstr "<i j=\"0/\">Por WhatsApp</i>"
+msgstr ""
+"<i class=\"fa fa-whatsapp me-2\"/>\n"
+"                                                        Por WhatsApp"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
@@ -738,6 +740,13 @@ msgstr ""
 "                                <strong>se sustituye en su totalidad</strong> la sección <strong>denominada \"SERVICIOS CONTRATADOS\"</strong> del Contrato "
 "Original,\n"
 "                                quedando sin efecto cualquier versión anterior de dicha sección."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "A subscription is required to change the payment day."
+msgstr "Se requiere una suscripción para cambiar el día de pago."
 
 #. module: contract_management
 #. odoo-python
@@ -1217,6 +1226,7 @@ msgid "Can Resend Contract"
 msgstr "Se puede reenviar el contrato"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_addendum_form
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_send_method_wizard_form
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
@@ -1248,6 +1258,20 @@ msgstr "Cancelado"
 #. odoo-python
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
+msgid "Cannot change payment day while dunning is in progress (e.g., %s)."
+msgstr "No se puede cambiar el día de pago mientras se está haciendo el dunning (por ejemplo, %s)."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Cannot change payment day while overdue invoices exist (e.g., %s)."
+msgstr "No se puede cambiar el día de pago mientras existan facturas vencidas (por ejemplo, %s)."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
 msgid "Cannot create addendum: No active contract found for parent subscription. Please ensure the parent subscription has an active contract."
 msgstr ""
 "No se puede crear un anexo: No se ha encontrado contrato activo para la suscripción a padres. Por favor, asegúrate de que la suscripción principal tenga un "
@@ -1271,6 +1295,19 @@ msgstr "Cantidad:"
 #: model:ir.model.fields,field_description:contract_management.field_contract_termination_request__carrier
 msgid "Carrier"
 msgstr "Transportista"
+
+#. module: contract_management
+#: model:ir.model,name:contract_management.model_change_payment_date_wizard
+msgid "Change Payment Date Wizard"
+msgstr "Asistente para cambiar la fecha de pago"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0 model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+#: model_terms:ir.ui.view,arch_db:contract_management.view_order_form_inherit
+#, python-format
+msgid "Change Payment Day"
+msgstr "Cambio de Día de Pago"
 
 #. module: contract_management
 #: model:ir.model.fields,help:contract_management.field_contract_addendum__monthly_payment_change
@@ -1431,6 +1468,7 @@ msgid "Configuration State"
 msgstr "Estado de configuración"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_send_method_wizard_form
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_closure_wizard_form
 msgid "Confirm"
@@ -1941,6 +1979,13 @@ msgstr "Creado por"
 #: model:ir.model.fields,field_description:contract_management.field_subscription_transfer_wizard__create_date
 msgid "Created on"
 msgstr "Creado el"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Current period must be fully paid before changing the payment day (unpaid: %s)."
+msgstr "El periodo actual debe estar totalmente pagado antes de cambiar el día de pago (no pagado: %s)."
 
 #. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_addendum__partner_id
@@ -3499,6 +3544,13 @@ msgstr "Solo se pueden enviar borradores de anexos para su firma."
 
 #. module: contract_management
 #. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Only one payment day change is allowed per billing cycle. Last change was on %s."
+msgstr "Solo se permite un cambio en el día de pago por ciclo de facturación. El último cambio fue en %s."
+
+#. module: contract_management
+#. odoo-python
 #: code:addons/contract_management/models/contract_addendum.py:0
 #, python-format
 msgid "Only signed addendums can be activated."
@@ -3705,6 +3757,16 @@ msgid "Payment Confirmed"
 msgstr "Pago confirmado"
 
 #. module: contract_management
+#: model:ir.model,name:contract_management.model_payment_day_change_log
+msgid "Payment Day Change Log"
+msgstr "Registro de cambios en el día de pago"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_sale_order_next_invoice_date
+msgid "Payment Day Changes"
+msgstr "Cambios en los días de pago"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Payment covering the approved fee"
 msgstr "Pago que cubre la tasa aprobada"
@@ -3713,6 +3775,20 @@ msgstr "Pago que cubre la tasa aprobada"
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
 msgid "Payment covering the fee"
 msgstr "Pago que cubre la tasa"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Payment day changed to %s. Stub invoice %s covers %s to %s (%s days)."
+msgstr "El día de pago cambió a %s. La factura %s cubre %s hasta %s (%s días)."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Payment day must be between 1 and 31."
+msgstr "El día de pago debe ser entre el 1 y el 31."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard
@@ -3897,6 +3973,11 @@ msgstr "Resumen de la etapa de progreso"
 #: model:crm.stage,name:contract_management.crm_stage_proposal_sent
 msgid "Proposal Sent"
 msgstr "Propuesta enviada"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Prorated Total (to be invoiced)"
+msgstr "Total prorrateado (a facturar)"
 
 #. module: contract_management
 #. odoo-python
@@ -4244,6 +4325,13 @@ msgstr "Seleccione el método de envío"
 #: model:ir.model.fields.selection,name:contract_management.selection__subscription_transfer_wizard__state__select
 msgid "Select Subscriptions"
 msgstr "Suscripciones seleccionadas"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Select a payment day that results in a valid future date."
+msgstr "Selecciona una fecha de pago que resulte en una fecha futura válida."
 
 #. module: contract_management
 #. odoo-python
@@ -4938,10 +5026,24 @@ msgstr "El gestor que aprueba la renuncia o reducción debe diferir del usuario 
 
 #. module: contract_management
 #. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "The next payment date must be after the last invoiced period."
+msgstr "La siguiente fecha de pago debe ser después del último periodo facturado."
+
+#. module: contract_management
+#. odoo-python
 #: code:addons/contract_management/models/contract_termination_wizard.py:0
 #, python-format
 msgid "The payment amount ($%.2f) does not match the termination cost to apply ($%.2f). Please select a payment with the exact amount."
 msgstr "La cantidad del pago (%.2f $) no coincide con el coste de finalización para aplicar (%.2f $). Por favor, selecciona un pago con la cantidad exacta."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "The prorated period must be greater than zero days."
+msgstr "El periodo prorrateado debe ser mayor que cero días."
 
 #. module: contract_management
 #. odoo-python
@@ -5004,6 +5106,13 @@ msgstr "Este enlace de confirmación no es válido. Por favor, solicita un nuevo
 #, python-format
 msgid "This quotation has already been processed or is no longer available."
 msgstr "Este presupuesto ya ha sido procesado o ya no está disponible."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "This subscription has no recurring lines to invoice."
+msgstr "Esta suscripción no tiene líneas recurrentes para facturar."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_management_form
@@ -5226,6 +5335,12 @@ msgid "User"
 msgstr "Usuario"
 
 #. module: contract_management
+#: model:ir.actions.act_url,name:contract_management.action_contract_manual_user model:ir.ui.menu,name:contract_management.menu_contract_manual_user
+#: model:ir.ui.menu,name:contract_management.menu_contract_manual_user_subscription
+msgid "User Guide"
+msgstr "Manual de usuario"
+
+#. module: contract_management
 #: model:ir.model.fields,field_description:contract_management.field_contract_clause__version
 msgid "Version"
 msgstr "Versión"
@@ -5239,6 +5354,13 @@ msgstr "Ver sobre de DocuSign"
 #: model_terms:ir.actions.act_window,help:contract_management.action_contract_dashboard
 msgid "View contract statistics by status, partner, term, and expiration date."
 msgstr "Consulta las estadísticas de contratos por estado, socio, plazo y fecha de expiración."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Wait %s more day(s) before changing the payment day again."
+msgstr "Espera %s día(s) más antes de cambiar el día de pago otra vez."
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_contract_termination_wizard

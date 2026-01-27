@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario - Cambio de Día de Facturación</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --accent: #0ea5e9;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #ffffff;
+      padding: 32px 24px 28px;
+      border-bottom: 4px solid rgba(255, 255, 255, 0.2);
+    }
+    header h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      letter-spacing: -0.01em;
+    }
+    header p {
+      margin: 0;
+      color: #e0f2fe;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 44px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    h2 {
+      margin: 0 0 12px 0;
+      font-size: 20px;
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+      letter-spacing: -0.01em;
+    }
+    h3 {
+      margin: 16px 0 8px 0;
+      font-size: 16px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    ul { padding-left: 20px; margin: 8px 0 12px; }
+    li { margin: 6px 0; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px 16px;
+      margin: 12px 0 6px;
+    }
+    .pill {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0b3b59;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #bae6fd;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: #f0f9ff;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0;
+    }
+    .figure {
+      margin: 10px 0 6px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .figure img { width: 100%; display: block; }
+    .figure figcaption {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--muted);
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+    }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Manual de Usuario · Cambio de Día de Facturación</h1>
+    <p>contract_management · última actualización: enero 2026</p>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Portada</h2>
+      <div class="meta-grid">
+        <div><strong>Módulo:</strong> contract_management</div>
+        <div><strong>Versión:</strong> 17.0.x (actualizable)</div>
+        <div><strong>Alcance:</strong> Cambio de día de facturación</div>
+        <div><strong>Público:</strong> Cobranza y atención</div>
+      </div>
+      <figure class="figure">
+        <img src="cambio-dia-portada.png" alt="Pantalla principal del wizard Cambiar día de facturación" />
+        <figcaption>Reemplazar con captura real del wizard.</figcaption>
+      </figure>
+    </section>
+
+    <section class="card">
+      <h2>Objetivo</h2>
+      <p>Permitir ajustar el día de cobro / próxima factura alineado a la capacidad de pago del cliente, con controles de abuso y trazabilidad completa.</p>
+    </section>
+
+    <section class="card">
+      <h2>Disponibilidad</h2>
+      <ul>
+        <li>Visible si el cliente está al día (sin facturas vencidas ni en dunning) y con método de pago válido.</li>
+        <li>Solo una solicitud por ciclo y enfriamiento de 30 días entre cambios.</li>
+        <li>Oculto cuando existan facturas vencidas, cobranza activa o pagos pendientes.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Flujo para agentes</h2>
+      <ol>
+        <li>Abrir la suscripción/contrato y pulsar “Cambiar día de facturación”.</li>
+        <li>Revisar el día actual y la próxima fecha de factura.</li>
+        <li>Elegir el nuevo día (o fecha de próxima factura) permitido.</li>
+        <li>Verificar el total prorrateado que incluye el tramo parcial.</li>
+        <li>Confirmar. El sistema valida elegibilidad, registra el cambio, genera el prorrateo y actualiza la próxima fecha.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Qué valida el sistema</h2>
+      <ul>
+        <li>Sin facturas vencidas ni en dunning.</li>
+        <li>Sin pagos pendientes relevantes al ciclo.</li>
+        <li>No se ha hecho otro cambio en el mismo ciclo y han pasado ≥ 30 días desde el último.</li>
+        <li>El nuevo día no retrocede facturación ya emitida.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Resultados del cambio</h2>
+      <ul>
+        <li>Se actualiza la próxima fecha de factura.</li>
+        <li>Se calcula un prorrateo para el tramo parcial hasta el nuevo día.</li>
+        <li>Factura de periodo puente (stub): se crea una factura parcial que cubre desde el fin del ciclo actual hasta el inicio del nuevo ciclo, usando el monto prorrateado para evitar días sin cubrir o doble cobro.</li>
+        <li>Sin prorrateo ni factura puente cuando el día ya estaba alineado y la próxima fecha sigue en el futuro; solo se registra el cambio y se mantiene la fecha.</li>
+        <li>Historial de cambios de día registra fecha anterior/nueva, monto prorrateado, factura de periodo puente, usuario y timestamp.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Mensajes y bloqueos comunes</h2>
+      <div class="callout">
+        <ul>
+          <li>“Cliente con facturas vencidas”: regularizar antes de reintentar.</li>
+          <li>“Límite de cambios alcanzado en este ciclo”: esperar al siguiente ciclo.</li>
+          <li>“Debe esperar 30 días desde el último cambio”: reintentar al cumplir el enfriamiento.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Buenas prácticas</h2>
+      <ul>
+        <li>Explicar al cliente el prorrateo y la factura de periodo puente antes de confirmar.</li>
+        <li>Evitar cambios consecutivos; usarlos solo por necesidad justificada.</li>
+        <li>Anotar motivo en notas internas cuando sea excepción.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Auditoría</h2>
+      <p>Historial visible en la ficha de la suscripción bajo “Cambios de día de pago” (solo lectura, no se pueden borrar entradas).</p>
+    </section>
+  </main>
+</body>
+</html>

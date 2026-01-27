@@ -10,6 +10,15 @@
             <!-- Find Other Info tab and add next_invoice_date in Subscription section -->
             <xpath expr="//page[@name='other_information']//field[@name='start_date']" position="after">
                 <field name="next_invoice_date"/>
+                <field name="payment_change_log_ids" readonly="1" nolabel="1">
+                    <tree string="Payment Day Changes" create="false" edit="false" delete="false">
+                        <field name="change_date"/>
+                        <field name="previous_next_invoice_date"/>
+                        <field name="new_next_invoice_date"/>
+                        <field name="prorated_amount"/>
+                        <field name="changed_by_id"/>
+                    </tree>
+                </field>
             </xpath>
             
             <!-- Make second occurrence of next_invoice_date readonly with force_save -->

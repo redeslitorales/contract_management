@@ -217,6 +217,9 @@
                 <button string="Resend Contract" type="object" name="action_resend_contract"
                         class="btn-secondary" icon="fa-refresh"
                         invisible = "not can_resend_contract"/>
+                <button string="Change Payment Day" type="action" name="contract_management.action_change_payment_date_wizard"
+                    class="btn-secondary" icon="fa-calendar" invisible="not is_subscription"
+                    context="{'default_subscription_id': active_id}"/>
                 
                 <!-- Dynamic Next Action button - Commented out until FSM modules installed in test env
                 <button string="Create Install Task" type="object" name="action_next_step"

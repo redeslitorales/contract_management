@@ -7,4 +7,11 @@
     <menuitem id="menu_sale_cover_letter_management" name="Manage Cover Letters" parent="sale.menu_sales_config" action="action_sale_cover_letter"/>
     <menuitem id="menu_sale_terms_conditions_management" name="Terms and Conditions" parent="sale.menu_sales_config" action="action_sale_terms_conditions"/>
     <menuitem id="menu_contract_clause" name="Contract Clauses" parent="sale.menu_sales_config" action="action_contract_clause"/>
+
+    <!-- User guide shortcut under Subscriptions root -->
+    <menuitem id="menu_contract_manual_user_subscription"
+              name="User Guide"
+              parent="sale_subscription.menu_sale_subscription_root"
+              action="action_contract_manual_user"
+              sequence="200"/>
 </odoo>
