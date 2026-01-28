@@ -4,19 +4,73 @@
         <field name="name">change.payment.date.wizard.form</field>
         <field name="model">change.payment.date.wizard</field>
         <field name="arch" type="xml">
-            <form string="Change Payment Day">
-                <group>
-                    <field name="subscription_id" readonly="1"/>
-                    <field name="payment_day"/>
-                    <field name="current_next_invoice_date" readonly="1"/>
-                    <field name="new_next_invoice_date" readonly="1"/>
-                    <field name="stub_start_date" readonly="1"/>
-                    <field name="stub_end_date" readonly="1"/>
-                    <field name="stub_days" readonly="1"/>
-                    <field name="stub_amount" readonly="1" string="Prorated Total (to be invoiced)"/>
-                </group>
+            <form string="Change Billing Cycle Start Date">
+                <sheet>
+                    <field name="wizard_step" invisible="1"/>
+                    <field name="show_advanced" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="subscription_id" string="Change Billing Cycle Start Date" class="o_bold"/>
+                        <p class="text-muted">This updates the day of the month the customer is billed.</p>
+                    </div>
+
+                    <!-- Keep the first step visible unless we are explicitly on the confirm step to avoid blank forms if wizard_step isn't set yet -->
+                    <group invisible="wizard_step == 'confirm'">
+                        <field name="subscription_id" readonly="1"/>
+                        <field name="payment_day"/>
+                        <label for="payment_day" string="Future invoices will be generated on this day each month." class="text-muted o_form_label" colspan="2"/>
+                    </group>
+
+                    <group invisible="wizard_step != 'confirm'">
+                        <group col="2" colspan="2">
+                            <group>
+                                <separator string="Customer-facing summary"/>
+                                <group col="2">
+                                    <label for="payment_day" string="New billing day" class="o_bold o_form_label"/>
+                                    <div><field name="payment_day" class="oe_inline" readonly="wizard_step =='confirm'"/></div>
+                                    <label for="new_next_invoice_date" string="Next invoice date" class="o_bold o_form_label"/>
+                                    <div><field name="new_next_invoice_date" readonly="1" class="oe_inline"/></div>
+                                       <label for="stub_amount" string="To be Invoiced Today" class="o_bold o_form_label"/>
+                                       <div><field name="stub_amount" readonly="1" class="oe_inline"/></div>
+                                    <span class="o_bold o_form_label">Service impact</span>
+                                    <div><span>None</span></div>
+                                </group>
+                            </group>
+
+                            <group>
+                                <separator string="Agent checklist"/>
+                                <group col="1">
+                                    <field name="checklist_customer_approved"/>
+                                    <field name="checklist_explained_next_invoice"/>
+                                    <field name="checklist_customer_understands_recurring"/>
+                                </group>
+                            </group>
+                        </group>
+                        <separator string="Billing impact"/>
+                        <div class="alert alert-danger" role="alert"
+                            invisible="not stub_amount or stub_amount == 0">
+                            <span>This change will create an invoice today in the amount of </span>
+                            <field name="stub_amount" readonly="1" class="oe_inline"/>
+                            <span>. This is NOT an additional charge, it is the prorated amount for the service from the current billing cycle end to the start of the new billing cycle. Confirm customer approval.</span>
+                        </div>
+                        <separator string="Advanced details" colspan="2"/>
+                        <group col="2" colspan="2">
+                            <button string="Show advanced details" type="object" name="action_toggle_advanced" class="btn-secondary" invisible="show_advanced"/>
+                            <button string="Hide advanced details" type="object" name="action_toggle_advanced" class="btn-secondary" invisible="not show_advanced"/>
+                        </group>
+                        <group invisible="show_advanced == False" col="4" colspan="2">
+                            <field name="stub_days" readonly="1"/>
+                            <field name="stub_start_date" readonly="1" string="Stub Start"/>
+                            <field name="stub_end_date" readonly="1" string="Stub End"/>
+                            <field name="stub_amount" readonly="1" string="Prorated Total (to be invoiced)"/>
+                        </group>
+                    </group>
+
+                </sheet>
                 <footer>
-                    <button string="Confirm" type="object" name="action_confirm" class="btn-primary"/>
+
+                    <button string="Confirm change" type="object" name="action_confirm" class="btn-primary" invisible="wizard_step != 'confirm'"/>
+                    <button string="Next" type="object" name="action_next_step" class="btn-primary" invisible="wizard_step != 'select'"/>
+                    <button string="Back" type="object" name="action_previous_step" class="btn-secondary" invisible="wizard_step != 'confirm'"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>

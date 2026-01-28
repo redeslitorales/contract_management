@@ -18,6 +18,71 @@ msgstr ""
 "X-Generator: Poedit 3.8\n"
 
 #. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Customer-facing summary"
+msgstr "Resumen para el cliente"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "New billing day"
+msgstr "Nuevo día de facturación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Next invoice date"
+msgstr "Próxima fecha de factura"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "To be Invoiced Today"
+msgstr "A facturar hoy"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Service impact"
+msgstr "Impacto en el servicio"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "This change will create an invoice today in the amount of "
+msgstr "Este cambio generará una factura hoy por el monto de "
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid ". This is NOT an additional charge, it is the prorated amount for the service from the current billing cycle end to the start of the new billing cycle.  Confirm customer approval."
+msgstr ". Esto NO es un cargo adicional; es el monto prorrateado del servicio desde el fin del ciclo actual hasta el inicio del nuevo ciclo de facturación. Confirma la aprobación del cliente."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Agent checklist"
+msgstr "Lista de verificación del agente"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Advanced details (billing calculation)"
+msgstr "Detalles avanzados (cálculo de facturación)"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Change Billing Cycle Start Date"
+msgstr "Cambiar fecha de inicio del ciclo de facturación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Billing impact"
+msgstr "Impacto de facturación"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Show"
+msgstr "Mostrar"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
+msgid "Hide"
+msgstr "Ocultar"
+
+#. module: contract_management
 #. odoo-python
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format

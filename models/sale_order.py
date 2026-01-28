@@ -2117,15 +2117,22 @@ class SaleSubscription(models.Model):
         self.ensure_one()
         payment_day = (self.next_invoice_date or fields.Date.context_today(self)).day
 
+        view = self.env.ref('contract_management.view_change_payment_date_wizard')
+
         return {
             'type': 'ir.actions.act_window',
             'name': _('Change Payment Day'),
             'res_model': 'change.payment.date.wizard',
             'view_mode': 'form',
+            'views': [(view.id, 'form')],
             'target': 'new',
+            'view_id': view.id,
             'context': {
+                **self.env.context,
                 'default_subscription_id': self.id,
                 'default_payment_day': payment_day,
+                'default_wizard_step': 'select',
+                'default_show_advanced': False,
             },
         }
 
@@ -2762,6 +2769,12 @@ class ChangePaymentDateWizard(models.TransientModel):
         required=True,
         default=lambda self: self._default_subscription_id(),
     )
+    wizard_step = fields.Selection(
+        [('select', 'Select Day'), ('confirm', 'Confirm')],
+        string='Step',
+        default='select',
+        required=True,
+    )
     payment_day = fields.Integer(string='Payment Day', required=True, default=lambda self: self._default_payment_day())
     currency_id = fields.Many2one(related='subscription_id.currency_id', readonly=True)
     current_next_invoice_date = fields.Date(related='subscription_id.next_invoice_date', readonly=True)
@@ -2772,6 +2785,31 @@ class ChangePaymentDateWizard(models.TransientModel):
     full_period_days = fields.Integer(compute='_compute_dates', store=False)
     stub_ratio = fields.Float(compute='_compute_dates', store=False)
     stub_amount = fields.Monetary(string='Prorated Total', compute='_compute_dates', store=False, currency_field='currency_id')
+    checklist_customer_approved = fields.Boolean(string='Customer approved the new billing day')
+    checklist_explained_next_invoice = fields.Boolean(string='Agent explained the next invoice date')
+    checklist_customer_understands_recurring = fields.Boolean(string='Customer understands future invoices will follow the new day')
+    show_advanced = fields.Boolean(string='Show Advanced Details')
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        # Force the wizard to start on the Select step even if a prior context or cache leaks a value
+        res['wizard_step'] = 'select'
+        res.setdefault('show_advanced', False)
+        subscription_id = res.get('subscription_id')
+        if subscription_id:
+            subscription = self.env['sale.order'].browse(subscription_id)
+            self._validate_change_window(subscription)
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Ensure wizard always starts on the select step even if context/defaults are missing
+        for vals in vals_list:
+            if not vals.get('wizard_step'):
+                vals['wizard_step'] = 'select'
+            vals.setdefault('show_advanced', False)
+        return super().create(vals_list)
 
     @api.model
     def _default_subscription_id(self):
@@ -2791,8 +2829,54 @@ class ChangePaymentDateWizard(models.TransientModel):
     @api.constrains('payment_day')
     def _check_payment_day(self):
         for wizard in self:
-            if wizard.payment_day < 1 or wizard.payment_day > 31:
-                raise ValidationError(_('Payment day must be between 1 and 31.'))
+            if wizard.payment_day < 1 or wizard.payment_day > 28:
+                raise ValidationError(_('Payment day must be between 1 and 28 to avoid month-end issues.'))
+
+    def _validate_change_window(self, subscription, stub_start=False):
+        if not subscription:
+            return
+
+        today = fields.Date.context_today(self)
+        stub_start = stub_start or subscription.next_invoice_date or subscription.start_date or today
+        last_change = subscription.payment_change_log_ids.sorted('change_date', reverse=True)[:1]
+        if last_change:
+            last_change_date = last_change.change_date.date() if last_change.change_date else False
+            if last_change_date and stub_start and last_change_date >= stub_start:
+                raise ValidationError(_('Only one payment day change is allowed per billing cycle. Last change was on %s.') % last_change_date)
+            delta_days = (today - last_change_date).days if last_change_date else 0
+            if delta_days < 30:
+                raise ValidationError(_('Wait %s more day(s) before changing the payment day again.') % (30 - delta_days))
+
+    def action_next_step(self):
+        self.ensure_one()
+        self._validate_change_window(self.subscription_id, self.stub_start_date or self.subscription_id.next_invoice_date)
+        self.wizard_step = 'confirm'
+        return self._action_reload_wizard()
+
+    def action_previous_step(self):
+        self.ensure_one()
+        self.wizard_step = 'select'
+        return self._action_reload_wizard()
+
+    def action_toggle_advanced(self):
+        self.ensure_one()
+        self.show_advanced = not self.show_advanced
+        return self._action_reload_wizard()
+
+    def _action_reload_wizard(self):
+        self.ensure_one()
+        view = self.env.ref('contract_management.view_change_payment_date_wizard')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Change Payment Day'),
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(view.id, 'form')],
+            'view_id': view.id,
+            'target': 'new',
+            'context': dict(self.env.context),
+        }
 
     @api.depends('subscription_id', 'payment_day')
     def _compute_dates(self):
@@ -2866,6 +2950,8 @@ class ChangePaymentDateWizard(models.TransientModel):
 
     def action_confirm(self):
         self.ensure_one()
+        if self.wizard_step != 'confirm':
+            raise ValidationError(_('Review and confirm the change before submitting.'))
         subscription = self.subscription_id
         if not subscription:
             raise ValidationError(_('A subscription is required to change the payment day.'))
@@ -2877,6 +2963,7 @@ class ChangePaymentDateWizard(models.TransientModel):
                 raise ValidationError(_('Payment day is already %s; no prorated invoice is needed.') % desired_day)
 
         stub_start = self.stub_start_date or subscription.next_invoice_date or fields.Date.context_today(self)
+        self._validate_change_window(subscription, stub_start)
         new_payment_date = self.new_next_invoice_date
         if not new_payment_date:
             raise ValidationError(_('Select a payment day that results in a valid future date.'))
@@ -2886,26 +2973,16 @@ class ChangePaymentDateWizard(models.TransientModel):
         if self.stub_ratio <= 0:
             raise ValidationError(_('The prorated period must be greater than zero days.'))
 
-        invoices = subscription.invoice_ids.filtered(lambda inv: inv.state == 'posted')
-        overdue_invoices = invoices.filtered(lambda inv: inv.invoice_date_due and inv.invoice_date_due < today and inv.payment_state in ('not_paid', 'partial'))
-        if overdue_invoices:
-            raise ValidationError(_('Cannot change payment day while overdue invoices exist (e.g., %s).') % overdue_invoices[0].display_name)
+        if not (self.checklist_customer_approved and self.checklist_explained_next_invoice and self.checklist_customer_understands_recurring):
+            raise ValidationError(_('Please complete the confirmation checklist before proceeding.'))
 
-        dunning_invoices = invoices.filtered(lambda inv: getattr(inv, 'dunning_level_id', False))
-        if dunning_invoices:
-            raise ValidationError(_('Cannot change payment day while dunning is in progress (e.g., %s).') % dunning_invoices[0].display_name)
-
-        unpaid_invoices = invoices.filtered(lambda inv: inv.payment_state not in ('paid', 'reversed', 'in_payment'))
-        if unpaid_invoices:
-            raise ValidationError(_('Current period must be fully paid or already in payment before changing the payment day (unpaid: %s).') % unpaid_invoices[0].display_name)
-
-        last_change = subscription.payment_change_log_ids.sorted('change_date', reverse=True)[:1]
-        if last_change:
-            if stub_start and last_change.change_date and last_change.change_date.date() >= stub_start:
-                raise ValidationError(_('Only one payment day change is allowed per billing cycle. Last change was on %s.') % last_change.change_date.date())
-            delta_days = (today - last_change.change_date.date()).days if last_change.change_date else 0
-            if delta_days < 30:
-                raise ValidationError(_('Wait %s more day(s) before changing the payment day again.') % (30 - delta_days))
+        partner = subscription.partner_id.commercial_partner_id
+        overdue_amount = partner.total_overdue or 0.0
+        if overdue_amount > 0:
+            currency = partner.currency_id or subscription.currency_id
+            currency_name = currency.name if currency else ''
+            amount_label = f"{overdue_amount:.2f} {currency_name}".strip()
+            raise ValidationError(_('Cannot change payment day while the customer has an overdue balance (%s).') % amount_label)
 
         recurring_lines = subscription.order_line.filtered(lambda l: l.product_id.recurring_invoice)
         if not recurring_lines:
@@ -2987,8 +3064,8 @@ class ChangePaymentDateBatchWizard(models.TransientModel):
     @api.constrains('payment_day')
     def _check_payment_day(self):
         for wizard in self:
-            if wizard.payment_day < 1 or wizard.payment_day > 31:
-                raise ValidationError(_('Payment day must be between 1 and 31.'))
+            if wizard.payment_day < 1 or wizard.payment_day > 28:
+                raise ValidationError(_('Payment day must be between 1 and 28 to avoid month-end issues.'))
 
     def _compute_target_payment_date(self, stub_start, payment_day):
         if not stub_start or not payment_day:
@@ -3011,18 +3088,13 @@ class ChangePaymentDateBatchWizard(models.TransientModel):
 
     def _validate_subscription(self, subscription):
         today = fields.Date.context_today(self)
-        invoices = subscription.invoice_ids.filtered(lambda inv: inv.state == 'posted')
-        overdue_invoices = invoices.filtered(lambda inv: inv.invoice_date_due and inv.invoice_date_due < today and inv.payment_state in ('not_paid', 'partial'))
-        if overdue_invoices:
-            raise ValidationError(_('Cannot change payment day while overdue invoices exist (e.g., %s).') % overdue_invoices[0].display_name)
-
-        dunning_invoices = invoices.filtered(lambda inv: getattr(inv, 'dunning_level_id', False))
-        if dunning_invoices:
-            raise ValidationError(_('Cannot change payment day while dunning is in progress (e.g., %s).') % dunning_invoices[0].display_name)
-
-        unpaid_invoices = invoices.filtered(lambda inv: inv.payment_state not in ('paid', 'reversed', 'in_payment'))
-        if unpaid_invoices:
-            raise ValidationError(_('Current period must be fully paid or already in payment before changing the payment day (unpaid: %s).') % unpaid_invoices[0].display_name)
+        partner = subscription.partner_id.commercial_partner_id
+        overdue_amount = partner.total_overdue or 0.0
+        if overdue_amount > 0:
+            currency = partner.currency_id or subscription.currency_id
+            currency_name = currency.name if currency else ''
+            amount_label = f"{overdue_amount:.2f} {currency_name}".strip()
+            raise ValidationError(_('Cannot change payment day while the customer has an overdue balance (%s) for %s.') % (amount_label, subscription.display_name))
 
         last_change = subscription.payment_change_log_ids.sorted('change_date', reverse=True)[:1]
         if last_change:
