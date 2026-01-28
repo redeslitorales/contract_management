@@ -75,6 +75,22 @@ class ContractManagement(models.Model):
     contract_template = fields.Many2one(related='subscription_id.contract_template', string='Contract Template')
     docusign_id = fields.Many2one('docusign.connector', string='Docusign Record')
     docusign_status = fields.Selection(related='docusign_id.state', string="Signature Status",store=True)
+    docusign_client_user_id = fields.Char(
+        string='DocuSign Client User ID',
+        help='Stable identifier used for embedded signing sessions'
+    )
+    docusign_signer_email = fields.Char(
+        string='DocuSign Signer Email',
+        help='Email used for the embedded recipient view; defaults to customer email'
+    )
+    docusign_embedded_signing_url = fields.Char(string='Embedded Signing URL', readonly=True)
+    docusign_embedded_status = fields.Selection([
+        ('draft', 'Draft'),
+        ('started', 'Started'),
+        ('completed', 'Completed'),
+        ('canceled', 'Canceled'),
+        ('declined', 'Declined'),
+    ], string='Embedded Signing Status', default='draft', readonly=True, tracking=True)
     contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default="whatsapp")
     early_termination_fee = fields.Float(string='Early Termination Fee')
     late_charge = fields.Float(string='Late Charge')

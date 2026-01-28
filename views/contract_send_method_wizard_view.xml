@@ -8,6 +8,7 @@
                     <field name="send_method" widget="radio"/>
                 </group>
                 <footer>
+                    <button string="Sign in Person" type="object" name="action_sign_in_person" class="btn-secondary"/>
                     <button string="Confirm" type="object" name="action_confirm_send_method" class="btn-primary"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
                 </footer>

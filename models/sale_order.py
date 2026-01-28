@@ -102,6 +102,8 @@ class SaleSubscription(models.Model):
     )
     cabal_sequence = fields.Char(string='Contract Number', readonly=True, copy=False)
     contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default='whatsapp', required=True)
+    contract_magic_token = fields.Char(string='Contract Magic Token', readonly=True, copy=False)
+    contract_magic_link = fields.Char(string='Contract Magic Link', readonly=True, copy=False)
     contract_state = fields.Selection(
         selection=CONTRACT_STATES,
         string='Contract State',
@@ -153,6 +155,11 @@ class SaleSubscription(models.Model):
     contract_ids = fields.One2many('contract.management', 'subscription_id', string="Contracts")
     contract_count = fields.Integer(string='Contract Count', compute='_compute_contract_count')
     docusign_ids = fields.One2many('docusign.connector', 'sale_id', string="DocuSign Envelopes")
+    has_docusign_client_user_id = fields.Boolean(
+        string='Has Embedded DocuSign Signer',
+        compute='_compute_has_docusign_client_user_id',
+        help='True when any related DocuSign connector line has client_user_id set (embedded signing ready).'
+    )
     can_resend_contract = fields.Boolean(string='Can Resend Contract', compute='_compute_can_resend_contract')
     payment_change_log_ids = fields.One2many(
         'payment.day.change.log',
@@ -226,6 +233,12 @@ class SaleSubscription(models.Model):
         """Return HMAC secret for confirmation links; blank means signing is disabled."""
         ICP = self.env['ir.config_parameter'].sudo()
         return ICP.get_param('contract_management.confirm_secret', '')
+
+    @api.depends('contract_ids.docusign_client_user_id')
+    def _compute_has_docusign_client_user_id(self):
+        for order in self:
+            client_ids = order.contract_ids.mapped('docusign_client_user_id') if order.contract_ids else []
+            order.has_docusign_client_user_id = any(client_ids)
 
     def _sign_confirmation_payload(self, uuid_str, exp_str):
         secret = self._get_confirmation_secret()
@@ -880,6 +893,46 @@ class SaleSubscription(models.Model):
             'view_mode': 'form',
             'target': 'new',
             'context': {'default_send_method': self.contract_send_method}
+        }
+
+    def _prepare_in_person_signing(self, send_method=None):
+        """Ensure a DocuSign envelope exists and return the contract record for in-person signing."""
+        self.ensure_one()
+
+        chosen_method = send_method or self.contract_send_method or 'email'
+        if chosen_method == 'donotsend':
+            raise UserError(_("Select a delivery method other than 'Do Not Send' to start in-person signing."))
+
+        # Physical flows do not create envelopes; fall back to email to build an embedded envelope.
+        if chosen_method == 'physical':
+            chosen_method = 'email'
+
+        if self.contract_send_method != chosen_method:
+            self.sudo().write({'contract_send_method': chosen_method})
+
+        contract_record = False
+        if self.contract_ids:
+            contract_record = self.contract_ids.sorted(lambda r: r.id)[-1]
+
+        # If there is no envelope yet, send the contract now using the selected method.
+        if not contract_record or not contract_record.docusign_id:
+            self.action_send_for_signature()
+            if self.contract_ids:
+                contract_record = self.contract_ids.sorted(lambda r: r.id)[-1]
+
+        if not contract_record or not contract_record.docusign_id:
+            raise ValidationError(_("Could not prepare a DocuSign envelope for in-person signing."))
+
+        return contract_record
+
+    def action_sign_in_person(self):
+        self.ensure_one()
+
+        contract_record = self._prepare_in_person_signing(self.contract_send_method)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f"/contracts/sign/in_person/{contract_record.id}",
+            'target': 'self',
         }
 
     def action_confirm_via_uuid(self):
@@ -1657,6 +1710,19 @@ class SaleSubscription(models.Model):
 
         return result
 
+    def action_open_resend_contract_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'contract.resend.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_contract_id': self.id,
+                'active_id': self.id,
+            },
+        }
+
     def _get_addendum_base_order(self):
         """Return the parent contract/order for addendum rendering."""
         self.ensure_one()
@@ -1848,9 +1914,175 @@ class SaleSubscription(models.Model):
             'name': document.name
         })
         _logger.info("[DocuSign] Company connector line created: ID=%s", company_line.id)
+
+        # Generate a fresh magic link for embedded signing (no login required)
+        token, magic_url = customer_line.generate_magic_link()
+        link_msg = _("Magic signing link (no login): %s") % magic_url
+        connector_record.message_post(body=link_msg)
+        contract_record = self.env['contract.management'].sudo().search([
+            ('subscription_id', '=', contract.id)
+        ], limit=1)
+        contract.sudo().write({
+            'contract_magic_token': token,
+            'contract_magic_link': magic_url,
+        })
+        if contract_record:
+            contract_record.message_post(body=link_msg)
+
+        if contract.contract_send_method == 'whatsapp':
+            try:
+                contract._send_magic_link_via_whatsapp(contract.partner_id, token, magic_url)
+            except Exception as exc:
+                _logger.error("[DocuSign] Failed to send magic link via WhatsApp: %s", exc, exc_info=True)
+                raise
         
         _logger.info("[DocuSign] Returning connector_record ID=%s with 2 recipients", connector_record.id)
         return connector_record
+
+    def _compute_docusign_recipient_email(self, partner):
+        """Return a usable recipient email, synthesizing one when the partner has none."""
+        self.ensure_one()
+        if partner.email_normalized:
+            return partner.email_normalized
+        if partner.email:
+            return partner.email
+
+        placeholder_domain = (
+            self.env['ir.config_parameter']
+            .sudo()
+            .get_param('contract_management.docusign_placeholder_email_domain')
+            or 'signing.cabalinternal.local'
+        )
+        phone = partner.mobile or partner.whatsapp or partner.phone or ''
+        phone_digits = re.sub(r'\D', '', phone) if phone else 'noemail'
+        return f"contract-{self.id or partner.id}-{phone_digits}@{placeholder_domain}"
+
+    def _send_magic_link_via_whatsapp(self, partner, token, magic_url=None):
+        self.ensure_one()
+
+        WhatsApp = self.env['whatsapp.comm']
+        ICP = self.env['ir.config_parameter'].sudo()
+        logo = ICP.get_param('wa_logo_file', '')
+        template_name = ICP.get_param('contract_management.wa_magic_template', 'sign_contract')
+
+        base_url = (ICP.get_param('web.base.url', '') or '').rstrip('/')
+        if not magic_url:
+            path = f"/contracts/sign/{token}"
+            magic_url = f"{base_url}{path}" if base_url else path
+
+        # Prefer explicit WhatsApp number, then fall back to mobile/phone
+        normalized_phone = WhatsApp.normalize_phone(partner.whatsapp)
+        client_phone = f'+{normalized_phone}' if normalized_phone else None
+        if not client_phone:
+            raise ValidationError(_("Número de teléfono inválido"))
+        
+        # In non-production, force messages to the configured test phone
+        base_url = ICP.get_param('web.base.url', '')
+        is_production = base_url.startswith('https://servicio.')
+        if not is_production:
+            test_phone = ICP.get_param('wa_test_phone', '+50377459441')
+            _logger.info(
+                "[DocuSign] Non-production env detected, redirecting WhatsApp to test phone %s (was %s)",
+                test_phone,
+                client_phone,
+            )
+            client_phone = test_phone
+
+        context_info = f"magic link contract {self.id}"
+        recipient_phone, test_mode = WhatsApp._apply_test_mode_phone(client_phone, context_info)
+
+        partner_lang = partner.lang or ICP.get_param('wa_template_language', 'es_ES')
+        lang_code = (partner_lang or 'es').split('_')[0]
+
+        rich_template_data = {
+            "body": {
+                "params": [
+                    {"data": partner.name or ''},
+                ]
+            },
+            "button": {
+                "subType": "url",
+                "params": [
+                    {"data": token}
+                ]
+            },
+        }
+
+        if logo:
+            rich_template_data["header"] = {"type": "image", "media_url": str(logo)}
+
+        payload = WhatsApp._build_fc_payload(
+            to_phone=recipient_phone,
+            template_name=template_name,
+            language_code=lang_code,
+            rich_template_data=rich_template_data,
+        )
+
+        result = WhatsApp._send_fc_template_request(payload)
+        
+        if not result.get('success'):
+            error_msg = result.get('error') or _('Unknown error sending WhatsApp')
+            _logger.error("[DocuSign] WhatsApp magic link send failed: %s", error_msg)
+            raise ValidationError(_("No se pudo enviar el enlace por WhatsApp: %s") % error_msg)
+
+        response = result.get('response') or {}
+        log_record = False
+
+        if response.get('request_id'):
+            base_vals = {
+                "name": _("Enlace de firma"),
+                "partner_id": partner.id,
+                "sale_order": self.id,
+                "to_phone": recipient_phone,
+                "template_name": template_name,
+            }
+
+            log_record = WhatsApp._create_fc_whatsapp_log(
+                base_vals=base_vals,
+                response_dict=result,
+                verification_dict=None,
+                test_mode=test_mode,
+            )
+        request_id = response.get('request_id') or (log_record.request_id if log_record else '')
+        message = _("Enlace de firma enviado por WhatsApp")
+
+        if test_mode:
+            message += " [TEST MODE]"
+        if request_id:
+            message += _(" (Request ID: %s)") % request_id
+
+        self.message_post(body=message)
+
+        return log_record or True
+
+    def action_send_contract_link_whatsapp(self):
+        """Send the existing contract magic link via WhatsApp template."""
+        self.ensure_one()
+
+        token = self.contract_magic_token
+        magic_url = self.contract_magic_link
+
+        if not token or not magic_url:
+            connector = self.docusign_ids.filtered(lambda c: c.connector_line_ids)
+            connector = connector.sorted(key=lambda c: c.id, reverse=True)[:1]
+
+            if not connector:
+                raise ValidationError(_("No DocuSign envelope is available to build a magic link. Send the contract first."))
+
+            customer_line = connector.connector_line_ids.filtered(lambda l: l.partner_id.id == self.partner_id.id)[:1]
+            if not customer_line:
+                customer_line = connector.connector_line_ids[:1]
+
+            if not customer_line:
+                raise ValidationError(_("No DocuSign recipient was found to generate a magic link."))
+
+            token, magic_url = customer_line.generate_magic_link()
+            self.sudo().write({
+                'contract_magic_token': token,
+                'contract_magic_link': magic_url,
+            })
+
+        return self._send_magic_link_via_whatsapp(self.partner_id, token, magic_url)
 
     def create_print_sign_activity(self):
         for subscription in self:
@@ -2059,6 +2291,74 @@ class SaleSubscription(models.Model):
             'upsell_from_id': subscription.id if subscription_state == '7_upsell' else False,
         }
 
+class ContractResendWizard(models.TransientModel):
+    _name = 'contract.resend.wizard'
+    _description = 'Contract Resend Wizard'
+
+    contract_id = fields.Many2one(
+        'sale.order',
+        string='Contract',
+        required=True,
+        default=lambda self: self.env.context.get('default_contract_id') or self.env.context.get('active_id'),
+    )
+    can_sign_in_person = fields.Boolean(compute='_compute_capabilities')
+    can_send_magic_link = fields.Boolean(compute='_compute_capabilities')
+    can_resend_email = fields.Boolean(compute='_compute_capabilities')
+    can_open_portal = fields.Boolean(compute='_compute_capabilities')
+
+    @api.depends('contract_id')
+    def _compute_capabilities(self):
+        for wizard in self:
+            contract = wizard.contract_id
+            wizard.can_resend_email = bool(contract and contract.can_resend_contract)
+            wizard.can_sign_in_person = bool(
+                contract
+                and contract.progress_stage == 'pending_client_signature'
+                and contract.has_docusign_client_user_id
+            )
+            wizard.can_send_magic_link = wizard.can_sign_in_person
+            wizard.can_open_portal = wizard.can_send_magic_link
+
+    def _get_contract(self):
+        self.ensure_one()
+        contract = self.contract_id or self.env['sale.order'].browse(self.env.context.get('active_id'))
+        if not contract:
+            raise UserError(_("No active contract found."))
+        return contract
+
+    def action_resend_email(self):
+        contract = self._get_contract()
+        if not self.can_resend_email:
+            raise ValidationError(_("Contract cannot be resent right now."))
+        result = contract.action_resend_contract()
+        return result or {'type': 'ir.actions.act_window_close'}
+
+    def action_send_magic_link(self):
+        contract = self._get_contract()
+        if not self.can_send_magic_link:
+            raise ValidationError(_("Contract is not ready for a magic link."))
+        contract.action_send_contract_link_whatsapp()
+        return {'type': 'ir.actions.act_window_close'}
+
+    def action_sign_in_person(self):
+        contract = self._get_contract()
+        if not self.can_sign_in_person:
+            raise ValidationError(_("Contract is not ready for in-person signing."))
+        return contract.action_sign_in_person()
+
+    def action_open_portal(self):
+        contract = self._get_contract()
+        if not self.can_open_portal:
+            raise ValidationError(_("Contract is not ready for portal signing."))
+        contract._portal_ensure_token()
+        url = contract.get_portal_url()
+        return {
+            'type': 'ir.actions.act_url',
+            'url': url,
+            'target': 'self',
+        }
+
+
 class ContractSendMethodWizard(models.TransientModel):
     _name = 'contract.send.method.wizard'
     _description = 'Contract Send Method Wizard'
@@ -2088,6 +2388,21 @@ class ContractSendMethodWizard(models.TransientModel):
             _logger.warning("[DocuSign] Contract NOT SENT - donotsend method selected for contract ID=%s", 
                            contract.id)
             raise UserError('Contract NOT SENT!')
+
+    def action_sign_in_person(self):
+        self.ensure_one()
+        contract_id = self.env.context.get('active_id')
+        if not contract_id:
+            raise UserError("No active contract found.")
+
+        contract = self.env['sale.order'].browse(contract_id)
+        contract_record = contract._prepare_in_person_signing(self.send_method)
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f"/contracts/sign/in_person/{contract_record.id}",
+            'target': 'self',
+        }
 
 class SubscriptionTransferWizard(models.TransientModel):
     _name = 'subscription.transfer.wizard'

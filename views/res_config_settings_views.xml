@@ -10,6 +10,17 @@
                 <app string="Contract Management" name="contract_management">
                     <block title="DocuSign Settings">
                         <setting>
+                            <label for="docusign_service_user_id" string="DocuSign Service User"/>
+                            <div class="text-muted">
+                                User whose DocuSign tokens are used for contract envelopes (defaults to legacy contratos@cabal.sv).
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="docusign_service_user_id" options="{'no_open': True}"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
                             <label for="docusign_company_signer_email" string="Company Signer Email"/>
                             <div class="text-muted">
                                 Email address of the company representative who signs contracts after the customer
@@ -28,6 +39,28 @@
                             <div class="content-group">
                                 <div class="mt16">
                                     <field name="docusign_company_stamp_base64" placeholder="iVBORw0KGgoAAAANSUhEUgAA..."/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="docusign_embedded_return_url" string="DocuSign Embedded Return URL"/>
+                            <div class="text-muted">
+                                Optional absolute URL to return users after embedded signing. Leave blank to auto-build.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="docusign_embedded_return_url" placeholder="https://portal.midominio.com/docusign/return"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="wa_magic_template" string="Magic Link WhatsApp Template"/>
+                            <div class="text-muted">
+                                Template name used to send DocuSign magic signing links over WhatsApp.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="wa_magic_template" placeholder="sign_contract"/>
                                 </div>
                             </div>
                         </setting>

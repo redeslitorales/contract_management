@@ -210,13 +210,15 @@
                 <field name="contract_state" invisible="1"/>
                 <field name="can_resend_contract" invisible="1"/>
                 <field name="docusign_connector_ids" invisible="1"/>
+                <field name="has_docusign_client_user_id" invisible="1"/>
+                <field name="progress_stage" invisible="1"/>
                 <!-- <field name="next_action" invisible="1"/> FSM field - commented out until FSM modules installed -->
                 <button string="Send Contract" type="object" name="action_send_contract"
                     class="btn-primary" icon="fa-file-signature"
                     invisible="contract_state != 'pending_contract' or docusign_connector_ids"/>
-                <button string="Resend Contract" type="object" name="action_resend_contract"
-                        class="btn-secondary" icon="fa-refresh"
-                        invisible = "not can_resend_contract"/>
+                <button string="Resend Contract" type="object" name="action_open_resend_contract_wizard"
+                    class="btn-secondary" icon="fa-refresh"
+                    invisible = "not can_resend_contract"/>
                 <button string="Change Payment Day" type="action" name="contract_management.action_change_payment_date_wizard"
                     class="btn-secondary" icon="fa-calendar" invisible="not is_subscription"
                     context="{'default_subscription_id': active_id}"/>
@@ -233,13 +235,7 @@
                         invisible="next_action != 'activate_service'"/>
                 -->
             </xpath>
-<!--            <xpath expr="//form[1]/header[1]/button[@name='activate_onu']" position="attributes">
-                <attribute name="invisible">contract_state not in ['pending_cabal_signature', 'active'] and installation_state not in ['pending_install']</attribute>
-            </xpath>
-            <xpath expr="//form[1]/header[1]/button[@name='action_get_signature']" position="attributes">
-                <attribute name="invisible">True</attribute>
-            </xpath>
--->                        
+
             <!-- Make order lines readonly when not in draft stage -->
             <xpath expr="//field[@name='order_line']" position="attributes">
                 <attribute name="readonly">progress_stage != 'draft'</attribute>

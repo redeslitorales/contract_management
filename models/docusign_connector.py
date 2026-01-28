@@ -41,7 +41,7 @@ class OverrideDocumentStatus(models.Model):
 
     def send_docs(self, send_method):
         try:
-            user = self.env['res.users'].browse(196)
+            user = self.env['res.users']._get_contract_docusign_user()
 #           user = self.env.user
             if not self.attachment_ids:
                 raise ValidationError(_('Attachment(s) not found.'))
@@ -69,9 +69,10 @@ class OverrideDocumentStatus(models.Model):
                     
                     # Build signers list from all connector lines
                     signers_list = []
+                    recipient_meta = []  # keep recipient_id/email per line for webhook matching
                     for idx, line in enumerate(self.connector_line_ids.sorted(key=lambda l: l.id), 1):
-                        # All signers need email for identity
-                        if not line.email:
+                        recipient_email = line._get_recipient_email()
+                        if not recipient_email:
                             raise ValidationError(_(f"Email not set for recipient: {line.partner_id.name}"))
                         
                         # First signer uses the send_method from wizard, others always use email
@@ -102,7 +103,6 @@ class OverrideDocumentStatus(models.Model):
                                 country_code = '56'
                                 number = phone_cleaned[2:]
                             else:
-                                # fallback - you may want to improve this
                                 country_code = phone_cleaned[:3]
                                 number = phone_cleaned[3:]
 
@@ -113,25 +113,39 @@ class OverrideDocumentStatus(models.Model):
 
                         signer = Signer(
                             name=line.partner_id.name,
-                            email=line.email,
+                            email=recipient_email,
                             recipient_id=str(idx),
                             routing_order=str(idx),
                             delivery_method=current_send_method,
                             **({"phone_number": phone_obj} if phone_obj else {})
                         )
 
+                        # Enable embedded signing for the customer signer when linked to a contract
+                        client_user_id = None
+                        if self.contract_management_id and line.partner_id == self.contract_management_id.partner_id:
+                            client_user_id = str(self.contract_management_id.id)
+                            setattr(signer, 'client_user_id', client_user_id)
+                            line.client_user_id = client_user_id
+                            self.contract_management_id.write({
+                                'docusign_client_user_id': client_user_id,
+                                'docusign_signer_email': recipient_email,
+                                'docusign_embedded_signing_url': False,
+                                'docusign_embedded_status': 'draft',
+                            })
+
                         signer.partner = line.partner_id
                         signers_list.append(signer)
+                        recipient_meta.append((line, str(idx), recipient_email))
 
                         if send_method == "whatsapp":
                             _logger.info(
                                 "[DocuSign Send] Signer %d (WhatsApp): %s (%s, +%s %s)",
-                                idx, line.partner_id.name, line.email, country_code, number
+                                idx, line.partner_id.name, recipient_email, country_code, number
                             )
                         else:
                             _logger.info(
                                 "[DocuSign Send] Signer %d (Email): %s (%s)",
-                                idx, line.partner_id.name, line.email
+                                idx, line.partner_id.name, recipient_email
                             )
                    
                     # Prepare custom fields for DocuSign envelope
@@ -159,18 +173,19 @@ class OverrideDocumentStatus(models.Model):
                         custom_fields=custom_fields
                     )
                     
-                    # Set the SAME envelope_id on ALL connector lines
-                    for line in self.connector_line_ids:
+                    # Set the SAME envelope_id on ALL connector lines with per-line recipient ids
+                    for line, recipient_id, recipient_email in recipient_meta:
                         line.un_signed_attachment_ids |= attach_file
                         line.sudo().write({
                             'status': 'sent',
                             'name': attach_file.name,
                             'envelope_id': envelope_id,  # Same envelope ID for all!
                             'send_status': True,
-                            'recipient_id': str(idx),
+                            'recipient_id': recipient_id,
+                            'recipient_email': recipient_email,
                         })
                         _logger.info("[DocuSign Send] Set envelope_id=%s on line %d (%s)",
-                                    envelope_id, line.id, line.email)
+                                    envelope_id, line.id, recipient_email)
                     
                     self.write({'state': 'sent'})
                     self.env.cr.commit()
@@ -248,9 +263,9 @@ class OverrideDocumentStatus(models.Model):
         try:
             _logger.info("[DocuSign Download] Starting download for connector %s", self.id)
             
-            # Authenticate and get the user with fresh token (hardcoded user 196 for consistency)
+            # Authenticate and use configured service user for DocuSign calls
             authenticated = self.sale_id.authenicate_jwt()
-            user = self.env['res.users'].browse(196)
+            user = self.env['res.users']._get_contract_docusign_user()
             
             if not authenticated:
                 _logger.error("[DocuSign Download] Authentication failed")
@@ -365,9 +380,9 @@ class OverrideDocumentStatus(models.Model):
         """Override to use contract_management's legacy docu_client and add completion handling."""
         
         try:
-            # Authenticate and get the user with fresh token (hardcoded user 196 like legacy code)
+            # Authenticate and use configured service user for DocuSign calls
             authenticated = self.sale_id.authenicate_jwt()
-            user = self.env['res.users'].browse(196)
+            user = self.env['res.users']._get_contract_docusign_user()
             
             _logger.info("[DocuSign Status Check] Starting for connector %s - Total lines: %s", 
                         self.id, len(self.connector_line_ids))

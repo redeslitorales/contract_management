@@ -4,6 +4,7 @@ from . import contract_dashboard
 from . import sale_order
 from . import subscription_closure
 from . import docusign_connector
+from . import docusign_connector_line_ext
 from . import res_users
 from . import res_partner
 from . import product_category

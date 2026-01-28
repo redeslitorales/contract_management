@@ -149,6 +149,11 @@
                             </div>
                             
                             <div class="card-footer text-end">
+                                <t t-if="not (contract.docusign_status == 'completed' and contract.has_signed_documents)">
+                                    <a t-attf-href="/my/contracts/#{contract.id}/sign" class="btn btn-primary me-2">
+                                        <i class="fa fa-pencil-square-o" title="Sign contract"/> Sign Contract
+                                    </a>
+                                </t>
                                 <a href="/my/services" class="btn btn-secondary">
                                     <i class="fa fa-arrow-left"/> Back to My Services
                                 </a>
@@ -313,6 +318,75 @@
                         </div>
                     </div>
                 </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- Embedded signing return page -->
+    <template id="docusign_return_page" name="DocuSign Return">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure oe_empty py-5">
+                <div class="container">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <div class="card shadow-sm">
+                                <div class="card-body text-center py-5">
+                                    <t t-if="status == 'completed'">
+                                        <i class="fa fa-check-circle text-success" style="font-size:72px;"/>
+                                        <h2 class="mt-3">Firma completada</h2>
+                                        <p class="text-muted">Gracias por firmar el contrato. Puede cerrar esta ventana.</p>
+                                    </t>
+                                    <t t-elif="status == 'canceled'">
+                                        <i class="fa fa-pause-circle text-warning" style="font-size:72px;"/>
+                                        <h2 class="mt-3">Firma interrumpida</h2>
+                                        <p class="text-muted">Puedes reanudar la firma desde el portal cuando estés listo.</p>
+                                    </t>
+                                    <t t-elif="status == 'declined'">
+                                        <i class="fa fa-times-circle text-danger" style="font-size:72px;"/>
+                                        <h2 class="mt-3">Firma rechazada</h2>
+                                        <p class="text-muted">Hemos registrado tu decisión. Si fue un error, contáctanos.</p>
+                                    </t>
+                                    <t t-else="">
+                                        <i class="fa fa-info-circle text-primary" style="font-size:72px;"/>
+                                        <h2 class="mt-3">Volviste de DocuSign</h2>
+                                        <p class="text-muted">Tu estado: <t t-esc="status or 'desconocido'"/></p>
+                                    </t>
+                                    <a t-attf-href="/my/contract/${contract.id}" class="btn btn-primary mt-3">Volver al portal</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Portal signing error page -->
+    <template id="portal_sign_error" name="Portal Sign Error">
+        <t t-call="portal.portal_layout">
+            <div class="container my-5">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="alert alert-danger shadow-sm" role="alert">
+                            <div class="d-flex align-items-start">
+                                <i class="fa fa-exclamation-triangle fa-2x me-3" aria-hidden="true"/>
+                                <div>
+                                    <h4 class="alert-heading">No pudimos iniciar la firma</h4>
+                                    <p class="mb-2"><t t-esc="reason or _('Ocurrió un problema al preparar la firma embebida.')"/></p>
+                                    <p class="mb-0 text-muted">Reenvíe el contrato desde Odoo para generar el sobre y el enlace de firma, luego intente nuevamente.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <a t-attf-href="/my/contract/#{contract.id if contract else ''}" class="btn btn-secondary me-2">
+                                <i class="fa fa-arrow-left"/> Volver al contrato
+                            </a>
+                            <a href="/my/services" class="btn btn-outline-secondary">
+                                <i class="fa fa-home"/> Mis servicios
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </t>
     </template>

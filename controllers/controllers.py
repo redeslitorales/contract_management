@@ -5,6 +5,8 @@ import requests
 import logging
 import hmac
 import hashlib
+from urllib.parse import urlparse, urljoin
+from odoo.addons.odoo_docusign.models import docu_client
 from odoo import http, models, fields, _
 from odoo.http import request
 from odoo.exceptions import ValidationError, AccessError
@@ -150,6 +152,96 @@ class ContractPortal(CustomerPortal):
         
         return values
 
+    def _build_return_url(self, contract_id):
+        """Return the DocuSign embedded return URL (explicit or auto-built)."""
+        IrConfigParameter = request.env['ir.config_parameter'].sudo()
+        base_return = IrConfigParameter.get_param('contract_management.docusign_embedded_return_url')
+        if base_return:
+            return f"{base_return}?contract_id={contract_id}"
+
+        base_host = request.httprequest.host_url.rstrip('/')
+        return f"{base_host}/docusign/return?contract_id={contract_id}"
+
+    def _start_embedded_signing(self, contract_sudo, line_sudo, source='portal'):
+        """Centralized embedded signing launch (portal, magic-link, in-person)."""
+        if not line_sudo.envelope_id:
+            raise ValidationError(_('Falta el sobre (envelope) de DocuSign para este destinatario.'))
+
+        client_user_id = line_sudo.client_user_id or str(contract_sudo.id)
+        updates = {}
+        if not line_sudo.client_user_id:
+            updates['client_user_id'] = client_user_id
+        if updates:
+            line_sudo.write(updates)
+        if not contract_sudo.docusign_client_user_id:
+            contract_sudo.sudo().write({'docusign_client_user_id': client_user_id})
+
+        return_url = self._build_return_url(contract_sudo.id)
+        signer_email = line_sudo._get_recipient_email()
+        signer_name = line_sudo.partner_id.name
+
+        env_sudo = request.env['ir.config_parameter'].sudo().env
+        signing_url = docu_client.create_recipient_view(
+            env_sudo,
+            request.env.user,
+            line_sudo.envelope_id,
+            signer_name,
+            signer_email,
+            client_user_id,
+            return_url,
+        )
+        _logger.info(
+            "[EmbeddedSign] Source=%s contract=%s envelope=%s raw_url=%s",
+            source,
+            contract_sudo.id,
+            line_sudo.envelope_id,
+            signing_url,
+        )
+
+        parsed = urlparse(signing_url)
+        needs_normalization = (
+            (not parsed.scheme or parsed.scheme.lower() not in ('http', 'https'))
+            or not parsed.netloc
+            or parsed.netloc == request.httprequest.host.split(':')[0]
+        )
+        _logger.info(
+            "[EmbeddedSign] Parsed signing URL scheme=%s netloc=%s path=%s needs_normalization=%s",
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            needs_normalization,
+        )
+        if needs_normalization:
+            config = docu_client._get_docusign_config(request.env)
+            base_uri = (config.get('base_uri') or '').rstrip('/')
+            if base_uri:
+                base_parts = urlparse(base_uri)
+                base_root = f"{base_parts.scheme}://{base_parts.netloc}" if base_parts.scheme and base_parts.netloc else base_uri
+                signing_url = urljoin(base_root + '/', signing_url.lstrip('/'))
+                _logger.info("[EmbeddedSign] Normalized signing URL to %s", signing_url)
+            else:
+                _logger.warning("[EmbeddedSign] Missing base_uri while normalizing signing URL %s", signing_url)
+
+        now = fields.Datetime.now()
+        line_sudo.write({
+            'embedded_signing_url': signing_url,
+            'embedded_started_at': now,
+            'embedded_event': f'started:{source}',
+        })
+        contract_sudo.sudo().write({
+            'docusign_embedded_signing_url': signing_url,
+            'docusign_embedded_status': 'started',
+        })
+
+        contract_sudo.message_post(
+            body=(
+                _("Embedded signing link generated (%s). If needed, copy this URL for the customer: %s")
+                % (source, signing_url)
+            )
+        )
+
+        return signing_url
+
     @http.route(['/my/contract/<int:contract_id>'], type='http', auth='user', website=True, sitemap=False)
     def portal_my_contract(self, contract_id=None, access_token=None, **kw):
         """Display contract details in customer portal."""
@@ -162,8 +254,9 @@ class ContractPortal(CustomerPortal):
         if contract_sudo.partner_id != request.env.user.partner_id:
             return request.redirect('/my')
         
-        # Verify signature is completed and documents exist
-        if contract_sudo.docusign_status != 'completed' or not contract_sudo.has_signed_documents:
+        has_embedded = bool(contract_sudo.docusign_client_user_id)
+        is_completed = contract_sudo.docusign_status == 'completed' and contract_sudo.has_signed_documents
+        if not (has_embedded or is_completed):
             return request.redirect('/my/services')
         
         values = {
@@ -195,6 +288,176 @@ class ContractPortal(CustomerPortal):
             return request.redirect('/my/contract/%s' % contract_id)
             
         return http.Stream.from_attachment(attachment).get_response()
+
+    @http.route(['/my/contracts/<int:contract_id>/sign'], type='http', auth='user', website=True, sitemap=False)
+    def portal_contract_sign(self, contract_id=None, access_token=None, **kw):
+        """Start embedded signing for a contract using DocuSign Recipient View."""
+        try:
+            contract_sudo = self._document_check_access('contract.management', contract_id, access_token)
+        except (AccessError, ValidationError):
+            _logger.warning("[PortalSign] Access check failed for contract %s", contract_id)
+            return request.redirect('/my')
+
+        if contract_sudo.partner_id != request.env.user.partner_id:
+            _logger.warning(
+                "[PortalSign] Partner mismatch. Contract partner %s, user partner %s",
+                contract_sudo.partner_id.id,
+                request.env.user.partner_id.id,
+            )
+            return request.redirect('/my')
+
+        connector = contract_sudo.docusign_id.sudo()
+        if not connector:
+            _logger.error("[PortalSign] Missing connector for contract %s", contract_sudo.id)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract_sudo,
+                'reason': _('No se encontró el registro de DocuSign para este contrato.'),
+            })
+
+        line = connector.connector_line_ids.filtered(lambda l: l.partner_id == contract_sudo.partner_id)[:1]
+        if not line:
+            _logger.error("[PortalSign] Missing connector line for partner %s on connector %s", contract_sudo.partner_id.id, connector.id)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract_sudo,
+                'reason': _('No se encontró un destinatario de DocuSign asociado a este cliente.'),
+            })
+
+        if not line.envelope_id:
+            _logger.error("[PortalSign] Missing envelope_id on line %s for contract %s", line.id, contract_sudo.id)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract_sudo,
+                'reason': _('El sobre (envelope) de DocuSign aún no existe para este contrato. Reenvíe el contrato desde Odoo para generar el sobre.'),
+            })
+
+        if not line.client_user_id:
+            _logger.error("[PortalSign] Missing client_user_id on line %s for contract %s", line.id, contract_sudo.id)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract_sudo,
+                'reason': _('Falta el identificador de firma embebida (client_user_id). Reenvíe el contrato desde Odoo para regenerarlo.'),
+            })
+
+        try:
+            signing_url = self._start_embedded_signing(contract_sudo, line.sudo(), source='portal')
+        except ValidationError:
+            _logger.exception(
+                "[PortalSign] DocuSign recipient view failed for contract %s, envelope %s, client_user_id %s",
+                contract_sudo.id,
+                line.envelope_id,
+                line.client_user_id,
+            )
+            return request.redirect('/my/contract/%s' % contract_id)
+        return request.redirect(signing_url, local=False)
+
+    @http.route(['/contracts/sign/<string:token>'], type='http', auth='public', website=True, csrf=False)
+    def contract_sign_magic_link(self, token=None, **kw):
+        """Magic-link signing entry point (no login required)."""
+        line, error = request.env['docusign.connector.lines'].resolve_magic_token(token)
+        if error:
+            reason_map = {
+                'missing': _('Falta el token de firma.'),
+                'not_found': _('El enlace de firma ya no es válido.'),
+                'used': _('Este enlace ya fue usado.'),
+                'expired': _('Este enlace de firma ha expirado. Solicite uno nuevo.'),
+            }
+            return request.render('contract_management.portal_sign_error', {
+                'contract': False,
+                'reason': reason_map.get(error, _('No se pudo validar el enlace de firma.')),
+            })
+
+        line = line.sudo()
+        connector = line.record_id
+        contract = request.env['contract.management'].sudo().search([('docusign_id', '=', connector.id)], limit=1)
+        if not contract:
+            return request.render('contract_management.portal_sign_error', {
+                'contract': False,
+                'reason': _('No se encontró un contrato asociado a este enlace.'),
+            })
+        if line.partner_id != contract.partner_id:
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract,
+                'reason': _('El enlace no corresponde a este cliente.'),
+            })
+
+        try:
+            signing_url = self._start_embedded_signing(contract, line, source='magic-link')
+            line.consume_magic_token()
+        except ValidationError as exc:
+            _logger.exception("[MagicLinkSign] Failed to start signing for contract %s: %s", contract.id, exc)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract,
+                'reason': _('No se pudo iniciar la firma. Reenvíe el enlace.'),
+            })
+
+        return request.redirect(signing_url, local=False)
+
+    @http.route(['/contracts/sign/in_person/<int:contract_id>'], type='http', auth='user', website=True, sitemap=False)
+    def contract_sign_in_person(self, contract_id=None, **kw):
+        """In-person embedded signing launch for staff on a shared device."""
+        if not request.env.user.has_group('base.group_user'):
+            return request.redirect('/my')
+
+        contract = request.env['contract.management'].sudo().browse(int(contract_id))
+        if not contract or not contract.exists():
+            return request.redirect('/my')
+
+        connector = contract.docusign_id
+        line = connector.connector_line_ids.filtered(lambda l: l.partner_id == contract.partner_id)[:1]
+        if not line:
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract,
+                'reason': _('No se encontró un destinatario de DocuSign asociado a este cliente.'),
+            })
+
+        try:
+            signing_url = self._start_embedded_signing(contract, line.sudo(), source='in-person')
+        except ValidationError as exc:
+            _logger.exception("[InPersonSign] Failed to start signing for contract %s: %s", contract.id, exc)
+            return request.render('contract_management.portal_sign_error', {
+                'contract': contract,
+                'reason': _('No se pudo iniciar la firma en persona.'),
+            })
+
+        return request.redirect(signing_url, local=False)
+
+    @http.route(['/docusign/return'], type='http', auth='public', website=True, csrf=False)
+    def docusign_return(self, contract_id=None, event=None, **kw):
+        """Handle DocuSign return URL for embedded signing."""
+        if not contract_id:
+            return request.redirect('/my')
+
+        contract = request.env['contract.management'].sudo().browse(int(contract_id))
+        if not contract or not contract.exists():
+            return request.redirect('/my')
+
+        connector = contract.docusign_id
+        line = connector.connector_line_ids.filtered(lambda l: l.partner_id == contract.partner_id)[:1]
+
+        event = event or request.params.get('event') or request.params.get('eventParam')
+        new_status = 'started'
+        completed_at = False
+        if event in ('signing_complete', 'completed'):
+            new_status = 'completed'
+            completed_at = fields.Datetime.now()
+        elif event in ('cancel', 'canceled'):
+            new_status = 'canceled'
+        elif event in ('decline', 'declined'):
+            new_status = 'declined'
+
+        if line:
+            line.write({
+                'embedded_event': event,
+                'embedded_completed_at': completed_at,
+            })
+
+        contract.write({
+            'docusign_embedded_status': new_status,
+        })
+
+        return request.render('contract_management.docusign_return_page', {
+            'contract': contract,
+            'event': event,
+            'status': new_status,
+        })
 
 
 class SaleOrderConfirmationController(http.Controller):

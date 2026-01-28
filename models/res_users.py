@@ -233,3 +233,33 @@ class ResUserCustom(models.Model):
                 'interval_number': 28,
                 'interval_type': 'days',
             })
+
+
+        return self.sudo()
+
+    @api.model
+    def _get_contract_docusign_user(self):
+        """Resolve DocuSign service user for contract flows."""
+
+        params = self.env['ir.config_parameter'].sudo()
+
+        configured_user_id = params.get_param('contract_management.docusign_service_user_id')
+        if configured_user_id:
+            try:
+                user = self.browse(int(configured_user_id))
+                if user and user.exists():
+                    return user.sudo()
+            except Exception:
+                _logger.warning("Invalid docusign_service_user_id param: %s", configured_user_id)
+
+        configured_login = params.get_param('contract_management.docusign_service_user_login')
+        if configured_login:
+            user = self.search([('login', '=', configured_login)], limit=1)
+            if user:
+                return user.sudo()
+
+        legacy_user = self.browse(196)
+        if legacy_user and legacy_user.exists():
+            return legacy_user.sudo()
+
+        return self.env.user.sudo()
