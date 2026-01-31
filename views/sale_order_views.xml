@@ -66,18 +66,6 @@
                                 
                                 <div style="flex: 0; padding: 0 5px;">→</div>
                                 
-                                <!-- Cabal Sign Stage - Not clickable (internal signing) -->
-                                <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_cabal_signature'">
-                                    <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(359%) hue-rotate(72deg) brightness(91%) contrast(87%);"/><br/>
-                                    <small style="font-weight: bold;">Cabal Sign</small>
-                                </div>
-                                <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_cabal_signature'">
-                                    <img src="/contract_management/static/description/cabal.ico" style="width: 32px; height: 32px; opacity: 0.4;"/><br/>
-                                    <small>Cabal Sign</small>
-                                </div>
-                                
-                                <div style="flex: 0; padding: 0 5px;">→</div>
-                                
                                 <!-- Schedule Install Stage - Clickable button when to_be_schedule, grey fallback otherwise -->
                                 <button name="action_schedule_install_task" type="object" 
                                         style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"

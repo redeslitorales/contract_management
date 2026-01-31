@@ -55,3 +55,10 @@ class ResConfigSettings(models.TransientModel):
         help='Template name used to send quotes over WhatsApp (legacy provider).',
         config_parameter='wa_template_quote',
     )
+
+    force_quote_email_only = fields.Boolean(
+        string='Send Quotes via Email Only',
+        help='Disable WhatsApp delivery for quotations and always send them by email.',
+        config_parameter='contract_management.force_quote_email_only',
+        default=True,
+    )

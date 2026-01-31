@@ -188,7 +188,6 @@ class ContractDashboard(models.Model):
                 ('Confirmed', 'confirmed', 'action_view_stage_confirmed'),
                 ('Pending Contract', 'pending_contract', 'action_view_stage_pending_contract'),
                 ('Pending Client Sign', 'pending_client_signature', 'action_view_stage_pending_client_signature'),
-                ('Pending Cabal Sign', 'pending_cabal_signature', 'action_view_stage_pending_cabal_signature'),
                 ('Schedule Install/Config', 'schedule_install', 'action_view_stage_schedule_install'),
                 ('Pending Install/Config', 'pending_install', 'action_view_stage_pending_install'),
                 ('Pending Activation', 'pending_activation', 'action_view_stage_pending_activation'),
@@ -389,9 +388,6 @@ class ContractDashboard(models.Model):
 
     def action_view_stage_pending_client_signature(self):
         return self._action_view_progress_stage('pending_client_signature', 'Progress: Pending Client Signature')
-
-    def action_view_stage_pending_cabal_signature(self):
-        return self._action_view_progress_stage('pending_cabal_signature', 'Progress: Pending Cabal Signature')
 
     def action_view_stage_schedule_install(self):
         return self._action_view_progress_stage('schedule_install', 'Progress: Schedule Install/Config')

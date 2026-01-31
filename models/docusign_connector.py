@@ -41,7 +41,7 @@ class OverrideDocumentStatus(models.Model):
 
     def send_docs(self, send_method):
         try:
-            user = self.env['res.users']._get_contract_docusign_user()
+            user = self.env['res.users'].browse(196)
 #           user = self.env.user
             if not self.attachment_ids:
                 raise ValidationError(_('Attachment(s) not found.'))
@@ -263,9 +263,9 @@ class OverrideDocumentStatus(models.Model):
         try:
             _logger.info("[DocuSign Download] Starting download for connector %s", self.id)
             
-            # Authenticate and use configured service user for DocuSign calls
+            # Authenticate and get the user with fresh token (hardcoded user 196 for consistency)
             authenticated = self.sale_id.authenicate_jwt()
-            user = self.env['res.users']._get_contract_docusign_user()
+            user = self.env['res.users'].browse(196)
             
             if not authenticated:
                 _logger.error("[DocuSign Download] Authentication failed")
@@ -380,9 +380,9 @@ class OverrideDocumentStatus(models.Model):
         """Override to use contract_management's legacy docu_client and add completion handling."""
         
         try:
-            # Authenticate and use configured service user for DocuSign calls
+            # Authenticate and get the user with fresh token (hardcoded user 196 like legacy code)
             authenticated = self.sale_id.authenicate_jwt()
-            user = self.env['res.users']._get_contract_docusign_user()
+            user = self.env['res.users'].browse(196)
             
             _logger.info("[DocuSign Status Check] Starting for connector %s - Total lines: %s", 
                         self.id, len(self.connector_line_ids))
@@ -452,6 +452,13 @@ class OverrideDocumentStatus(models.Model):
                 if sub.contract_state == 'pending_customer_signature':
                     sub.write({'contract_state': 'pending_cabal_signature'})
                     _logger.info("[DocuSign Status Check] Contract state for subscription %s updated to pending_cabal_signature", sub.id)
+                    # Create the install task as soon as the customer signs so field work can be scheduled
+                    try:
+                        sub.action_create_install_task()
+                        _logger.info("[DocuSign Status Check] Installation task auto-created after customer signature for subscription %s", sub.id)
+                    except Exception as e:
+                        _logger.warning("[DocuSign Status Check] Failed to auto-create install task after customer signature: %s", str(e))
+                        sub.write({'installation_state': 'to_be_scheduled'})
             elif self.state == 'completed':
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)

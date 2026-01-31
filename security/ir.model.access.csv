@@ -25,4 +25,6 @@ access_change_payment_date_wizard,access.change.payment.date.wizard,model_change
 access_change_payment_date_batch_wizard,access.change.payment.date.batch.wizard,model_change_payment_date_batch_wizard,base.group_user,1,1,1,0
 access_payment_day_change_log,access.payment.day.change.log,model_payment_day_change_log,base.group_user,1,0,1,0
 access_contract_resend_wizard,access.contract.resend.wizard,model_contract_resend_wizard,base.group_user,1,1,1,0
+access_contract_auto_renew_type_user,access.contract.auto.renew.type.user,model_contract_auto_renew_type,base.group_user,1,1,1,1
+access_contract_auto_renew_type_manager,access.contract.auto.renew.type.manager,model_contract_auto_renew_type,base.group_system,1,1,1,1
 

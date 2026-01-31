@@ -21,6 +21,8 @@ SUBSCRIPTION_DRAFT_STATE = ['1_draft', '2_renewal', '7_upsell']
 SUBSCRIPTION_ACTIVE_STATE = ['3_progress', '4_paused', '5_renewed']
 SUBSCRIPTION_SUSPENDED_STATE = ['8_suspend']
 
+ACTIVE_CONTRACT_STATES = ['active', 'renewal_due', 'auto_renewed']
+
 CONTRACT_SEND_METHODS = [
         ('whatsapp', 'WhatsApp'),
         ('email', 'Email'),
@@ -33,14 +35,16 @@ STATE_FLOW = [
     'draft',
     'active',
     'renewal_due',
+    'auto_renewed',
     'expired',
     'terminated',
 ]
 
 ALLOWED_STATE_TRANSITIONS = {
     'draft': ['active'],
-    'active': ['renewal_due', 'expired', 'terminated'],
-    'renewal_due': ['active', 'expired', 'terminated'],
+    'active': ['renewal_due', 'auto_renewed', 'expired', 'terminated'],
+    'renewal_due': ['active', 'auto_renewed', 'expired', 'terminated'],
+    'auto_renewed': ['renewal_due', 'expired', 'terminated'],
     'expired': ['terminated'],
     'terminated': [],
 }
@@ -58,6 +62,15 @@ class ContractManagement(models.Model):
     _description = 'Contract Management'
     _inherit = ['mail.thread', 'mail.activity.mixin', 'portal.mixin']
 
+    def init(self):
+        super().init()
+        self.env.cr.execute("""
+            UPDATE contract_management
+               SET auto_renew_decision = 'proceed'
+             WHERE auto_renew_decision IS NULL
+                OR auto_renew_decision NOT IN ('proceed', 'do_not_proceed')
+        """)
+
     name = fields.Char(related="subscription_id.cabal_sequence", string='Contract Number', readonly=True)
     partner_id = fields.Many2one(related='subscription_id.partner_id', string='Customer', required=True)
     start_date = fields.Date(related="subscription_id.start_date", string='Start Date')
@@ -66,6 +79,7 @@ class ContractManagement(models.Model):
         ('draft', 'Draft'),
         ('active', 'Active'),
         ('renewal_due', 'Renewal Due'),
+        ('auto_renewed', 'Auto Renewed'),
         ('expired', 'Expired'),
         ('terminated', 'Terminated')
     ], string='Status', default='draft', tracking=True)
@@ -145,6 +159,13 @@ class ContractManagement(models.Model):
     )
     addendum_ids = fields.One2many('contract.addendum', 'contract_id', string='Addendums')
     addendum_count = fields.Integer(string='Addendum Count', compute='_compute_addendum_count')
+    auto_renew_type_id = fields.Many2one('contract.auto.renew.type', string='Auto Renew Type')
+    auto_renew_decision = fields.Selection([
+        ('proceed', 'Proceed'),
+        ('do_not_proceed', 'Do Not Proceed'),
+    ], string='Auto Renew Decision', default='proceed', tracking=True)
+    auto_renew_opt_out = fields.Boolean(string='Auto Renew Opt-Out', tracking=True)
+    client_termination_notice_date = fields.Date(string='Client Termination Notice Date', tracking=True)
 
     @api.depends(
         'subscription_id.subscription_state',
@@ -295,7 +316,7 @@ class ContractManagement(models.Model):
         today = fields.Date.context_today(self)
 
         contracts = self.search([
-            ('state', '=', 'active'),
+            ('state', 'in', ACTIVE_CONTRACT_STATES),
             ('end_date', '!=', False),
         ])
 
@@ -455,7 +476,7 @@ class ContractManagement(models.Model):
 
         contracts = self.search([
             ('end_date', '!=', False),
-            ('state', 'in', ['active', 'renewal_due']),
+            ('state', 'in', ACTIVE_CONTRACT_STATES),
             ('renewal_state', 'in', ['not_started', 'in_progress', 'sent_for_signature']),
         ])
 
@@ -485,6 +506,43 @@ class ContractManagement(models.Model):
                 contract.renewal_lead_id.message_post(
                     body=_('Contract expired; customer is now Month-to-Month (service continues).')
                 )
+
+    @api.model
+    def cron_auto_renew_contracts(self):
+        """Auto-renew eligible contracts by extending the end date."""
+        today = fields.Date.context_today(self)
+        contracts = self.search([
+            ('state', 'in', ACTIVE_CONTRACT_STATES),
+            ('end_date', '!=', False),
+            ('end_date', '<=', today),
+            ('auto_renew_type_id', '!=', False),
+            ('auto_renew_opt_out', '=', False),
+            ('auto_renew_decision', '!=', 'do_not_proceed'),
+            ('auto_renew_type_id.active', '=', True),
+        ])
+
+        for contract in contracts:
+            # Skip if client already notified termination on/before end date
+            if contract.client_termination_notice_date and contract.client_termination_notice_date <= contract.end_date:
+                continue
+
+            months = contract.auto_renew_type_id.months_to_extend or 1
+            old_end = contract.end_date
+            new_end = old_end + relativedelta(months=months)
+
+            contract.write({
+                'end_date': new_end,
+                'state': 'auto_renewed',
+                'renewal_state': 'not_started',
+            })
+
+            contract.message_post(
+                body=_('Contract auto-renewed by %(months)s months: %(old)s → %(new)s.') % {
+                    'months': months,
+                    'old': old_end,
+                    'new': new_end,
+                }
+            )
 
     @api.model
     def cron_expire_contracts(self):
@@ -609,11 +667,13 @@ class ContractManagement(models.Model):
         res = super().write(vals)
 
         # Keep sale order contract_state in sync for terminal/active states
-        if state_update and target_state in ['active', 'expired', 'terminated']:
+        if state_update and target_state in ['active', 'auto_renewed', 'expired', 'terminated']:
             for contract in self:
                 subscription = contract.subscription_id
                 if subscription:
-                    subscription.write({'contract_state': target_state})
+                    # Treat auto_renewed as active on the subscription
+                    sub_state = 'active' if target_state == 'auto_renewed' else target_state
+                    subscription.write({'contract_state': sub_state})
 
         return res
 
@@ -667,8 +727,8 @@ class ContractManagement(models.Model):
 
     def action_open_termination_wizard(self):
         self.ensure_one()
-        if self.state not in ['active', 'renewal_due']:
-            raise UserError(_('Only active or renewal-due contracts can be terminated.'))
+        if self.state not in ['active', 'renewal_due', 'auto_renewed']:
+            raise UserError(_('Only active, auto-renewed, or renewal-due contracts can be terminated.'))
         return {
             'type': 'ir.actions.act_window',
             'name': _('Terminate Contract'),
@@ -684,7 +744,10 @@ class ContractManagement(models.Model):
     def check_renewal_due_contracts(self):
         today = date.today()
         renewal_due_date = today + timedelta(days=180)
-        renewal_due_contracts = self.search([('end_date', '<=', renewal_due_date), ('state', '=', 'active')])
+        renewal_due_contracts = self.search([
+            ('end_date', '<=', renewal_due_date),
+            ('state', 'in', ACTIVE_CONTRACT_STATES),
+        ])
         for contract in renewal_due_contracts:
             contract.state = 'renewal_due'
     
@@ -1195,6 +1258,17 @@ class ContractManagement(models.Model):
                 'default_contract_send_method': self.contract_send_method,
             }
         }
+
+
+class ContractAutoRenewType(models.Model):
+    _name = 'contract.auto.renew.type'
+    _description = 'Contract Auto Renew Type'
+    _order = 'sequence, id'
+
+    name = fields.Char(string='Name', required=True, translate=True)
+    months_to_extend = fields.Integer(string='Months to Extend', required=True, default=12)
+    sequence = fields.Integer(string='Sequence', default=10)
+    active = fields.Boolean(string='Active', default=True)
 
 class ContractService(models.Model):
     _name = 'contract.service'

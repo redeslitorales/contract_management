@@ -77,6 +77,13 @@ class DocuSignWebhookController(http.Controller):
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
                         if subscription.contract_state in ['pending_customer_signature', 'pending_contract', 'pending_cabal_signature']:
                             subscription.contract_state = 'pending_cabal_signature'
+                            # Create the install task as soon as the customer signature is done
+                            try:
+                                subscription.action_create_install_task()
+                                _logger.info("[DocuSign Webhook] Installation task auto-created after customer signature for subscription %s", subscription.id)
+                            except Exception as e:
+                                _logger.warning("[DocuSign Webhook] Failed to auto-create install task after customer signature: %s", str(e))
+                                subscription.write({'installation_state': 'to_be_scheduled'})
                         else:
                             # Post warning to subscription chatter
                             subscription.message_post(

@@ -101,6 +101,17 @@
                                 </div>
                             </div>
                         </setting>
+                        <setting>
+                            <label for="force_quote_email_only" string="Send Quotes via Email Only"/>
+                            <div class="text-muted">
+                                Disable WhatsApp delivery for quotations and always send them by email.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="force_quote_email_only"/>
+                                </div>
+                            </div>
+                        </setting>
                     </block>
                 </app>
             </xpath>

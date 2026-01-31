@@ -313,14 +313,21 @@ class SaleSubscription(models.Model):
                 # Pending client signature: contract_state pending_customer_signature
                 elif contract_state == 'pending_customer_signature':
                     order.progress_stage = 'pending_client_signature'
-                # Pending Cabal signature: contract_state pending_cabal_signature
-                elif contract_state == 'pending_cabal_signature':
-                    order.progress_stage = 'pending_cabal_signature'
                 # Schedule install: installation_state to_be_scheduled
-                elif order.installation_state == 'to_be_scheduled' or order.configuration_state == 'to_be_scheduled':
+                elif (
+                    contract_state == 'pending_cabal_signature'
+                    or order.installation_state == 'to_be_scheduled'
+                    or order.configuration_state == 'to_be_scheduled'
+                ):
                     order.progress_stage = 'schedule_install'
                 # Pending install: installation_state scheduled or pending_install
-                elif order.installation_state =='scheduled' or order.configuration_state == 'scheduled':
+                elif (
+                    contract_state == 'pending_cabal_signature'
+                    and (
+                        order.installation_state == 'scheduled'
+                        or order.configuration_state == 'scheduled'
+                    )
+                ) or order.installation_state =='scheduled' or order.configuration_state == 'scheduled':
                     order.progress_stage = 'pending_install'
                 # Active with issues should override contract-sign steps, but only after we surface scheduling states
                 elif sub_state == '3_progress' and (
@@ -1264,79 +1271,248 @@ class SaleSubscription(models.Model):
         }
 
     def action_quotation_send(self):
-        """Override to send quote automatically in prod, preferring WhatsApp when requested."""
+        """Send quote via WhatsApp template when possible; fallback to email."""
         self.ensure_one()
 
-        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
-        is_production = base_url.startswith('https://servicio.')
+        ICP = self.env['ir.config_parameter'].sudo()
+
+        base_url = ICP.get_param('web.base.url', '')
+        logo_url = (ICP.get_param('wa_logo_file', '') or '').strip()
 
         _logger.info(
-            "[QuoteSend] action_quotation_send order=%s id=%s base_url=%s is_production=%s",
+            "[QuoteSend] action_quotation_send order=%s id=%s base_url=%s",
             self.name,
             self.id,
             base_url,
-            is_production,
         )
-
-        if not is_production:
-            _logger.info("[QuoteSend] Non-production environment, opening email composer dialog")
-            return super().action_quotation_send()
 
         partner_for_comm = self.partner_id.commercial_partner_id or self.partner_id
         prefers_whatsapp = bool(getattr(partner_for_comm, 'preference_wa', False))
         whatsapp_number = partner_for_comm.whatsapp or ''
         can_use_whatsapp = prefers_whatsapp and bool(whatsapp_number)
 
+        # Temporary kill-switch: force quotations to be sent by email only
+        force_email_only = ICP.get_param('contract_management.force_quote_email_only', '1')
+        force_email_only = (force_email_only or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        if force_email_only and can_use_whatsapp:
+            _logger.info("[QuoteSend] WhatsApp sending disabled via config; using email for order %s", self.name)
+            can_use_whatsapp = False
+
+        pdf_base64 = None
         if can_use_whatsapp:
-            confirmation_link = self.confirmation_url or self.get_portal_url()
-            message_body = _(
-                "Hola %(name)s, tu cotizacion %(order)s esta lista. "
-                "Revisa y confirma aqui: %(link)s"
-            ) % {
-                'name': partner_for_comm.name,
-                'order': self.name,
-                'link': confirmation_link,
-            }
-
-            try:
-                self.env['whatsapp.comm']._send_cloud_text(
-                    to_phone=whatsapp_number,
-                    body=message_body,
-                    log_vals={
-                        'partner_id': partner_for_comm.id,
-                        'sale_order': self.id,
-                        'template_name': 'quote_confirmation_whatsapp',
-                    },
-                )
-
-                if self.state in ('draft', 'sent'):
-                    self.write({'state': 'sent'})
-
-                self.message_post(
-                    body=_('Quotation sent automatically via WhatsApp to %s.') % whatsapp_number,
-                    subtype_xmlid='mail.mt_note',
-                    message_type='comment',
-                )
-
-                _logger.info("[QuoteSend] WhatsApp message queued successfully for order %s", self.name)
-
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('Quotation Queued'),
-                        'message': _('Quotation will be sent via WhatsApp to %s shortly.') % whatsapp_number,
-                        'type': 'success',
-                        'sticky': False,
-                    }
-                }
-            except Exception as exc:
+            action_report = self.env.ref('sale.action_report_saleorder', raise_if_not_found=False)
+            if not action_report:
                 _logger.warning(
-                    "[QuoteSend] WhatsApp send failed for order %s, falling back to email: %s",
+                    "[QuoteSend] Missing report action sale.action_report_saleorder; skipping WhatsApp send for %s",
                     self.name,
-                    exc,
-                    exc_info=True,
                 )
+                can_use_whatsapp = False
+            else:
+                try:
+                    pdf_content, _report_format = action_report._render_qweb_pdf(
+                        report_ref='sale.action_report_saleorder',
+                        res_ids=self.ids,
+                    )
+                    pdf_base64 = base64.b64encode(pdf_content).decode('utf-8') if pdf_content else None
+                    if not pdf_base64:
+                        _logger.warning(
+                            "[QuoteSend] Empty PDF content for order %s; skipping WhatsApp send",
+                            self.name,
+                        )
+                        can_use_whatsapp = False
+                except Exception as exc:
+                    _logger.warning(
+                        "[QuoteSend] Failed to render PDF for order %s; skipping WhatsApp send: %s",
+                        self.name,
+                        exc,
+                        exc_info=True,
+                    )
+                    can_use_whatsapp = False
+
+        if can_use_whatsapp:
+            _logger.info(
+                "[QuoteSend] Partner %s prefers WhatsApp and has number %s",
+                partner_for_comm.name,
+                whatsapp_number,
+            )
+            confirmation_link = self.confirmation_url or self.get_portal_url()
+            WhatsApp = self.env['whatsapp.comm']
+
+            normalized_phone = WhatsApp.normalize_phone(whatsapp_number)
+            client_phone = f"+{normalized_phone}" if normalized_phone else None
+
+            if client_phone:
+                context_info = f"quote {self.id} to {partner_for_comm.name} ({client_phone})"
+                recipient_phone, test_mode = WhatsApp._apply_test_mode_phone(client_phone, context_info)
+                _logger.info(
+                    "[QuoteSend] Preparing WhatsApp template 'quote_confirmation' for order %s to phone %s (test_mode=%s)",
+                    self.name,
+                    recipient_phone,
+                    test_mode,
+                )
+
+                safe_link = confirmation_link or ''
+                button_param = safe_link
+                if 'confirm_sale_order' in safe_link:
+                    button_param = safe_link.split('confirm_sale_order', 1)[1]
+                if not button_param:
+                    button_param = base_url or '/'
+
+                pdf_media_url = None
+                try:
+                    if pdf_base64:
+                        attachment = self.env['ir.attachment'].sudo().create({
+                            'name': f"{self.name}.pdf",
+                            'datas': pdf_base64,
+                            'type': 'binary',
+                            'res_model': self._name,
+                            'res_id': self.id,
+                            'mimetype': 'application/pdf',
+                        })
+
+                        token = attachment.access_token or attachment.generate_access_token()
+                        if isinstance(token, (list, tuple, set)):
+                            token = next(iter(token), '')
+                        if token and not isinstance(token, str):
+                            token = str(token)
+                        try:
+                            attachment.sudo().write({'public': True})
+                        except Exception:
+                            _logger.debug(
+                                "[QuoteSend] Unable to mark attachment %s public for order %s",
+                                attachment.id,
+                                self.name,
+                                exc_info=True,
+                            )
+
+                        filename_param = attachment.name or 'quotation.pdf'
+                        if not filename_param.lower().endswith('.pdf'):
+                            filename_param += '.pdf'
+                        filename_param = filename_param.replace(' ', '_')
+
+                        pdf_media_url = f"{attachment.id}/{filename_param}?download=1"
+                        if token:
+                            pdf_media_url += f"&access_token={token}"
+                except Exception:
+                    _logger.warning(
+                        "[QuoteSend] Failed to create attachment for WhatsApp header on order %s",
+                        self.name,
+                        exc_info=True,
+                    )
+
+                if not pdf_media_url:
+                    _logger.warning(
+                        "[QuoteSend] No media_url available for order %s; skipping WhatsApp send",
+                        self.name,
+                    )
+                    can_use_whatsapp = False
+
+                if can_use_whatsapp and not logo_url:
+                    _logger.warning(
+                        "[QuoteSend] System parameter wa_logo_file is empty; skipping WhatsApp send for %s",
+                        self.name,
+                    )
+                    can_use_whatsapp = False
+
+                if can_use_whatsapp:
+                    rich_template_data = {
+                        "header": {
+                            "type": "image",
+                            "media_url": logo_url,
+                        },
+                        "body": {
+                            "params": [
+                                {"data": partner_for_comm.name or ''},
+                            ]
+                        },
+                        "button": {
+                            "subType": "url",
+                            "params": [
+                                {"data": pdf_media_url or ''},
+                                {"data": button_param},
+                            ],
+                        }
+                    }
+
+                if can_use_whatsapp:
+                    partner_lang = partner_for_comm.lang or 'es'
+                    lang_code = (partner_lang or 'es')[:2]
+
+                    payload = WhatsApp._build_fc_payload(
+                        to_phone=recipient_phone,
+                        template_name='confirm_quotation',
+                        language_code=lang_code,
+                        rich_template_data=rich_template_data,
+                    )
+
+                    try:
+                        result = WhatsApp._send_fc_template_request(payload)
+
+                        if not result.get('success'):
+                            error_msg = result.get('error') or _('Unknown error sending WhatsApp')
+                            raise UserError(error_msg)
+
+                        response = result.get('response') or {}
+
+                        whatsapp_comm = None
+
+                        if response.get('request_id'):
+                            base_vals = {
+                                "name": _("Cotizacion"),
+                                "partner_id": partner_for_comm.id,
+                                "sale_order": self.id,
+                                "to_phone": recipient_phone,
+                                "template_name": 'confirm_quotation',
+                            }
+
+                            whatsapp_comm = WhatsApp._create_fc_whatsapp_log(
+                                base_vals=base_vals,
+                                response_dict=result,
+                                verification_dict=None,
+                                test_mode=test_mode,
+                            )
+
+                        if self.state in ('draft', 'sent'):
+                            self.write({'state': 'sent'})
+
+                        status_link = None
+                        if whatsapp_comm:
+                            status_link = f"/web#id={whatsapp_comm.id}&model=whatsapp.comm&view_type=form"
+
+                        body_message = _('Quotation sent automatically via WhatsApp to %s.') % whatsapp_number
+                        if status_link:
+                            body_message = Markup("%s <a href=\"%s\">%s</a>") % (
+                                html_escape(body_message),
+                                html_escape(status_link),
+                                html_escape(_('View send status')),
+                            )
+
+                        self.message_post(
+                            body=body_message,
+                            subtype_xmlid='mail.mt_note',
+                            message_type='comment',
+                        )
+
+                        _logger.info("[QuoteSend] WhatsApp template queued successfully for order %s", self.name)
+
+                        return {
+                            'type': 'ir.actions.client',
+                            'tag': 'display_notification',
+                            'params': {
+                                'title': _('Quotation Queued'),
+                                'message': _('Quotation will be sent via WhatsApp to %s shortly.') % whatsapp_number,
+                                'type': 'success',
+                                'sticky': False,
+                            }
+                        }
+
+                    except Exception as exc:
+                        _logger.warning(
+                            "[QuoteSend] WhatsApp send failed for order %s, falling back to email: %s",
+                            self.name,
+                            exc,
+                            exc_info=True,
+                        )
 
         if not self.partner_id.email:
             _logger.warning(
@@ -1451,7 +1627,20 @@ class SaleSubscription(models.Model):
             
             # Step 0: Choose delivery method with WhatsApp-first, email fallback
             send_method = contract.contract_send_method or 'whatsapp'
-            if send_method == 'whatsapp' and not contract.partner_id.whatsapp:
+            partner_email = (contract.partner_id.email or '').strip()
+            email_domain = partner_email.split('@')[-1].lower() if '@' in partner_email else ''
+            has_whatsapp = bool(contract.partner_id.whatsapp)
+
+            # If the address is Gmail, prefer WhatsApp delivery when possible
+            if email_domain == 'gmail.com' and has_whatsapp and send_method != 'whatsapp':
+                send_method = 'whatsapp'
+                contract.sudo().write({'contract_send_method': send_method})
+                _logger.info(
+                    "[DocuSign] Gmail domain detected; switching to WhatsApp for contract ID=%s",
+                    contract.id,
+                )
+
+            if send_method == 'whatsapp' and not has_whatsapp:
                 send_method = 'email'
                 contract.sudo().write({'contract_send_method': send_method})
                 _logger.info(
@@ -1922,10 +2111,6 @@ class SaleSubscription(models.Model):
         contract_record = self.env['contract.management'].sudo().search([
             ('subscription_id', '=', contract.id)
         ], limit=1)
-        contract.sudo().write({
-            'contract_magic_token': token,
-            'contract_magic_link': magic_url,
-        })
         if contract_record:
             contract_record.message_post(body=link_msg)
 
@@ -1976,19 +2161,7 @@ class SaleSubscription(models.Model):
         if not client_phone:
             raise ValidationError(_("Número de teléfono inválido"))
         
-        # In non-production, force messages to the configured test phone
-        base_url = ICP.get_param('web.base.url', '')
-        is_production = base_url.startswith('https://servicio.')
-        if not is_production:
-            test_phone = ICP.get_param('wa_test_phone', '+50377459441')
-            _logger.info(
-                "[DocuSign] Non-production env detected, redirecting WhatsApp to test phone %s (was %s)",
-                test_phone,
-                client_phone,
-            )
-            client_phone = test_phone
-
-        context_info = f"magic link contract {self.id}"
+        context_info = f"magic link contract {self.id} to {partner.name} ({client_phone})"
         recipient_phone, test_mode = WhatsApp._apply_test_mode_phone(client_phone, context_info)
 
         partner_lang = partner.lang or ICP.get_param('wa_template_language', 'es_ES')
@@ -2059,28 +2232,20 @@ class SaleSubscription(models.Model):
         """Send the existing contract magic link via WhatsApp template."""
         self.ensure_one()
 
-        token = self.contract_magic_token
-        magic_url = self.contract_magic_link
+        connector = self.docusign_ids.filtered(lambda c: c.connector_line_ids)
+        connector = connector.sorted(key=lambda c: c.id, reverse=True)[:1]
 
-        if not token or not magic_url:
-            connector = self.docusign_ids.filtered(lambda c: c.connector_line_ids)
-            connector = connector.sorted(key=lambda c: c.id, reverse=True)[:1]
+        if not connector:
+            raise ValidationError(_("No DocuSign envelope is available to build a magic link. Send the contract first."))
 
-            if not connector:
-                raise ValidationError(_("No DocuSign envelope is available to build a magic link. Send the contract first."))
+        customer_line = connector.connector_line_ids.filtered(lambda l: l.partner_id.id == self.partner_id.id)[:1]
+        if not customer_line:
+            customer_line = connector.connector_line_ids[:1]
 
-            customer_line = connector.connector_line_ids.filtered(lambda l: l.partner_id.id == self.partner_id.id)[:1]
-            if not customer_line:
-                customer_line = connector.connector_line_ids[:1]
+        if not customer_line:
+            raise ValidationError(_("No DocuSign recipient was found to generate a magic link."))
 
-            if not customer_line:
-                raise ValidationError(_("No DocuSign recipient was found to generate a magic link."))
-
-            token, magic_url = customer_line.generate_magic_link()
-            self.sudo().write({
-                'contract_magic_token': token,
-                'contract_magic_link': magic_url,
-            })
+        token, magic_url = customer_line.generate_magic_link()
 
         return self._send_magic_link_via_whatsapp(self.partner_id, token, magic_url)
 

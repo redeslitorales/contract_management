@@ -6,9 +6,9 @@
         <field name="arch" type="xml">
             <form string="Contract Management">
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,active,renewal_due,expired,terminated" clickable="1"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,active,renewal_due,auto_renewed,expired,terminated" clickable="1"/>
                     <button string="Create Addendum" type="object" name="action_create_addendum"
-                            class="btn-primary" invisible="state not in ['active', 'renewal_due', 'expired']"
+                            class="btn-primary" invisible="state not in ['active', 'renewal_due', 'auto_renewed', 'expired']"
                             icon="fa-plus"/>
                     <button string="Recompute Total Paid" type="object" name="action_recompute_total_paid" 
                             class="btn-primary"
@@ -22,7 +22,7 @@
                             icon="fa-envelope"
                             confirm="This will resend the DocuSign notification via Email using the current partner contact information. Continue?"/>
                         <button string="Terminate Contract" type="object" name="action_open_termination_wizard" 
-                            class="btn-danger" invisible="state not in ['active', 'renewal_due']"
+                            class="btn-danger" invisible="state not in ['active', 'renewal_due', 'auto_renewed']"
                             icon="fa-times-circle"/>
                     <button string="View DocuSign Envelope" type="object" name="action_view_docusign"
                             class="btn-secondary" invisible="not docusign_id"
@@ -71,6 +71,12 @@
                             <field name="total_paid" readonly="1" widget="monetary"/>
                             <field name="monthly_payment" readonly="1" widget="monetary"/>
                             <field name="contract_value" readonly="1" widget="monetary"/>
+                        </group>
+                        <group string="Auto Renew" name="auto_renew">
+                            <field name="auto_renew_type_id"/>
+                            <field name="auto_renew_decision"/>
+                            <field name="auto_renew_opt_out"/>
+                            <field name="client_termination_notice_date"/>
                         </group>
                         <group string="Signature Information" name="signature_info">
                             <field name="docusign_id" readonly="1"
@@ -161,7 +167,7 @@
         <field name="name">contract.management.tree</field>
         <field name="model">contract.management</field>
         <field name="arch" type="xml">
-            <tree string="Contract Management" decoration-success="state == 'active'" 
+            <tree string="Contract Management" decoration-success="state in ['active','auto_renewed']" 
                 decoration-warning="state == 'renewal_due'" 
                 decoration-danger="state == 'terminated'"
                 decoration-muted="state == 'expired'">
@@ -172,7 +178,7 @@
                 <field name="start_date"/>
                 <field name="end_date"/>
                     <field name="state" widget="badge"
-                        decoration-success="state == 'active'"
+                        decoration-success="state in ['active', 'auto_renewed']"
                         decoration-warning="state == 'renewal_due'"
                         decoration-danger="state == 'terminated'"
                         decoration-muted="state == 'expired'"/>
@@ -200,7 +206,8 @@
                 <field name="contract_term"/>
                 <separator/>
                 <filter string="Draft" name="filter_draft" domain="[('state','=','draft')]"/>
-                <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
+                <filter string="Active" name="filter_active" domain="[('state','in',['active','auto_renewed'])]"/>
+                <filter string="Auto Renewed" name="filter_auto_renewed" domain="[('state','=','auto_renewed')]"/>
                 <filter string="Renewal Due" name="filter_renewal" domain="[('state','=','renewal_due')]"/>
                 <filter string="Expired" name="filter_expired" domain="[('state','=','expired')]"/>
                 <filter string="Terminated" name="filter_terminated" domain="[('state','=','terminated')]"/>
