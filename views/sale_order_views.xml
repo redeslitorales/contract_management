@@ -66,16 +66,28 @@
                                 
                                 <div style="flex: 0; padding: 0 5px;">→</div>
                                 
+                                <!-- Pending Cabal signature stage for identical renewals -->
+                                <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_cabal_signature'">
+                                    <i class="fa fa-check-square-o fa-2x" style="color: #5cb85c;"/><br/>
+                                    <small style="font-weight: bold;">Pending Cabal Signature</small>
+                                </div>
+                                <div style="text-align: center; flex: 1;" invisible="progress_stage == 'pending_cabal_signature'">
+                                    <i class="fa fa-check-square-o fa-2x" style="color: #999;"/><br/>
+                                    <small>Pending Cabal Signature</small>
+                                </div>
+
                                 <!-- Schedule Install Stage - Clickable button when to_be_schedule, grey fallback otherwise -->
-                                <button name="action_schedule_install_task" type="object" 
-                                        style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
-                                        invisible="progress_stage != 'schedule_install'">
-                                    <i class="fa fa-calendar fa-2x" style="color: #5cb85c;"/><br/>
-                                    <small style="font-weight: bold;">Schedule Install or Config<br/>(Click to Open Task)</small>
-                                </button>
-                                <div style="text-align: center; flex: 1;" invisible="progress_stage == 'schedule_install'">
-                                    <i class="fa fa-calendar fa-2x" style="color: #999;"/><br/>
-                                    <small>Schedule Install or Config</small>
+                                <div style="display: contents;" invisible="progress_stage == 'pending_cabal_signature'">
+                                    <button name="action_schedule_install_task" type="object" 
+                                            style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
+                                            invisible="progress_stage != 'schedule_install'">
+                                        <i class="fa fa-calendar fa-2x" style="color: #5cb85c;"/><br/>
+                                        <small style="font-weight: bold;">Schedule Install or Config<br/>(Click to Open Task)</small>
+                                    </button>
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage == 'schedule_install'">
+                                        <i class="fa fa-calendar fa-2x" style="color: #999;"/><br/>
+                                        <small>Schedule Install or Config</small>
+                                    </div>
                                 </div>
                             
                                     <div style="flex: 0; padding: 0 5px;">→</div>

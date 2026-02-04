@@ -313,6 +313,26 @@ class SaleSubscription(models.Model):
                 # Pending client signature: contract_state pending_customer_signature
                 elif contract_state == 'pending_customer_signature':
                     order.progress_stage = 'pending_client_signature'
+                # Pending Cabal signature for identical renewals (no install/config work expected)
+                elif (
+                    contract_state == 'pending_cabal_signature'
+                    and order.renewal_of_id
+                    and order.service_change_mode == 'no_change'
+                ):
+                    order.progress_stage = 'pending_cabal_signature'
+                # Identical renewals skip install/activation steps; go straight to active/issue view
+                elif order.renewal_of_id and order.service_change_mode == 'no_change':
+                    if (
+                        contract_state == 'active'
+                        and order.installation_state == 'completed'
+                        and order.configuration_state == 'completed'
+                    ):
+                        if order.internet_service_state == 'active':
+                            order.progress_stage = 'active'
+                        else:
+                            order.progress_stage = 'active_with_issues'
+                    else:
+                        order.progress_stage = 'active_with_issues'
                 # Schedule install: installation_state to_be_scheduled
                 elif (
                     contract_state == 'pending_cabal_signature'
@@ -483,6 +503,14 @@ class SaleSubscription(models.Model):
             if order.service_change_mode != target_mode:
                 order.service_change_mode = target_mode
 
+            # Identical renewals (no_change) should not surface install scheduling; mark install/config done.
+            is_renewal = order.subscription_state == '2_renewal' or bool(order.renewal_of_id)
+            if is_renewal and order.service_change_mode == 'no_change':
+                order.write({
+                    'installation_state': 'completed',
+                    'configuration_state': 'completed',
+                })
+
         return orders
 
     def _get_product_signature(self, order):
@@ -496,6 +524,52 @@ class SaleSubscription(models.Model):
             )
             for line in lines
         )
+
+    def _is_identical_renewal(self):
+        """True when renewal lines match parent (product + qty)."""
+        self.ensure_one()
+        if not self.renewal_of_id:
+            return False
+        parent_signature = self._get_product_signature(self.renewal_of_id)
+        renewal_signature = self._get_product_signature(self)
+        return parent_signature == renewal_signature
+
+    def _auto_activate_identical_renewal(self):
+        """Skip signature steps for identical renewals and finalize state."""
+        self.ensure_one()
+        parent = self.renewal_of_id
+        if not parent:
+            return False
+
+        today = fields.Date.context_today(self)
+        cycle_start = parent.next_invoice_date or today
+        cycle_end = cycle_start - timedelta(days=1) if cycle_start else today
+
+        updates = {
+            'contract_state': 'active',
+            'installation_state': 'completed',
+            'configuration_state': 'completed',
+            'subscription_state': '3_progress',
+            'internet_service_state': parent.internet_service_state or 'active',
+            'start_date': cycle_start,
+            'next_invoice_date': cycle_start,
+            'quote_confirmed': True,
+        }
+        self.with_context(skip_renewal_completion=True).write(updates)
+
+        if self.state not in ('sale', 'done'):
+            self.with_context(skip_renewal_completion=True).action_confirm()
+
+        parent_updates = {
+            'subscription_state': '5_renewed',
+            'end_date': cycle_end,
+        }
+        parent.with_context(skip_renewal_completion=True).write(parent_updates)
+
+        self.message_post(
+            body=_("Renewal auto-activated (same products/qty as %s).") % (parent.display_name)
+        )
+        return True
 
     @api.depends('contract_ids')
     def _compute_contract_count(self):
@@ -802,7 +876,8 @@ class SaleSubscription(models.Model):
         if state_fields_touched:
             today = fields.Date.context_today(self)
             for order in self:
-                if not (order.renewal_of_id or order.subscription_state == '2_renewal'):
+                is_renewal = bool(order.renewal_of_id) or order.subscription_state == '2_renewal'
+                if not is_renewal:
                     continue
 
                 all_active_and_done = (
@@ -813,20 +888,26 @@ class SaleSubscription(models.Model):
                 if not all_active_and_done:
                     continue
 
-                updates = {}
-                if order.subscription_state != '2_renewal':
-                    if order.next_invoice_date and order.next_invoice_date < today:
-                        updates['next_invoice_date'] = today
-                    if updates:
-                        order.with_context(skip_renewal_completion=True).write(updates)
-                    order.action_confirm()                      
+                if order.subscription_state == '2_renewal' and order.service_change_mode == 'no_change':
+                    order._auto_activate_identical_renewal()
+                    continue
 
-                    if order.renewal_of_id:
-                        parent_updates = {
-                            'subscription_state': '5_renewed',
-                            'end_date': today,
-                        }
-                        order.renewal_of_id.with_context(skip_renewal_completion=True).write(parent_updates)
+                updates = {}
+                if order.subscription_state == '2_renewal':
+                    updates['subscription_state'] = '3_progress'
+                if order.next_invoice_date and order.next_invoice_date < today:
+                    updates['next_invoice_date'] = today
+                if updates:
+                    order.with_context(skip_renewal_completion=True).write(updates)
+                if order.state not in ('sale', 'done'):
+                    order.with_context(skip_renewal_completion=True).action_confirm()
+
+                if order.renewal_of_id:
+                    parent_updates = {
+                        'subscription_state': '5_renewed',
+                        'end_date': today,
+                    }
+                    order.renewal_of_id.with_context(skip_renewal_completion=True).write(parent_updates)
 
         return res
 
@@ -1590,6 +1671,8 @@ class SaleSubscription(models.Model):
         for contract in self:
             _logger.info("[DocuSign] Processing contract ID=%s, name=%s, send_method=%s", 
                         contract.id, contract.name, contract.contract_send_method)
+
+            # Always send contracts for renewals; do not auto-activate identical renewals
             
             # Calculate monthly_payment (tax-inclusive) and contract_value from recurring order lines
             base_order = contract._get_addendum_base_order()
@@ -1630,15 +1713,6 @@ class SaleSubscription(models.Model):
             partner_email = (contract.partner_id.email or '').strip()
             email_domain = partner_email.split('@')[-1].lower() if '@' in partner_email else ''
             has_whatsapp = bool(contract.partner_id.whatsapp)
-
-            # If the address is Gmail, prefer WhatsApp delivery when possible
-            if email_domain == 'gmail.com' and has_whatsapp and send_method != 'whatsapp':
-                send_method = 'whatsapp'
-                contract.sudo().write({'contract_send_method': send_method})
-                _logger.info(
-                    "[DocuSign] Gmail domain detected; switching to WhatsApp for contract ID=%s",
-                    contract.id,
-                )
 
             if send_method == 'whatsapp' and not has_whatsapp:
                 send_method = 'email'
@@ -2148,7 +2222,7 @@ class SaleSubscription(models.Model):
         WhatsApp = self.env['whatsapp.comm']
         ICP = self.env['ir.config_parameter'].sudo()
         logo = ICP.get_param('wa_logo_file', '')
-        template_name = ICP.get_param('contract_management.wa_magic_template', 'sign_contract')
+        template_name = ICP.get_param('contract_management.wa_magic_template', 'firmar_contrato')
 
         base_url = (ICP.get_param('web.base.url', '') or '').rstrip('/')
         if not magic_url:
@@ -2171,14 +2245,9 @@ class SaleSubscription(models.Model):
             "body": {
                 "params": [
                     {"data": partner.name or ''},
+                    {"data": magic_url},
                 ]
-            },
-            "button": {
-                "subType": "url",
-                "params": [
-                    {"data": token}
-                ]
-            },
+            }
         }
 
         if logo:

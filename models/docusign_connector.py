@@ -452,25 +452,33 @@ class OverrideDocumentStatus(models.Model):
                 if sub.contract_state == 'pending_customer_signature':
                     sub.write({'contract_state': 'pending_cabal_signature'})
                     _logger.info("[DocuSign Status Check] Contract state for subscription %s updated to pending_cabal_signature", sub.id)
-                    # Create the install task as soon as the customer signs so field work can be scheduled
-                    try:
-                        sub.action_create_install_task()
-                        _logger.info("[DocuSign Status Check] Installation task auto-created after customer signature for subscription %s", sub.id)
-                    except Exception as e:
-                        _logger.warning("[DocuSign Status Check] Failed to auto-create install task after customer signature: %s", str(e))
-                        sub.write({'installation_state': 'to_be_scheduled'})
+                    # Skip install task creation for no-change renewals/config-only flows
+                    if sub.service_change_mode == 'no_change':
+                        _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
+                    else:
+                        # Create the install task as soon as the customer signs so field work can be scheduled
+                        try:
+                            sub.action_create_install_task()
+                            _logger.info("[DocuSign Status Check] Installation task auto-created after customer signature for subscription %s", sub.id)
+                        except Exception as e:
+                            _logger.warning("[DocuSign Status Check] Failed to auto-create install task after customer signature: %s", str(e))
+                            sub.write({'installation_state': 'to_be_scheduled'})
             elif self.state == 'completed':
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
                 if sub.contract_state in ['pending_customer_signature', 'pending_cabal_signature']:
-                    # Auto-create installation task
-                    try:
-                        sub.action_create_install_task()
-                        _logger.info("[DocuSign Status Check] Installation task auto-created for subscription %s", sub.id)
-                    except Exception as e:
-                        _logger.warning("[DocuSign Status Check] Failed to auto-create install task: %s", str(e))
-                        # If task creation fails, still advance state manually
-                        sub.write({'installation_state': 'to_be_scheduled'})
+                    # Skip install task creation for no-change renewals/config-only flows
+                    if sub.service_change_mode == 'no_change':
+                        _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
+                    else:
+                        # Auto-create installation task
+                        try:
+                            sub.action_create_install_task()
+                            _logger.info("[DocuSign Status Check] Installation task auto-created for subscription %s", sub.id)
+                        except Exception as e:
+                            _logger.warning("[DocuSign Status Check] Failed to auto-create install task: %s", str(e))
+                            # If task creation fails, still advance state manually
+                            sub.write({'installation_state': 'to_be_scheduled'})
                     
                     # Update contract to active when all signatures complete
                     cm = self.env['contract.management'].sudo().search([('name','=',sub.cabal_sequence)]) 
