@@ -3806,6 +3806,19 @@ msgstr ""
 #: code:addons/contract_management/models/sale_order.py:0
 #, python-format
 msgid ""
+"No installation task found and automatic creation failed.\n"
+"\n"
+"Please create an installation task first."
+msgstr ""
+"No se encontró una tarea de instalación y la creación automática falló.\n"
+"\n"
+"Por favor, crea primero una tarea de instalación."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid ""
 "No installation task type found for product category '%s'.\n"
 "\n"
 "Please configure an installation task type with:\n"

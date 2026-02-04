@@ -92,8 +92,27 @@
                             
                                     <div style="flex: 0; padding: 0 5px;">→</div>
 
-                                    <!-- Install Stage - Green when pending_install, grey otherwise -->
-                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_install'">
+                                    <!-- Install/Config Stage - renewal quick-complete buttons -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_install' or not (subscription_state == '2_renewal' or renewal_of_id)">
+                                        <button name="action_mark_installation_completed" type="object"
+                                                style="border: none; background: none; cursor: pointer; padding: 8px 0; width: 100%;"
+                                                invisible="installation_state == 'completed'">
+                                            <i class="fa fa-wrench fa-2x" style="color: #5cb85c;"/><br/>
+                                            <small style="font-weight: bold;">Pending Install<br/>(Click to Complete)</small>
+                                        </button>
+                                        <button name="action_mark_configuration_completed" type="object"
+                                                style="border: none; background: none; cursor: pointer; padding: 8px 0; width: 100%;"
+                                                invisible="configuration_state == 'completed'">
+                                            <i class="fa fa-cogs fa-2x" style="color: #5cb85c;"/><br/>
+                                            <small style="font-weight: bold;">Pending Configuration<br/>(Click to Complete)</small>
+                                        </button>
+                                        <div style="padding-top: 4px;" invisible="installation_state != 'completed' or configuration_state != 'completed'">
+                                            <i class="fa fa-wrench fa-2x" style="color: #5cb85c;"/><br/>
+                                            <small style="font-weight: bold;">Pending Install or Config</small>
+                                        </div>
+                                    </div>
+                                    <!-- Default pending-install tile (non-renewals or when buttons are hidden) -->
+                                    <div style="text-align: center; flex: 1;" invisible="progress_stage != 'pending_install' or (subscription_state == '2_renewal' or renewal_of_id)">
                                         <i class="fa fa-wrench fa-2x" style="color: #5cb85c;"/><br/>
                                         <small style="font-weight: bold;">Pending Install or Config</small>
                                     </div>

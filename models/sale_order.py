@@ -840,8 +840,16 @@ class SaleSubscription(models.Model):
         ], limit=1)
         
         if not task:
+            # If none exists, attempt to create it automatically, then re-fetch
+            self.action_create_install_task()
+            task = self.env['project.task'].search([
+                ('sale_order_id', '=', self.id),
+                ('fsm_task_type_id.is_installation', '=', True)
+            ], limit=1)
+
+        if not task:
             raise UserError(_(
-                "No installation task found.\n\n"
+                "No installation task found and automatic creation failed.\n\n"
                 "Please create an installation task first."
             ))
         
@@ -859,6 +867,36 @@ class SaleSubscription(models.Model):
                 'reschedule_task_id': task.id,
             }
         }
+
+    def _assert_renewal_shortcut_allowed(self):
+        """Ensure quick-complete actions only run for renewals."""
+        is_renewal = self.subscription_state == '2_renewal' or bool(self.renewal_of_id)
+        if not is_renewal:
+            raise UserError(_('This quick-complete action is only available for renewals.'))
+
+    def action_mark_installation_completed(self):
+        """Manual shortcut to mark installation done during renewal pending-install stage."""
+        self.ensure_one()
+        self._assert_renewal_shortcut_allowed()
+
+        if self.installation_state == 'completed':
+            return True
+
+        self.write({'installation_state': 'completed'})
+        self.message_post(body=_('Installation marked completed from pending install tile.'))
+        return True
+
+    def action_mark_configuration_completed(self):
+        """Manual shortcut to mark configuration done during renewal pending-install stage."""
+        self.ensure_one()
+        self._assert_renewal_shortcut_allowed()
+
+        if self.configuration_state == 'completed':
+            return True
+
+        self.write({'configuration_state': 'completed'})
+        self.message_post(body=_('Configuration marked completed from pending config tile.'))
+        return True
     
     # def action_schedule_install_task(self):
     #     """Reschedule existing unscheduled task"""
