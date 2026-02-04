@@ -320,6 +320,13 @@ class SaleSubscription(models.Model):
                     and order.service_change_mode == 'no_change'
                 ):
                     order.progress_stage = 'pending_cabal_signature'
+                # Speed-only variant renewals show pending Cabal signature while config is handled
+                elif (
+                    contract_state == 'pending_cabal_signature'
+                    and order.renewal_of_id
+                    and order.service_change_mode == 'config_only'
+                ):
+                    order.progress_stage = 'pending_cabal_signature'
                 # Identical renewals skip install/activation steps; go straight to active/issue view
                 elif order.renewal_of_id and order.service_change_mode == 'no_change':
                     if (
@@ -498,7 +505,10 @@ class SaleSubscription(models.Model):
 
             parent_signature = self._get_product_signature(parent)
             renewal_signature = self._get_product_signature(order)
-            target_mode = 'no_change' if renewal_signature == parent_signature else 'install_no_activation'
+            if order._is_speed_only_variant_renewal():
+                target_mode = 'config_only'
+            else:
+                target_mode = 'no_change' if renewal_signature == parent_signature else 'install_no_activation'
 
             if order.service_change_mode != target_mode:
                 order.service_change_mode = target_mode
@@ -510,6 +520,21 @@ class SaleSubscription(models.Model):
                     'installation_state': 'completed',
                     'configuration_state': 'completed',
                 })
+
+            # Speed-only variant renewals should treat install as done and leave config to be scheduled.
+            if is_renewal and order.service_change_mode == 'config_only':
+                order.write({
+                    'installation_state': 'completed',
+                    'configuration_state': 'to_be_scheduled',
+                })
+
+            # Always carry forward service states from the parent subscription
+            if is_renewal and parent:
+                state_updates = {
+                    'internet_service_state': parent.internet_service_state or 'not_active',
+                    'iptv_service_state': parent.iptv_service_state or 'not_active',
+                }
+                order.write(state_updates)
 
         return orders
 
@@ -534,6 +559,76 @@ class SaleSubscription(models.Model):
         renewal_signature = self._get_product_signature(self)
         return parent_signature == renewal_signature
 
+    def _get_product_template_signature(self, order):
+        lines = order.order_line.filtered(lambda l: not l.display_type and l.product_id)
+        precision = order.env['decimal.precision'].precision_get('Product Unit of Measure') or 6
+        return sorted(
+            (
+                line.product_template_id.id,
+                float_round(line.product_uom_qty, precision_digits=precision),
+                line.product_uom.id,
+            )
+            for line in lines
+        )
+
+    def _is_speed_only_variant_renewal(self):
+        """True when renewal keeps the same base product template(s) but changes variant/speeds."""
+        self.ensure_one()
+        if not self.renewal_of_id:
+            return False
+        if self._is_identical_renewal():
+            return False
+
+        parent_signature = self._get_product_template_signature(self.renewal_of_id)
+        renewal_signature = self._get_product_template_signature(self)
+        return parent_signature == renewal_signature
+
+    def _apply_speed_profile_changes(self):
+        """Push speed-profile changes to SmartOLT when available."""
+        self.ensure_one()
+
+        down_name = self.download_speed_profile_id.name or ''
+        up_name = self.upload_speed_profile_id.name or ''
+        if not down_name and not up_name:
+            return False
+
+        asset = getattr(self, 'cpe_unit_asset', False)
+        if not asset:
+            self.message_post(body=_("Warning: Speed profile update skipped because no ONU asset is linked."))
+            return False
+
+        try:
+            self._smartolt_update_location_details(asset)
+            resp = self._smartolt_update_speed_profiles(asset, up_name, down_name)
+        except Exception as e:
+            self.message_post(body=_("Warning: Speed profile update failed: %s") % e)
+            return False
+
+        # Record that SmartOLT accepted the change (resp may be None outside production)
+        note = _("SmartOLT speed profiles updated (DL: %s / UL: %s).") % (down_name or '-', up_name or '-')
+        self.message_post(body=note)
+        return True
+
+    def _apply_speed_only_variant_config(self):
+        """Finalize config-only renewals that only change speed/variant."""
+        self.ensure_one()
+        if not self._is_speed_only_variant_renewal():
+            return False
+
+        updates = {
+            'service_change_mode': 'config_only',
+            'installation_state': 'completed',
+        }
+
+        success = self._apply_speed_profile_changes()
+        if success:
+            updates['configuration_state'] = 'completed'
+        elif self.configuration_state != 'completed':
+            updates['configuration_state'] = 'to_be_scheduled'
+
+        self.with_context(skip_renewal_completion=True).write(updates)
+        return success
+
     def _auto_activate_identical_renewal(self):
         """Skip signature steps for identical renewals and finalize state."""
         self.ensure_one()
@@ -551,6 +646,7 @@ class SaleSubscription(models.Model):
             'configuration_state': 'completed',
             'subscription_state': '3_progress',
             'internet_service_state': parent.internet_service_state or 'active',
+            'iptv_service_state': parent.iptv_service_state or 'not_active',
             'start_date': cycle_start,
             'next_invoice_date': cycle_start,
             'quote_confirmed': True,
@@ -708,7 +804,10 @@ class SaleSubscription(models.Model):
         
         # Update subscription state to show schedule button
         # Only change state if we're at pending signature stage (don't move backwards)
-        if self.contract_state in ['pending_customer_signature', 'pending_cabal_signature']:
+        if (
+            self.contract_state in ['pending_customer_signature', 'pending_cabal_signature']
+            and self.installation_state != 'completed'
+        ):
             self.write({'installation_state': 'to_be_scheduled'})
         
         # Return message with link to task
@@ -858,6 +957,17 @@ class SaleSubscription(models.Model):
         if self.env.context.get('skip_renewal_completion'):
             return res
 
+        contract_state_updated_to_pending_cabal = vals.get('contract_state') == 'pending_cabal_signature'
+        if contract_state_updated_to_pending_cabal:
+            for order in self:
+                was_pending_cabal = previous_contract_state.get(order.id) == 'pending_cabal_signature'
+                is_now_pending_cabal = order.contract_state == 'pending_cabal_signature'
+                if was_pending_cabal or not is_now_pending_cabal:
+                    continue
+
+                if order._is_speed_only_variant_renewal():
+                    order._apply_speed_only_variant_config()
+
         contract_state_updated_to_active = vals.get('contract_state') == 'active'
         if contract_state_updated_to_active:
             for order in self:
@@ -870,6 +980,8 @@ class SaleSubscription(models.Model):
                 is_renewal = order.subscription_state == '2_renewal' or bool(order.renewal_of_id)
 
                 if (is_upsell or is_renewal) and order.service_change_mode == 'config_only':
+                    if order._is_speed_only_variant_renewal():
+                        order._apply_speed_only_variant_config()
                     order._complete_config_changes()
 
         state_fields_touched = any(key in vals for key in ['contract_state', 'installation_state', 'configuration_state'])
@@ -1757,13 +1869,41 @@ class SaleSubscription(models.Model):
             document = self._create_document_to_be_signed(contract, contract.contract_template)
             _logger.info("[DocuSign] Document created: ID=%s, name=%s", document.id, document.name)
             
-            # Step 4: Create the connector and connector line records (if not physical)
+            # Step 4: Create (or reuse) the connector and connector line records (if not physical)
             connector_id = None
             if send_method != 'physical':
-                _logger.info("[DocuSign] Creating DocuSign connector for contract ID=%s", contract.id)
-                connector_id = self._send_document_to_docusign(contract, document)
-                _logger.info("[DocuSign] DocuSign connector created: ID=%s, name=%s", 
-                            connector_id.id, connector_id.name)
+                # Reuse the most recent connector with no signatures to avoid duplicate envelopes on resend
+                base_order_for_connector = contract._get_addendum_base_order()
+                connector_pool = contract.docusign_ids
+                if base_order_for_connector and base_order_for_connector != contract:
+                    connector_pool |= base_order_for_connector.docusign_ids
+
+                reusable_connector = connector_pool.filtered(
+                    lambda c: c.connector_line_ids
+                    and not any(line.sign_status for line in c.connector_line_ids)
+                    and c.state in ('new', 'sent', 'draft')
+                )
+
+                if reusable_connector:
+                    connector_id = reusable_connector.sorted(key=lambda c: c.id, reverse=True)[0]
+                    _logger.info(
+                        "[DocuSign] Reusing existing DocuSign connector ID=%s for contract ID=%s",
+                        connector_id.id,
+                        contract.id,
+                    )
+                    connector_id.sudo().write({
+                        'attachment_ids': [(6, 0, [document.id])],
+                        'monthly_payment': monthly_payment,
+                        'contract_value': contract_value,
+                    })
+                else:
+                    _logger.info("[DocuSign] Creating DocuSign connector for contract ID=%s", contract.id)
+                    connector_id = self._send_document_to_docusign(contract, document)
+                    _logger.info(
+                        "[DocuSign] DocuSign connector created: ID=%s, name=%s",
+                        connector_id.id,
+                        connector_id.name,
+                    )
 
             # Step 5: Create the contract management record (before sending to ensure logging exists)
             # Reuse latest contract.management if it already exists to avoid duplicates
