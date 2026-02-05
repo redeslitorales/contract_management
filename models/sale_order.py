@@ -101,7 +101,7 @@ class SaleSubscription(models.Model):
         store=True,
     )
     cabal_sequence = fields.Char(string='Contract Number', readonly=True, copy=False)
-    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default='whatsapp', required=True)
+    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default='email', required=True)
     contract_magic_token = fields.Char(string='Contract Magic Token', readonly=True, copy=False)
     contract_magic_link = fields.Char(string='Contract Magic Link', readonly=True, copy=False)
     contract_state = fields.Selection(

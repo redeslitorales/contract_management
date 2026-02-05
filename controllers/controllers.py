@@ -483,9 +483,9 @@ class SaleOrderConfirmationController(http.Controller):
             Redirect to success or error page with appropriate message
         """
         try:
-            # Default to WhatsApp if no method specified
+            # Default to email if no method specified
             if not send_method:
-                send_method = 'whatsapp'
+                send_method = 'email'
             else:
                 send_method = send_method.lower()
             
@@ -547,9 +547,9 @@ class SaleOrderConfirmationController(http.Controller):
             # Validate send method
             valid_methods = ['whatsapp', 'email', 'physical', 'donotsend']
             if send_method not in valid_methods:
-                _logger.warning("[QuoteConfirm] Invalid send method '%s' for order %s. Defaulting to whatsapp.",
+                _logger.warning("[QuoteConfirm] Invalid send method '%s' for order %s. Defaulting to email.",
                               send_method, sale_order.name)
-                send_method = 'whatsapp'
+                send_method = 'email'
             
             # Auto-determine send method based on customer contact info
             # Priority: WhatsApp > Email > Physical
@@ -601,13 +601,13 @@ class SaleOrderConfirmationController(http.Controller):
         """
         return request.render('contract_management.quote_confirmed_template', {
             'order_name': order or _('Your Order'),
-            'send_method': method or 'whatsapp',
+            'send_method': method or 'email',
             'send_method_label': dict([
                 ('whatsapp', 'WhatsApp'),
                 ('email', 'Email'),
                 ('physical', 'Physical Copy'),
-                ('donotsend', 'Will Not Send')
-            ]).get(method, 'WhatsApp')
+                ('donotsend', 'Will Not Send'),
+            ]).get(method, 'Email'),
         })
 
     @http.route('/quote_reject', type='http', auth='public', methods=['GET'], csrf=False, website=True)

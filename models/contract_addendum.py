@@ -49,7 +49,7 @@ class ContractAddendum(models.Model):
         ('email', 'Email'),
         ('physical', 'Physical'),
         ('donotsend', 'Do Not Send')
-    ], string='Send Method', default='whatsapp', tracking=True)
+    ], string='Send Method', default='email', tracking=True)
     
     signed_document_ids = fields.Many2many(
         'ir.attachment',

@@ -105,7 +105,7 @@ class ContractManagement(models.Model):
         ('canceled', 'Canceled'),
         ('declined', 'Declined'),
     ], string='Embedded Signing Status', default='draft', readonly=True, tracking=True)
-    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default="whatsapp")
+    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default="email")
     early_termination_fee = fields.Float(string='Early Termination Fee')
     late_charge = fields.Float(string='Late Charge')
     service_pause_count = fields.Integer(string='Number of Service Pauses', default=0)
