@@ -2,6 +2,8 @@
 
 from odoo import fields, models
 
+from .email_domain_utils import format_default_bad_email_domain_map
+
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
@@ -61,4 +63,11 @@ class ResConfigSettings(models.TransientModel):
         help='Disable WhatsApp delivery for quotations and always send them by email.',
         config_parameter='contract_management.force_quote_email_only',
         default=True,
+    )
+
+    bad_email_domain_map_raw = fields.Char(
+        string='Bad Email Domain Map',
+        help='One mapping per line. Format: bad_domain -> correct_domain (e.g., gamil.com -> gmail.com).',
+        config_parameter='contract_management.bad_email_domain_map',
+        default=lambda self: format_default_bad_email_domain_map(),
     )

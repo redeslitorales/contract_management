@@ -18,6 +18,38 @@ msgstr ""
 "X-Generator: Poedit 3.8\n"
 
 #. module: contract_management
+#: model:ir.cron,name:contract_management.ir_cron_contract_email_domain_fix
+msgid "Contracts: Fix Bad Email Domains"
+msgstr "Contratos: Corregir dominios de correo"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_res_config_settings__bad_email_domain_map_raw
+msgid "Bad Email Domain Map"
+msgstr "Mapa de dominios de correo incorrectos"
+
+#. module: contract_management
+#: model:ir.model.fields,help:contract_management.field_res_config_settings__bad_email_domain_map_raw
+msgid "One mapping per line. Format: bad_domain -> correct_domain (e.g., gamil.com -> gmail.com)."
+msgstr "Un mapeo por línea. Formato: dominio_erróneo -> dominio_correcto (ej. gamil.com -> gmail.com)."
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "Bad Email Domains"
+msgstr "Dominios de correo incorrectos"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.res_config_settings_view_form_inherit_contract_management
+msgid "One mapping per line in the form bad_domain -> correct_domain. Example: gamil.com -> gmail.com."
+msgstr "Un mapeo por línea en la forma dominio_erróneo -> dominio_correcto. Ejemplo: gamil.com -> gmail.com."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/res_partner.py:0
+#, python-format
+msgid "The email domain looks incorrect. Did you mean %s?"
+msgstr "El dominio del correo parece incorrecto. ¿Quisiste decir %s?"
+
+#. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_change_payment_date_wizard
 msgid "Customer-facing summary"
 msgstr "Resumen para el cliente"

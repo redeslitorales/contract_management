@@ -113,6 +113,19 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Data Hygiene">
+                        <setting>
+                            <label for="bad_email_domain_map_raw" string="Bad Email Domains"/>
+                            <div class="text-muted">
+                                One mapping per line in the form bad_domain -&gt; correct_domain. Example: gamil.com -&gt; gmail.com.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="bad_email_domain_map_raw" widget="text" placeholder="gamil.com -&gt; gmail.com"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
