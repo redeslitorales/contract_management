@@ -91,11 +91,11 @@ class ResPartner(models.Model):
             if a_answers:
                 _logger.info("No MX; accepting A record fallback for domain=%s", domain)
                 return
-            raise ValidationError(_("El dominio de correo no existe o no responde: %(domain)s. Confirma con el cliente y corrige el dominio (ej. gmail.com) / Email domain not found or unreachable: %(domain)s. Confirm with the customer and correct the domain.") % {"domain": domain})
+            raise ValidationError(_("Email domain %(domain)s does not exist or is unreachable. Confirm with the customer and correct the domain (e.g., gmail.com).") % {"domain": domain})
 
         except dns.resolver.NXDOMAIN:
             _logger.warning("NXDOMAIN during MX check for domain=%s", domain)
-            raise ValidationError(_("El dominio de correo no existe o no responde: %(domain)s. Confirma con el cliente y corrige el dominio (ej. gmail.com) / Email domain not found or unreachable: %(domain)s. Confirm with the customer and correct the domain.") % {"domain": domain})
+            raise ValidationError(_("Email domain %(domain)s does not exist or is unreachable. Confirm with the customer and correct the domain (e.g., gmail.com).") % {"domain": domain})
 
         except dns.resolver.NoAnswer:
             _logger.warning("NoAnswer during MX check; trying A record for domain=%s", domain)
@@ -104,10 +104,10 @@ class ResPartner(models.Model):
                 if a_answers:
                     _logger.info("A record present after NoAnswer for domain=%s", domain)
                     return
-                raise ValidationError(_("El dominio de correo no existe o no responde: %(domain)s. Confirma con el cliente y corrige el dominio (ej. gmail.com) / Email domain not found or unreachable: %(domain)s. Confirm with the customer and correct the domain.") % {"domain": domain})
+                raise ValidationError(_("Email domain %(domain)s does not exist or is unreachable. Confirm with the customer and correct the domain (e.g., gmail.com).") % {"domain": domain})
             except dns.resolver.NXDOMAIN:
                 _logger.warning("NXDOMAIN after NoAnswer for domain=%s", domain)
-                raise ValidationError(_("El dominio de correo no existe o no responde: %(domain)s. Confirma con el cliente y corrige el dominio (ej. gmail.com) / Email domain not found or unreachable: %(domain)s. Confirm with the customer and correct the domain.") % {"domain": domain})
+                raise ValidationError(_("Email domain %(domain)s does not exist or is unreachable. Confirm with the customer and correct the domain (e.g., gmail.com).") % {"domain": domain})
             except Exception as exc:
                 _logger.warning("Fallback A lookup failed for domain=%s error=%s", domain, exc)
                 return
@@ -125,7 +125,7 @@ class ResPartner(models.Model):
             _logger.info("_validate_email skipped: empty email")
             return
         if "@" not in email:
-            raise ValidationError(_("Correo inválido. Usa formato usuario@dominio.com / Invalid email address, use user@domain.com."))
+            raise ValidationError(_("Invalid email address. Use user@domain.com."))
         _logger.warning("_validate_email triggered for %s", email)
         _logger.info("_validate_email running MX check for %s", email)
         self._mx_check(email)
@@ -165,7 +165,7 @@ class ResPartner(models.Model):
         self.ensure_one()
         if not self.email:
             raise ValidationError(_(
-                "Agrega un correo (usuario@dominio.com) y vuelve a intentar / Add an email (user@domain.com) and try again."
+                "Add an email (user@domain.com) and try again."
             ))
         self._set_unverified()
         self._send_verify_email(force=True)
@@ -192,7 +192,7 @@ class ResPartner(models.Model):
             return
         corrected = normalize_email_domain(email_val, self._get_bad_email_domain_map())
         if corrected and corrected != email_val:
-            raise UserError(_("El dominio parece incorrecto. ¿Quisiste decir %(suggested)s? Confirma con el cliente y corrige el correo / Domain looks incorrect. Did you mean %(suggested)s? Confirm with the customer and fix the email.") % {"suggested": corrected})
+            raise UserError(_("Domain looks incorrect. Did you mean %(suggested)s? Confirm with the customer and fix the email.") % {"suggested": corrected})
 
     @api.model_create_multi
     def create(self, vals_list):

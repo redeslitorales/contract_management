@@ -17,6 +17,28 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 3.8\n"
 
+# Validation messages (English source)
+#. module: contract_management
+#: code:addons/contract_management/models/res_partner.py:0
+#, python-format
+msgid "Email domain %(domain)s does not exist or is unreachable. Confirm with the customer and correct the domain (e.g., gmail.com)."
+msgstr "El dominio de correo %(domain)s no existe o no responde. Confirma con el cliente y corrige el dominio (ej. gmail.com)."
+
+#. module: contract_management
+#: code:addons/contract_management/models/res_partner.py:0
+msgid "Invalid email address. Use user@domain.com."
+msgstr "Correo inválido. Usa formato usuario@dominio.com."
+
+#. module: contract_management
+#: code:addons/contract_management/models/res_partner.py:0
+msgid "Add an email (user@domain.com) and try again."
+msgstr "Agrega un correo (usuario@dominio.com) y vuelve a intentar."
+
+#. module: contract_management
+#: code:addons/contract_management/models/res_partner.py:0
+msgid "Domain looks incorrect. Did you mean %(suggested)s? Confirm with the customer and fix the email."
+msgstr "El dominio parece incorrecto. ¿Quisiste decir %(suggested)s? Confirma con el cliente y corrige el correo."
+
 #. module: contract_management
 #: model:ir.cron,name:contract_management.ir_cron_contract_email_domain_fix
 msgid "Contracts: Fix Bad Email Domains"
