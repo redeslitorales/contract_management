@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_partner_form_email_verify_banner_cm" model="ir.ui.view">
+        <field name="name">res.partner.form.email.verify.banner.cm</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority" eval="30"/>
+        <field name="active" eval="0"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <field name="email" invisible="1"/>
+                <field name="email_verified" invisible="1"/>
+                <div class="alert alert-warning o_cm_email_verify_banner" name="cm_email_verify_banner" invisible="email_verified or not email" role="status">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <strong>Correo no verificado / Email not verified</strong>
+                            <p class="mb-0">
+                                Pide al cliente abrir el correo de verificación y hacer clic en el enlace. Si no lo ve, revisa spam o reenvía desde aquí.
+                            </p>
+                            <p class="mb-0">
+                                Ask the customer to open the verification email and click the link. If it is missing, check spam or resend from here.
+                            </p>
+                        </div>
+                        <button type="object" name="action_resend_email_verification" class="btn btn-sm btn-secondary">
+                            <i class="fa fa-refresh"/> Reenviar / Resend
+                        </button>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
