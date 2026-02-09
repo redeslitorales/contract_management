@@ -73,6 +73,67 @@ class ContractAddendum(models.Model):
     write_uid = fields.Many2one('res.users', string='Last Updated By', readonly=True)
     write_date = fields.Datetime(string='Last Updated On', readonly=True)
 
+    def write(self, vals):
+        # Detect transitions to signed so upsell follow-ups run once.
+        prev_states = {addendum.id: addendum.state for addendum in self}
+        res = super().write(vals)
+
+        if vals.get('state') == 'signed':
+            for addendum in self:
+                if prev_states.get(addendum.id) != 'signed':
+                    addendum._on_signed_addendum()
+
+        return res
+
+    def _on_signed_addendum(self):
+        """Run post-signature hooks for upsell addendums."""
+        self.ensure_one()
+
+        upsell_order = self.upsell_subscription_id
+        parent_subscription = self.subscription_id
+
+        # Confirm the upsell quotation after the customer signs.
+        if upsell_order and upsell_order.state in ('draft', 'sent'):
+            _logger.info(
+                "[Addendum] Confirming upsell quotation %s after signature of addendum %s",
+                upsell_order.name,
+                self.id,
+            )
+            upsell_order.action_confirm()
+
+        # Transfer IPTV service to the parent subscription if present on the upsell.
+        if (
+            upsell_order
+            and parent_subscription
+            and 'iptv_service_id' in upsell_order._fields
+            and 'iptv_service_id' in parent_subscription._fields
+            and upsell_order.iptv_service_id
+        ):
+            service_id = upsell_order.iptv_service_id
+            transfer_vals = {'iptv_service_id': service_id}
+
+            if 'iptv_status' in upsell_order._fields and 'iptv_status' in parent_subscription._fields:
+                transfer_vals['iptv_status'] = upsell_order.iptv_status
+
+            if 'iptv_client_id' in upsell_order._fields and 'iptv_client_id' in parent_subscription._fields and upsell_order.iptv_client_id:
+                transfer_vals['iptv_client_id'] = upsell_order.iptv_client_id.id
+
+            if 'iptv_profile' in upsell_order._fields and 'iptv_profile' in parent_subscription._fields and upsell_order.iptv_profile:
+                transfer_vals['iptv_profile'] = upsell_order.iptv_profile
+
+            parent_subscription.sudo().write(transfer_vals)
+            upsell_order.sudo().write({'iptv_service_id': False})
+
+            msg = _(
+                "IPTV service %s transferred from upsell %s to parent subscription %s after addendum signature."
+            ) % (
+                service_id,
+                upsell_order.name,
+                parent_subscription.name,
+            )
+            parent_subscription.message_post(body=msg)
+            upsell_order.message_post(body=msg)
+
     @api.depends('docusign_id', 'docusign_id.connector_line_ids.signed_attachment_ids')
     def _compute_signed_documents(self):
         """Get all signed documents from related DocuSign envelopes"""

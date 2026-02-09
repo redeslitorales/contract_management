@@ -231,6 +231,7 @@
                 <field name="docusign_connector_ids" invisible="1"/>
                 <field name="has_docusign_client_user_id" invisible="1"/>
                 <field name="progress_stage" invisible="1"/>
+                <field name="upsell_from_id" invisible="1"/>
                 <!-- <field name="next_action" invisible="1"/> FSM field - commented out until FSM modules installed -->
                 <button string="Send Contract" type="object" name="action_send_contract"
                     class="btn-primary" icon="fa-file-signature"
@@ -260,14 +261,14 @@
             </xpath>
             
             <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
-                <page string="Status" name="status">
+                <page string="Status" name="status" invisible="upsell_from_id">
                     <group name="status_group">
-                        <field name="contract_state"/>
-                        <field name="installation_state"/>
-                        <field name="configuration_state"/>
-                        <field name="service_change_mode"/>
-                        <field name="internet_service_state"/>
-                        <field name="iptv_service_state"/>
+                        <field name="contract_state" readonly="uid != 197"/>
+                        <field name="installation_state" readonly="uid != 197"/>
+                        <field name="configuration_state" readonly="uid != 197"/>
+                        <field name="service_change_mode" readonly="uid != 197"/>
+                        <field name="internet_service_state" readonly="uid != 197"/>
+                        <field name="iptv_service_state" readonly="uid != 197"/>
                     </group>
                 </page>
                 <page string="Terms/Conditions" name="terms_conditions">
