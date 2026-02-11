@@ -313,20 +313,6 @@ class SaleSubscription(models.Model):
                 # Pending client signature: contract_state pending_customer_signature
                 elif contract_state == 'pending_customer_signature':
                     order.progress_stage = 'pending_client_signature'
-                # Pending Cabal signature for identical renewals (no install/config work expected)
-                elif (
-                    contract_state == 'pending_cabal_signature'
-                    and order.renewal_of_id
-                    and order.service_change_mode == 'no_change'
-                ):
-                    order.progress_stage = 'pending_cabal_signature'
-                # Speed-only variant renewals show pending Cabal signature while config is handled
-                elif (
-                    contract_state == 'pending_cabal_signature'
-                    and order.renewal_of_id
-                    and order.service_change_mode == 'config_only'
-                ):
-                    order.progress_stage = 'pending_cabal_signature'
                 # Identical renewals skip install/activation steps; go straight to active/issue view
                 elif order.renewal_of_id and order.service_change_mode == 'no_change':
                     if (
@@ -342,19 +328,15 @@ class SaleSubscription(models.Model):
                         order.progress_stage = 'active_with_issues'
                 # Schedule install: installation_state to_be_scheduled
                 elif (
-                    contract_state == 'pending_cabal_signature'
-                    or order.installation_state == 'to_be_scheduled'
+                    order.installation_state == 'to_be_scheduled'
                     or order.configuration_state == 'to_be_scheduled'
                 ):
                     order.progress_stage = 'schedule_install'
                 # Pending install: installation_state scheduled or pending_install
                 elif (
-                    contract_state == 'pending_cabal_signature'
-                    and (
-                        order.installation_state == 'scheduled'
-                        or order.configuration_state == 'scheduled'
-                    )
-                ) or order.installation_state =='scheduled' or order.configuration_state == 'scheduled':
+                    order.installation_state == 'scheduled'
+                    or order.configuration_state == 'scheduled'
+                ):
                     order.progress_stage = 'pending_install'
                 # Active with issues should override contract-sign steps, but only after we surface scheduling states
                 elif sub_state == '3_progress' and (
@@ -1929,6 +1911,36 @@ class SaleSubscription(models.Model):
                         connector_id.id,
                         contract.id,
                     )
+
+                    # Remove any legacy company signer lines so only the customer remains
+                    customer_partner = contract.partner_id
+                    customer_line = connector_id.connector_line_ids.filtered(lambda l: l.partner_id == customer_partner)[:1]
+                    legacy_lines = connector_id.connector_line_ids - customer_line
+                    if legacy_lines:
+                        _logger.info(
+                            "[DocuSign] Pruning %d legacy signer line(s) from connector %s",
+                            len(legacy_lines),
+                            connector_id.id,
+                        )
+                        legacy_lines.unlink()
+
+                    # If the connector no longer has a customer line, recreate it
+                    if not customer_line:
+                        recipient_email = contract._compute_docusign_recipient_email(customer_partner)
+                        customer_line = self.env['docusign.connector.lines'].sudo().create({
+                            'partner_id': customer_partner.id,
+                            'email': recipient_email,
+                            'status': 'draft',
+                            'un_signed_attachment_ids': [(6, 0, [document.id])],
+                            'record_id': connector_id.id,
+                            'name': document.name,
+                        })
+                        _logger.info(
+                            "[DocuSign] Recreated customer signer line %s on connector %s",
+                            customer_line.id,
+                            connector_id.id,
+                        )
+
                     connector_id.sudo().write({
                         'attachment_ids': [(6, 0, [document.id])],
                         'monthly_payment': monthly_payment,
@@ -2343,19 +2355,6 @@ class SaleSubscription(models.Model):
         })
         _logger.info("[DocuSign] Customer connector line created: ID=%s", customer_line.id)
         
-        # Create connector line for company signer (second signer)
-        _logger.info("[DocuSign] Creating docusign.connector.lines for company signer: user_id=%s, email=%s", 
-                    user.id, user.email)
-        company_line = self.env['docusign.connector.lines'].sudo().create({
-            'partner_id': user.partner_id.id,
-            'email': user.email,
-            'status': 'draft',
-            'un_signed_attachment_ids':  [(6, 0, [document.id])],
-            'record_id': connector_record.id,
-            'name': document.name
-        })
-        _logger.info("[DocuSign] Company connector line created: ID=%s", company_line.id)
-
         # Generate a fresh magic link for embedded signing (no login required)
         token, magic_url = customer_line.generate_magic_link()
         link_msg = _("Magic signing link (no login): %s") % magic_url
@@ -2373,7 +2372,7 @@ class SaleSubscription(models.Model):
                 _logger.error("[DocuSign] Failed to send magic link via WhatsApp: %s", exc, exc_info=True)
                 raise
         
-        _logger.info("[DocuSign] Returning connector_record ID=%s with 2 recipients", connector_record.id)
+        _logger.info("[DocuSign] Returning connector_record ID=%s with 1 recipient", connector_record.id)
         return connector_record
 
     def _compute_docusign_recipient_email(self, partner):

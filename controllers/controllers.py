@@ -75,56 +75,26 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'recipient-completed':
                         connector.state = 'customer'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.contract_state in ['pending_customer_signature', 'pending_contract', 'pending_cabal_signature']:
-                            subscription.contract_state = 'pending_cabal_signature'
-                            # Create the install task as soon as the customer signature is done
-                            try:
-                                subscription.action_create_install_task()
-                                _logger.info("[DocuSign Webhook] Installation task auto-created after customer signature for subscription %s", subscription.id)
-                            except Exception as e:
-                                _logger.warning("[DocuSign Webhook] Failed to auto-create install task after customer signature: %s", str(e))
-                                subscription.write({'installation_state': 'to_be_scheduled'})
-                        else:
-                            # Post warning to subscription chatter
-                            subscription.message_post(
-                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_customer_signature' for recipient-completed event.") % subscription.contract_state,
-                                subject=_('DocuSign Contract State Mismatch'),
-                                message_type='notification',
-                                subtype_xmlid='mail.mt_note'
-                            )
-                            _logger.warning(
-                                "[DocuSign Webhook] Contract state mismatch for subscription %s: current=%s, expected=pending_customer_signature",
-                                subscription.id,
-                                subscription.contract_state,
-                            )
+                        # Create the install task as soon as the customer signature is done and mark active
+                        try:
+                            subscription.action_create_install_task()
+                            _logger.info("[DocuSign Webhook] Installation task auto-created after customer signature for subscription %s", subscription.id)
+                        except Exception as e:
+                            _logger.warning("[DocuSign Webhook] Failed to auto-create install task after customer signature: %s", str(e))
+                            subscription.write({'installation_state': 'to_be_scheduled'})
+                        subscription.contract_state = 'active'
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        if subscription.contract_state in ['pending_cabal_signature', 'pending_customer_signature', 'pending_contract']:
-                            # Auto-create installation task and move to schedule state
-                            try:
-                                subscription.action_create_install_task()
-                                _logger.info("[DocuSign Webhook] Installation task auto-created for subscription %s", subscription.id)
-                            except Exception as e:
-                                _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
-                                # If task creation fails, still advance state manually
-                                subscription.write({'installation_state': 'to_be_scheduled'})
+                        # Auto-create installation task and mark contract active
+                        try:
+                            subscription.action_create_install_task()
+                            _logger.info("[DocuSign Webhook] Installation task auto-created for subscription %s", subscription.id)
+                        except Exception as e:
+                            _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
+                            subscription.write({'installation_state': 'to_be_scheduled'})
 
-                            # Mark contract active after full completion
-                            subscription.contract_state = 'active'
-                        else:
-                            # Post warning to subscription chatter
-                            subscription.message_post(
-                                body=_("Could not update contract state. Current state is '%s' but should have been 'pending_cabal_signature' for envelope-completed event.") % subscription.contract_state,
-                                subject=_('DocuSign Contract State Mismatch'),
-                                message_type='notification',
-                                subtype_xmlid='mail.mt_note'
-                            )
-                            _logger.warning(
-                                "[DocuSign Webhook] Contract state mismatch for subscription %s: current=%s, expected=pending_cabal_signature",
-                                subscription.id,
-                                subscription.contract_state,
-                            )
+                        subscription.contract_state = 'active'
                         
                         # Auto-download signed documents (skip if already present to avoid duplicates)
                         try:
@@ -387,7 +357,6 @@ class ContractPortal(CustomerPortal):
 
         try:
             signing_url = self._start_embedded_signing(contract, line, source='magic-link')
-            line.consume_magic_token()
         except ValidationError as exc:
             _logger.exception("[MagicLinkSign] Failed to start signing for contract %s: %s", contract.id, exc)
             return request.render('contract_management.portal_sign_error', {
@@ -445,6 +414,9 @@ class ContractPortal(CustomerPortal):
         if event in ('signing_complete', 'completed'):
             new_status = 'completed'
             completed_at = fields.Datetime.now()
+            if line and not line.magic_token_used_at:
+                # Mark magic link as consumed only after DocuSign reports completion, so redirects don’t burn the token early.
+                line.consume_magic_token()
         elif event in ('cancel', 'canceled'):
             new_status = 'canceled'
         elif event in ('decline', 'declined'):

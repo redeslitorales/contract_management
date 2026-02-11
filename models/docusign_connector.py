@@ -423,14 +423,21 @@ class OverrideDocumentStatus(models.Model):
                             subtype_xmlid='mail.mt_note'
                         )
             
-            # Contract-specific logic: Update state based on signature progress
-            signed_lines = [l for l in self.connector_line_ids if l.sign_status]
-            total_lines = len(self.connector_line_ids)
-            _logger.info("[DocuSign Status Check] Connector %s - Signed: %s/%s lines", 
+            # Contract-specific logic: Update state based on signature progress.
+            # Only consider the customer signer when computing completion so legacy company
+            # signer rows do not block completion for existing connectors.
+            relevant_lines = self.connector_line_ids
+            if self.sale_id and self.sale_id.partner_id:
+                customer_lines = relevant_lines.filtered(lambda l: l.partner_id == self.sale_id.partner_id)
+                if customer_lines:
+                    relevant_lines = customer_lines
+            signed_lines = [l for l in relevant_lines if l.sign_status]
+            total_lines = len(relevant_lines)
+            _logger.info("[DocuSign Status Check] Connector %s - Signed: %s/%s customer lines", 
                         self.id, len(signed_lines), total_lines)
             
-            all_signed = all(l.sign_status for l in self.connector_line_ids)
-            any_signed = any(l.sign_status for l in self.connector_line_ids)
+            all_signed = all(l.sign_status for l in relevant_lines)
+            any_signed = any(l.sign_status for l in relevant_lines)
             
             _logger.info("[DocuSign Status Check] Current state: %s, any_signed: %s, all_signed: %s", 
                         self.state, any_signed, all_signed)
@@ -446,27 +453,10 @@ class OverrideDocumentStatus(models.Model):
                             self.id, self.state)
             
             # If connector completed, update subscription and contract management states
-            if self.state == 'customer':
-                # Customer signed - awaiting Cabal signature
-                sub = self.env['sale.order'].browse(self.sale_id.id)
-                if sub.contract_state == 'pending_customer_signature':
-                    sub.write({'contract_state': 'pending_cabal_signature'})
-                    _logger.info("[DocuSign Status Check] Contract state for subscription %s updated to pending_cabal_signature", sub.id)
-                    # Skip install task creation for no-change renewals/config-only flows
-                    if sub.service_change_mode == 'no_change':
-                        _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
-                    else:
-                        # Create the install task as soon as the customer signs so field work can be scheduled
-                        try:
-                            sub.action_create_install_task()
-                            _logger.info("[DocuSign Status Check] Installation task auto-created after customer signature for subscription %s", sub.id)
-                        except Exception as e:
-                            _logger.warning("[DocuSign Status Check] Failed to auto-create install task after customer signature: %s", str(e))
-                            sub.write({'installation_state': 'to_be_scheduled'})
-            elif self.state == 'completed':
+            if self.state == 'completed':
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
-                if sub.contract_state in ['pending_customer_signature', 'pending_cabal_signature']:
+                if sub.contract_state in ['pending_customer_signature', 'pending_contract', 'pending_cabal_signature']:
                     # Skip install task creation for no-change renewals/config-only flows
                     if sub.service_change_mode == 'no_change':
                         _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
