@@ -5,6 +5,7 @@ import requests
 import logging
 import hmac
 import hashlib
+from odoo.osv import expression
 from urllib.parse import urlparse, urljoin
 from odoo.addons.odoo_docusign.models import docu_client
 from odoo import http, models, fields, _
@@ -112,17 +113,70 @@ class DocuSignWebhookController(http.Controller):
 class ContractPortal(CustomerPortal):
     """Portal controller for contract management customer portal views."""
 
+    # ----------------------------
+    # Property Manager (PM) helpers
+    # ----------------------------
+    def _is_property_manager(self):
+        """Return True if the current portal user is a property manager."""
+        user = request.env.user
+        return user.has_group("condominio_management.group_property_manager_portal")
+
+    def _pm_managed_clients_domain(self):
+        """Match clients managed by the current PM (aligns with portal dashboard logic)."""
+        up = request.env.user.partner_id
+        cp = up.commercial_partner_id
+        conditions = [
+            ("rental_manager_project_id.administrator_partner_id", "=", cp.id),
+            ("rental_manager_project_id.notify_contact_ids", "in", cp.id),
+            ("condo_admin_project_id.administrator_partner_id", "=", cp.id),
+            ("condo_admin_project_id.notify_contact_ids", "in", cp.id),
+            ("rental_manager_project_id.administrator_partner_id", "=", up.id),
+            ("condo_admin_project_id.administrator_partner_id", "=", up.id),
+            ("rental_manager_project_id.notify_contact_ids", "in", up.id),
+            ("condo_admin_project_id.notify_contact_ids", "in", up.id),
+            ("rental_manager_project_id.administrator_partner_id", "child_of", cp.id),
+            ("condo_admin_project_id.administrator_partner_id", "child_of", cp.id),
+            ("rental_manager_project_id.notify_contact_ids", "child_of", cp.id),
+            ("condo_admin_project_id.notify_contact_ids", "child_of", cp.id),
+        ]
+        return expression.OR([[c] for c in conditions])
+
+    def _get_portal_partner(self):
+        """Resolve effective partner for portal access (supports PM impersonation)."""
+        user_partner = request.env.user.partner_id.commercial_partner_id
+
+        if not self._is_property_manager():
+            return user_partner
+
+        active_id = request.session.get("pm_active_client_id")
+        if not active_id:
+            return user_partner
+
+        client = request.env["res.partner"].sudo().browse(int(active_id)).exists()
+        if not client:
+            request.session.pop("pm_active_client_id", None)
+            return user_partner
+
+        allowed = request.env["res.partner"].sudo().search_count(
+            self._pm_managed_clients_domain() + [("id", "=", client.id)]
+        )
+        if not allowed:
+            request.session.pop("pm_active_client_id", None)
+            return user_partner
+
+        return client.commercial_partner_id
+
     def _prepare_home_portal_values(self, counters):
         """Add contract counts to portal home."""
         values = super()._prepare_home_portal_values(counters)
-        partner = request.env.user.partner_id
+        partner = self._get_portal_partner()
         
         ContractManagement = request.env['contract.management']
         
         if 'contract_count' in counters:
             # Count contracts with completed signatures and signed documents
             values['contract_count'] = ContractManagement.search_count([
-                ('partner_id', '=', partner.id),
+                ('partner_id', 'child_of', partner.id),
                 ('docusign_status', '=', 'completed'),
                 ('has_signed_documents', '=', True)
             ])
@@ -227,8 +281,9 @@ class ContractPortal(CustomerPortal):
         except (AccessError, ValidationError):
             return request.redirect('/my')
         
-        # Verify contract belongs to current user's partner
-        if contract_sudo.partner_id != request.env.user.partner_id:
+        # Verify contract belongs to effective portal partner (supports PM impersonation)
+        active_partner = self._get_portal_partner()
+        if contract_sudo.partner_id.commercial_partner_id != active_partner:
             return request.redirect('/my')
         
         has_embedded = bool(contract_sudo.docusign_client_user_id)
@@ -251,8 +306,9 @@ class ContractPortal(CustomerPortal):
         except (AccessError, ValidationError):
             return request.redirect('/my')
         
-        # Verify contract belongs to current user's partner
-        if contract_sudo.partner_id != request.env.user.partner_id:
+        # Verify contract belongs to effective portal partner (supports PM impersonation)
+        active_partner = self._get_portal_partner()
+        if contract_sudo.partner_id.commercial_partner_id != active_partner:
             return request.redirect('/my')
         
         # Verify attachment belongs to this contract
