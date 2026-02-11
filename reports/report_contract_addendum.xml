@@ -176,10 +176,17 @@
                                 </div>
                                 <div class="col-6 text-center">
                                     <p class="m-0"><strong>Redes Litorales SA de CV</strong></p>
-                                    <div class="mt-1" style="white-space: nowrap;">
-                                        <img src="/contract_management/static/description/corporate_seal_original.jpg" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Sello Redes Litorales"/>
-                                        <span style="display: inline-block; width: 10px;"></span>
-                                        <img src="/contract_management/static/description/signature.png" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Firma Redes Litorales"/>
+                                    <div class="mt-1" style="display: inline-block;">
+                                        <table style="margin: 0 auto;">
+                                            <tr>
+                                                <td style="padding-right: 8px; vertical-align: middle;">
+                                                    <img src="/contract_management/static/description/corporate_seal_original.jpg" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Sello Redes Litorales"/>
+                                                </td>
+                                                <td style="vertical-align: middle;">
+                                                    <img src="/contract_management/static/description/signature.png" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Firma Redes Litorales"/>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </div>
                                     <div class="mt-4">_______________________________</div>
                                     <div>Representante Legal</div>
@@ -212,10 +219,17 @@
                             </div>
                             <div class="col-6 text-center">
                                 <p class="m-0"><strong>Redes Litorales SA de CV</strong></p>
-                                    <div class="mt-1" style="white-space: nowrap;">
-                                        <img src="/contract_management/static/description/corporate_seal_original.jpg" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Sello Redes Litorales"/>
-                                        <span style="display: inline-block; width: 10px;"></span>
-                                        <img src="/contract_management/static/description/signature.png" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Firma Redes Litorales"/>
+                                    <div class="mt-1" style="display: inline-block;">
+                                        <table style="margin: 0 auto;">
+                                            <tr>
+                                                <td style="padding-right: 8px; vertical-align: middle;">
+                                                    <img src="/contract_management/static/description/corporate_seal_original.jpg" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Sello Redes Litorales"/>
+                                                </td>
+                                                <td style="vertical-align: middle;">
+                                                    <img src="/contract_management/static/description/signature.png" style="max-height: 60px; vertical-align: middle; display: inline-block;" alt="Firma Redes Litorales"/>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </div>
                                 <div class="mt-4">_______________________________</div>
                                 <div>Representante Legal</div>
