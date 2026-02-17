@@ -1019,12 +1019,33 @@ class ContractManagement(models.Model):
         if not customer_line.envelope_id:
             raise UserError(_("No envelope ID found. Cannot resend."))
         
+        # If this recipient is embedded, bypass DocuSign notifications and deliver our magic link instead
+        if customer_line.client_user_id or self.docusign_client_user_id:
+            _logger.info("[DocuSign] Embedded signer detected; delivering magic link via Odoo (email).")
+            try:
+                self.subscription_id.send_customer_contract_link(connector_id=self.docusign_id, preferred_method='email')
+                self.write({'contract_send_method': 'email'})
+                self.message_post(body=_("Magic signing link delivered via email (Odoo)."), subject="Contract link delivered")
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Success'),
+                        'message': _('Magic link sent via email.'),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            except Exception as delivery_err:
+                _logger.warning("[DocuSign] Embedded delivery via email failed: %s", delivery_err, exc_info=True)
+                raise
+
         # Check if customer has already signed (sign_status is Boolean)
         customer_signed = customer_line.sign_status == True
-        
+
         envelope_id = customer_line.envelope_id
         recipient_id = customer_line.recipient_id or '1'  # Default to '1' if not set
-        
+
         _logger.info("[DocuSign] Envelope ID: %s, Recipient ID: %s, Customer signed: %s", envelope_id, recipient_id, customer_signed)
         
         try:
@@ -1135,6 +1156,30 @@ class ContractManagement(models.Model):
         
         if not customer_line.envelope_id:
             raise UserError(_("No envelope ID found. Cannot resend."))
+
+        # If this recipient is embedded, bypass DocuSign notifications and deliver our magic link instead
+        if customer_line.client_user_id or self.docusign_client_user_id:
+            _logger.info("[DocuSign] Embedded signer detected; delivering magic link via Odoo (email).")
+            try:
+                self.subscription_id.send_customer_contract_link(
+                    connector_id=self.docusign_id,
+                    preferred_method='email',
+                )
+                self.write({'contract_send_method': 'email'})
+                self.message_post(body=_("Magic signing link delivered via email (Odoo)."), subject="Contract link delivered")
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Success'),
+                        'message': _('Magic link sent via email.'),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            except Exception as delivery_err:
+                _logger.warning("[DocuSign] Embedded delivery via email failed: %s", delivery_err, exc_info=True)
+                raise
         
         # Check if customer has already signed (sign_status is Boolean)
         customer_signed = customer_line.sign_status == True

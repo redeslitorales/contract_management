@@ -441,6 +441,15 @@ class OverrideDocumentStatus(models.Model):
             
             _logger.info("[DocuSign Status Check] Current state: %s, any_signed: %s, all_signed: %s", 
                         self.state, any_signed, all_signed)
+
+            addendum_record = self.contract_addendum_id
+            if addendum_record and addendum_record.docusign_id != self:
+                addendum_record.sudo().write({'docusign_id': self.id})
+                _logger.info(
+                    "[DocuSign Status Check] Linked addendum %s to connector %s",
+                    addendum_record.id,
+                    self.id,
+                )
             
             if all_signed:
                 _logger.info("[DocuSign Status Check] ALL LINES SIGNED - Marking connector %s as completed", self.id)
@@ -456,7 +465,7 @@ class OverrideDocumentStatus(models.Model):
             if self.state == 'completed':
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
-                if sub.contract_state in ['pending_customer_signature', 'pending_contract', 'pending_cabal_signature']:
+                if sub.contract_state in ['pending_customer_signature', 'pending_contract']:
                     # Skip install task creation for no-change renewals/config-only flows
                     if sub.service_change_mode == 'no_change':
                         _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
@@ -475,6 +484,19 @@ class OverrideDocumentStatus(models.Model):
                     if cm:
                         cm[0].write({'state': 'active'})
                         _logger.info("[DocuSign Status Check] Contract %s activated (all signatures complete)", cm[0].id)
+
+                # Update linked addendum when the envelope is fully signed
+                if addendum_record:
+                    addendum_vals = {'docusign_id': self.id}
+                    if addendum_record.state != 'signed':
+                        addendum_vals['state'] = 'signed'
+                    addendum_record.sudo().write(addendum_vals)
+                    _logger.info(
+                        "[DocuSign Status Check] Addendum %s marked %s via connector %s",
+                        addendum_record.id,
+                        addendum_vals.get('state', addendum_record.state),
+                        self.id,
+                    )
             
             # Return notification instead of popup
             return {

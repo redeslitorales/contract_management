@@ -2,6 +2,8 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.misc import html_escape
 from odoo.tools import float_round
+from odoo.tools.safe_eval import safe_eval
+from lxml import etree
 from markupsafe import Markup
 from datetime import date, timedelta
 import calendar
@@ -32,7 +34,6 @@ CONTRACT_SEND_METHODS = [
 CONTRACT_STATES = [
     ('pending_contract', 'Pending Contract'),
     ('pending_customer_signature', 'Pending Customer Signature'),
-    ('pending_cabal_signature', 'Pending Cabal Signature'),
     ('active', 'Active'),
     ('expired', 'Expired'),
     ('terminated', 'Terminated'),
@@ -101,7 +102,7 @@ class SaleSubscription(models.Model):
         store=True,
     )
     cabal_sequence = fields.Char(string='Contract Number', readonly=True, copy=False)
-    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default='email', required=True)
+    contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default='whatsapp', required=True)
     contract_magic_token = fields.Char(string='Contract Magic Token', readonly=True, copy=False)
     contract_magic_link = fields.Char(string='Contract Magic Link', readonly=True, copy=False)
     contract_state = fields.Selection(
@@ -207,6 +208,11 @@ class SaleSubscription(models.Model):
         copy=False,
         readonly=True,
     )
+    has_active_contract = fields.Boolean(
+        string='Has Active Contract',
+        compute='_compute_has_active_contract',
+        help='True when the subscription has at least one active/signed contract; used to gate upsell actions.'
+    )
     progress_stage = fields.Char(
         string='Progress Stage',
         compute='_compute_progress_stage',
@@ -227,6 +233,48 @@ class SaleSubscription(models.Model):
         if not self.env.context.get('contract_transfer_label'):
             return res
         return [(order.id, order._get_transfer_display_name()) for order in self]
+
+    @api.depends('contract_ids.state')
+    def _compute_has_active_contract(self):
+        for order in self:
+            active_contract = bool(order.contract_ids.filtered(lambda c: c.state in ('active', 'signed')))
+            order.has_active_contract = active_contract
+
+    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
+        res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
+        if view_type != 'form':
+            return res
+
+        arch_doc = etree.XML(res.get('arch'))
+        header = arch_doc.xpath('//form/header')
+        updates_made = False
+
+        if header:
+            # Ensure has_active_contract is available for header attrs even if the XML view omits it.
+            has_field = header[0].xpath(".//field[@name='has_active_contract']")
+            if not has_field:
+                header[0].insert(0, etree.Element('field', name='has_active_contract', invisible='1'))
+                updates_made = True
+
+        upsell_buttons = arch_doc.xpath("//header/button[@name='action_subscription_upsell']")
+        for btn in upsell_buttons:
+            attrs = safe_eval(btn.get('attrs', '{}'))
+            guard = ['|', ('has_active_contract', '=', False), ('state', 'not in', ['sale', 'done'])]
+
+            existing = attrs.get('invisible')
+            if existing:
+                # Combine existing visibility rules with our guard using prefix OR nesting.
+                attrs['invisible'] = ['|', guard, existing]
+            else:
+                attrs['invisible'] = guard
+
+            btn.set('attrs', repr(attrs))
+            updates_made = True
+
+        if updates_made:
+            res['arch'] = etree.tostring(arch_doc, encoding='unicode')
+
+        return res
     
     @api.depends('confirmation_uuid')
     def _get_confirmation_secret(self):
@@ -689,11 +737,28 @@ class SaleSubscription(models.Model):
     @api.depends('contract_state', 'contract_ids', 'docusign_ids')
     def _compute_can_resend_contract(self):
         for order in self:
-            order.can_resend_contract = (
+            # Default rule for base subscriptions
+            can_resend = (
                 order.contract_state == 'pending_customer_signature'
                 and order.contract_ids
                 and order.docusign_ids
             )
+
+            # Upsell-specific rule: allow resend from the upsell record if its addendum is not finished
+            if not can_resend and (order.subscription_state == '7_upsell' or order.upsell_from_id):
+                parent_order = order._get_addendum_base_order()
+                if parent_order and parent_order != order:
+                    addendum = order.env['contract.addendum'].search([
+                        ('upsell_subscription_id', '=', order.id),
+                    ], order='create_date desc', limit=1)
+                    addendum_pending = addendum and addendum.state not in ('active', 'cancelled')
+                    can_resend = (
+                        addendum_pending
+                        and parent_order.contract_state == 'pending_customer_signature'
+                        and parent_order.docusign_ids
+                    )
+
+            order.can_resend_contract = can_resend
     
     def action_view_contracts(self):
         """Smart button action to view contracts"""
@@ -787,7 +852,7 @@ class SaleSubscription(models.Model):
         # Update subscription state to show schedule button
         # Only change state if we're at pending signature stage (don't move backwards)
         if (
-            self.contract_state in ['pending_customer_signature', 'pending_cabal_signature']
+            self.contract_state == 'pending_customer_signature'
             and self.installation_state != 'completed'
         ):
             self.write({'installation_state': 'to_be_scheduled'})
@@ -971,22 +1036,67 @@ class SaleSubscription(models.Model):
     def write(self, vals):
         previous_stage = {order.id: order.progress_stage for order in self}
         previous_contract_state = {order.id: order.contract_state for order in self}
+        previous_sub_state = {order.id: order.subscription_state for order in self}
 
         res = super().write(vals)
 
+        # Cleanup on churn: delete ONU in SmartOLT, flag asset for recovery, clear links
+        if not self.env.context.get('skip_churn_cleanup'):
+            for order in self:
+                if previous_sub_state.get(order.id) != '6_churn' and order.subscription_state == '6_churn':
+                    asset = getattr(order, 'cpe_unit_asset', False)
+                    lot = getattr(order, 'cpe_unit', False)
+                    delete_status = None
+                    if asset:
+                        old_partner = asset.partner_id
+                        old_sub = asset.subscription_id
+                        try:
+                            asset.sudo().delete_onu()
+                            delete_status = 'SmartOLT delete_onu invoked'
+                        except Exception as e:
+                            delete_status = f"SmartOLT delete_onu error: {e}"
+
+                        asset_vals = {
+                            'to_be_recovered': True,
+                            'deployed': False,
+                            'partner_id': False,
+                            'subscription_id': False,
+                        }
+                        asset.sudo().write(asset_vals)
+
+                        asset_msg = _(
+                            "Churn cleanup executed from subscription %(sub)s (%(sub_id)s). "
+                            "Partner cleared: %(old_partner)s → None. Subscription cleared: %(old_sub)s → None. "
+                            "Asset flagged for recovery (to_be_recovered=True, deployed=False). %(delete_status)s."
+                        ) % {
+                            'sub': html_escape(order.display_name or order.name),
+                            'sub_id': order.id,
+                            'old_partner': html_escape(old_partner.display_name) if old_partner else 'None',
+                            'old_sub': html_escape(old_sub.display_name) if old_sub else 'None',
+                            'delete_status': delete_status or 'SmartOLT delete_onu attempted',
+                        }
+                        asset.sudo().message_post(body=asset_msg)
+
+                    # Clear CPE links on the subscription itself
+                    sub_vals = {'cpe_unit': False, 'cpe_unit_asset': False}
+                    order.with_context(skip_churn_cleanup=True, skip_renewal_completion=True).sudo().write(sub_vals)
+
+                    sub_msg = _(
+                        "Churn cleanup completed. CPE cleared (lot: %(lot)s, asset: %(asset)s). %(asset_info)s"
+                    ) % {
+                        'lot': html_escape(lot.display_name) if lot else 'None',
+                        'asset': html_escape(asset.display_name) if asset else 'None',
+                        'asset_info': (
+                            _(
+                                "Asset unassigned and flagged for recovery (to_be_recovered=True, deployed=False). %(delete_status)s"
+                            )
+                            % {'delete_status': delete_status or 'SmartOLT delete_onu attempted.'}
+                        ) if asset else '',
+                    }
+                    order.message_post(body=sub_msg)
+
         if self.env.context.get('skip_renewal_completion'):
             return res
-
-        contract_state_updated_to_pending_cabal = vals.get('contract_state') == 'pending_cabal_signature'
-        if contract_state_updated_to_pending_cabal:
-            for order in self:
-                was_pending_cabal = previous_contract_state.get(order.id) == 'pending_cabal_signature'
-                is_now_pending_cabal = order.contract_state == 'pending_cabal_signature'
-                if was_pending_cabal or not is_now_pending_cabal:
-                    continue
-
-                if order._is_speed_only_variant_renewal():
-                    order._apply_speed_only_variant_config()
 
         contract_state_updated_to_active = vals.get('contract_state') == 'active'
         if contract_state_updated_to_active:
@@ -1202,6 +1312,14 @@ class SaleSubscription(models.Model):
                         _logger.info("[Addendum] Successfully created addendum for order %s", self.name)
                     except Exception as e:
                         _logger.exception("[Addendum] ERROR creating addendum for order %s: %s", self.name, str(e))
+                        error_message = _("Addendum creation failed: %s") % str(e)
+                        # Surface the addendum failure in chatter for user visibility
+                        self.message_post(
+                            body=html_escape(error_message),
+                            subject=_("Addendum creation failed"),
+                            message_type='comment',
+                            subtype_xmlid='mail.mt_note',
+                        )
                         raise
                 
                 # NOW move to contract phase (for both upsells and normal subscriptions)
@@ -1221,7 +1339,8 @@ class SaleSubscription(models.Model):
                 # Send for signature (will use addendum template for upsells, full contract for normal subscriptions)
                 # Normalize WhatsApp only when the send method is WhatsApp and a number is present
                 if self.contract_send_method == 'whatsapp':
-                    whatsapp_number = self.partner_id.whatsapp or ''
+                    partner_for_comm = self.partner_id.commercial_partner_id or self.partner_id
+                    whatsapp_number = self.partner_id.whatsapp or partner_for_comm.whatsapp or ''
                     if not isinstance(whatsapp_number, str) or not whatsapp_number:
                         self.write({'contract_send_method': 'email'})
                     else:
@@ -1343,6 +1462,14 @@ class SaleSubscription(models.Model):
                         _logger.info("[Addendum] Successfully created addendum for order %s", self.name)
                     except Exception as e:
                         _logger.exception("[Addendum] ERROR creating addendum for order %s: %s", self.name, str(e))
+                        error_message = _("Addendum creation failed: %s") % str(e)
+                        # Surface the addendum failure in chatter for user visibility
+                        self.message_post(
+                            body=html_escape(error_message),
+                            subject=_("Addendum creation failed"),
+                            message_type='comment',
+                            subtype_xmlid='mail.mt_note',
+                        )
                         raise
                 
                 # NOW move to contract phase (for both upsells and normal subscriptions)
@@ -1369,6 +1496,15 @@ class SaleSubscription(models.Model):
         else:
             raise ValidationError(_("Failed to obtain access token from DocuSign via JWT. Please review DocuSign configuration."))
 
+    def action_confirm(self):
+        confirmable = self.filtered(lambda o: o.state in ('draft', 'sent'))
+        if len(confirmable) != len(self):
+            blocked = self - confirmable
+            names = ", ".join(blocked.mapped('name'))
+            raise UserError(_("Good news: %s is already confirmed. No extra action is needed.") % names)
+
+        return super().action_confirm()
+
 
     def _find_parent_contract(self):
         """Find the active contract for the parent subscription (used for upsells)"""
@@ -1393,6 +1529,30 @@ class SaleSubscription(models.Model):
         """Create and send addendum for upsell order"""
         self.ensure_one()
         _logger.info("[Addendum] _create_addendum_for_upsell called for order %s", self.name)
+
+        # Idempotency: reuse the latest non-cancelled addendum for this upsell if it already exists
+        existing_addendum = self.env['contract.addendum'].search([
+            ('upsell_subscription_id', '=', self.id),
+            ('state', '!=', 'cancelled'),
+        ], order='create_date desc', limit=1)
+        if existing_addendum:
+            _logger.info(
+                "[Addendum] Reusing existing addendum %s (state=%s) for upsell %s; skipping new creation",
+                existing_addendum.id,
+                existing_addendum.state,
+                self.name,
+            )
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Addendum for Upsell',
+                'res_model': 'contract.addendum',
+                'res_id': existing_addendum.id,
+                'view_mode': 'form',
+                'target': 'current',
+                'context': {
+                    'form_view_initial_mode': 'edit',
+                }
+            }
         
         # Find parent contract
         parent_contract = self._find_parent_contract()
@@ -1840,18 +2000,65 @@ class SaleSubscription(models.Model):
             # Persist contract_value so QWeb reports (contract PDFs) render the correct amount
             contract.sudo().write({'contract_value': contract_value})
             
-            # Step 0: Choose delivery method with WhatsApp-first, email fallback
-            send_method = contract.contract_send_method or 'whatsapp'
+            # Step 0: Choose delivery method honoring partner preferences (wa > email > sms)
+            partner_for_comm = contract.partner_id.commercial_partner_id or contract.partner_id
             partner_email = (contract.partner_id.email or '').strip()
             email_domain = partner_email.split('@')[-1].lower() if '@' in partner_email else ''
-            has_whatsapp = bool(contract.partner_id.whatsapp)
+
+            pref_wa = bool(getattr(partner_for_comm, 'preference_wa', False))
+            pref_email = bool(getattr(partner_for_comm, 'preference_correo', False))
+            pref_sms = bool(getattr(partner_for_comm, 'preference_sms', False))
+
+            whatsapp_candidates = [
+                contract.partner_id.whatsapp,
+                partner_for_comm.whatsapp,
+                contract.partner_id.mobile,
+                contract.partner_id.phone,
+                partner_for_comm.mobile,
+                partner_for_comm.phone,
+            ]
+            has_whatsapp = bool(next((num for num in whatsapp_candidates if num), None))
+
+            preferred_methods = [m for m, flag in (
+                ('whatsapp', pref_wa),
+                ('email', pref_email),
+                ('sms', pref_sms),
+            ) if flag]
+
+            send_method = None
+            for method in preferred_methods:
+                if method == 'whatsapp' and has_whatsapp:
+                    send_method = 'whatsapp'
+                    break
+                if method == 'email' and partner_email:
+                    send_method = 'email'
+                    break
+                if method == 'sms':
+                    _logger.info(
+                        "[DocuSign] SMS preference noted but SMS delivery is not implemented; skipping"
+                    )
+                    continue
+
+            if not send_method:
+                send_method = contract.contract_send_method or ('whatsapp' if has_whatsapp else 'email')
 
             if send_method == 'whatsapp' and not has_whatsapp:
                 send_method = 'email'
                 contract.sudo().write({'contract_send_method': send_method})
                 _logger.info(
-                    "[DocuSign] Partner has no WhatsApp; falling back to email for contract ID=%s",
+                    "[DocuSign] No WhatsApp/mobile/phone on partner/commercial partner; falling back to email for contract ID=%s",
                     contract.id,
+                )
+            else:
+                _logger.info(
+                    "[DocuSign] Delivery preference=%s flags(wa=%s email=%s sms=%s) has_whatsapp=%s partner_whatsapp=%s comm_whatsapp=%s",
+                    send_method,
+                    pref_wa,
+                    pref_email,
+                    pref_sms,
+                    has_whatsapp,
+                    contract.partner_id.whatsapp,
+                    partner_for_comm.whatsapp,
                 )
 
             # Step 1: Generate contract number
@@ -1955,66 +2162,80 @@ class SaleSubscription(models.Model):
                         connector_id.name,
                     )
 
-            # Step 5: Create the contract management record (before sending to ensure logging exists)
-            # Reuse latest contract.management if it already exists to avoid duplicates
-            k_management = self.env['contract.management'].sudo().search([
-                ('subscription_id', '=', contract.id)
-            ], order='create_date desc', limit=1)
-
-            new_contract_record = not bool(k_management)
-            if new_contract_record:
-                _logger.info("[DocuSign] Creating contract.management record for subscription ID=%s", contract.id)
-                k_management = self.env['contract.management'].sudo().create({
-                    'subscription_id': contract.id,
-                    "contract_send_method": contract.contract_send_method,
-                    'monthly_payment': monthly_payment,
-                    'contract_value': contract_value,
-                })
+            # Step 5: Resolve the contract.management to use.
+            # For addendums, always reuse the parent contract record referenced by the addendum
+            # instead of creating a new contract tied to the upsell order.
+            if addendum_record:
+                k_management = addendum_record.contract_id
+                if not k_management:
+                    raise UserError(_("Addendum is missing a parent contract. Cannot send for signature."))
+                new_contract_record = False
                 _logger.info(
-                    "[DocuSign] contract.management created: ID=%s with monthly_payment=%.2f, contract_value=%.2f",
+                    "[DocuSign] Using parent contract.management ID=%s from addendum %s for upsell %s",
                     k_management.id,
-                    monthly_payment,
-                    contract_value,
+                    addendum_record.id,
+                    contract.name,
                 )
             else:
-                _logger.info(
-                    "[DocuSign] Reusing existing contract.management ID=%s for subscription ID=%s",
-                    k_management.id,
-                    contract.id,
-                )
-                k_management.sudo().write({
-                    "contract_send_method": contract.contract_send_method,
-                    'monthly_payment': monthly_payment,
-                    'contract_value': contract_value,
-                })
-                _logger.info(
-                    "[DocuSign] Updated existing contract.management ID=%s with monthly_payment=%.2f, contract_value=%.2f",
-                    k_management.id,
-                    monthly_payment,
-                    contract_value,
-                )
+                # Reuse latest contract.management if it already exists to avoid duplicates
+                k_management = self.env['contract.management'].sudo().search([
+                    ('subscription_id', '=', contract.id)
+                ], order='create_date desc', limit=1)
 
-            # Step 5a: Create contract service lines from subscription order lines only for new records
-            if new_contract_record:
-                _logger.info(
-                    "[DocuSign] Creating contract service lines for contract.management ID=%s",
-                    k_management.id,
-                )
-                service_lines_created = 0
-                for line in contract.order_line:
-                    if line.product_id and not line.display_type:
-                        self.env['contract.service'].sudo().create({
-                            'contract_id': k_management.id,
-                            'product_id': line.product_id.id,
-                            'name': line.name or line.product_id.name,
-                            'price': line.price_total,  # Use price_total to include taxes
-                        })
-                        service_lines_created += 1
-                _logger.info(
-                    "[DocuSign] Created %d service lines for contract.management ID=%s",
-                    service_lines_created,
-                    k_management.id,
-                )
+                new_contract_record = not bool(k_management)
+                if new_contract_record:
+                    _logger.info("[DocuSign] Creating contract.management record for subscription ID=%s", contract.id)
+                    k_management = self.env['contract.management'].sudo().create({
+                        'subscription_id': contract.id,
+                        "contract_send_method": contract.contract_send_method,
+                        'monthly_payment': monthly_payment,
+                        'contract_value': contract_value,
+                    })
+                    _logger.info(
+                        "[DocuSign] contract.management created: ID=%s with monthly_payment=%.2f, contract_value=%.2f",
+                        k_management.id,
+                        monthly_payment,
+                        contract_value,
+                    )
+                else:
+                    _logger.info(
+                        "[DocuSign] Reusing existing contract.management ID=%s for subscription ID=%s",
+                        k_management.id,
+                        contract.id,
+                    )
+                    k_management.sudo().write({
+                        "contract_send_method": contract.contract_send_method,
+                        'monthly_payment': monthly_payment,
+                        'contract_value': contract_value,
+                    })
+                    _logger.info(
+                        "[DocuSign] Updated existing contract.management ID=%s with monthly_payment=%.2f, contract_value=%.2f",
+                        k_management.id,
+                        monthly_payment,
+                        contract_value,
+                    )
+
+                # Step 5a: Create contract service lines from subscription order lines only for new records
+                if new_contract_record:
+                    _logger.info(
+                        "[DocuSign] Creating contract service lines for contract.management ID=%s",
+                        k_management.id,
+                    )
+                    service_lines_created = 0
+                    for line in contract.order_line:
+                        if line.product_id and not line.display_type:
+                            self.env['contract.service'].sudo().create({
+                                'contract_id': k_management.id,
+                                'product_id': line.product_id.id,
+                                'name': line.name or line.product_id.name,
+                                'price': line.price_total,  # Use price_total to include taxes
+                            })
+                            service_lines_created += 1
+                    _logger.info(
+                        "[DocuSign] Created %d service lines for contract.management ID=%s",
+                        service_lines_created,
+                        k_management.id,
+                    )
 
             if connector_id:
                 write_vals = {'contract_management_id': k_management.id}
@@ -2024,6 +2245,22 @@ class SaleSubscription(models.Model):
                 _logger.info("[DocuSign] Linked connector %s to contract.management %s%s", 
                              connector_id.id, k_management.id, 
                              f" and addendum {addendum_record.id}" if addendum_record else "")
+
+                # Ensure the addendum points back to the connector and reflects the send action
+                if addendum_record:
+                    addendum_updates = {'docusign_id': connector_id.id}
+                    # Move draft addendums to pending_signature when the envelope is sent
+                    if addendum_record.state not in ('signed', 'active'):
+                        addendum_updates['state'] = 'pending_signature'
+                    # Keep the send method aligned with the envelope delivery channel
+                    addendum_updates['contract_send_method'] = send_method
+                    addendum_record.sudo().write(addendum_updates)
+                    _logger.info(
+                        "[DocuSign] Updated addendum %s with connector %s and state %s",
+                        addendum_record.id,
+                        connector_id.id,
+                        addendum_updates.get('state', addendum_record.state),
+                    )
             
             # Step 6: Link docusign connector to contract.management
             if send_method != 'physical' and connector_id:
@@ -2059,22 +2296,55 @@ class SaleSubscription(models.Model):
                 
                 if is_success:
                     _logger.info("[DocuSign] SUCCESS: Contract sent successfully for contract ID=%s", contract.id)
-                    
+
                     # Get envelope ID from first connector line
                     envelope_id = connector_id.connector_line_ids[0].envelope_id if connector_id.connector_line_ids else None
-                    
+
+                    # For embedded recipients, deliver the magic link ourselves (email/WhatsApp) instead of DocuSign notifications
+                    has_embedded_signer = bool(connector_id.connector_line_ids.filtered(lambda l: l.client_user_id))
+                    delivered_via = None
+                    delivery_error = None
+                    if has_embedded_signer:
+                        try:
+                            delivered_via = target_order.send_customer_contract_link(
+                                connector_id=connector_id,
+                                preferred_method=send_method,
+                            )
+                            _logger.info(
+                                "[DocuSign] Embedded signer detected; magic link delivered via %s for order %s",
+                                delivered_via,
+                                target_order.id,
+                            )
+                        except Exception as exc:
+                            delivery_error = exc
+                            _logger.warning(
+                                "[DocuSign] Embedded magic link delivery failed for order %s: %s",
+                                target_order.id,
+                                exc,
+                                exc_info=True,
+                            )
+
                     # Format method for display
-                    if contract.contract_send_method in ['whatsapp', 'email']:
+                    if has_embedded_signer:
+                        channel = delivered_via or send_method or contract.contract_send_method
+                        method_display = f"Odoo magic link ({channel})"
+                    elif contract.contract_send_method in ['whatsapp', 'email']:
                         method_display = f"DocuSign ({contract.contract_send_method.capitalize()})"
                     else:
                         method_display = contract.contract_send_method.capitalize()
-                    
+
                     # Construct message with envelope ID
-                    msg_body = f'SUCCESS: Contract {document.name} sent to customer via {method_display}'
+                    msg_body = f"Envelope {document.name} prepared for customer via {method_display}"
                     if envelope_id:
-                        msg_body += f' - Envelope ID: {envelope_id}'
-                    
+                        msg_body += f" - Envelope ID: {envelope_id}"
+                    if has_embedded_signer and delivered_via:
+                        msg_body += f" - Magic link delivered via {delivered_via}"
+
                     target_order.sudo().message_post(body=msg_body, attachment_ids=[document.id])
+
+                    if has_embedded_signer and delivery_error:
+                        raise ValidationError(_("DocuSign envelope created but magic link delivery failed: %s") % delivery_error)
+
                     target_order.sudo().write({'contract_state': 'pending_customer_signature'})
                     _logger.info(
                         "[DocuSign] Contract state updated on %s to 'pending_customer_signature'",
@@ -2083,7 +2353,7 @@ class SaleSubscription(models.Model):
 
                     # If this was an upsell/addendum, leave a note on the upsell order to look at the parent
                     if target_order != contract:
-                        contract.sudo().message_post(body=_("Addendum sent via DocuSign. See parent subscription %s for envelope status and chatter.") % target_order.name)
+                        contract.sudo().message_post(body=_("Addendum sent. See parent subscription %s for envelope status and chatter.") % target_order.name)
                 else:
                     # Don't use 'name' field as error message - it may contain success indicators
                     error_msg = send_contract_result.get('message') or send_contract_result.get('error') or str(send_contract_result)
@@ -2165,6 +2435,17 @@ class SaleSubscription(models.Model):
 
     def action_open_resend_contract_wizard(self):
         self.ensure_one()
+
+        # For upsell addendums, resend should operate on the parent order that owns the envelope
+        target_order = self._get_addendum_base_order()
+        if target_order and target_order != self:
+            _logger.info(
+                "[DocuSign] Redirecting resend from upsell %s to parent order %s",
+                self.name,
+                target_order.name,
+            )
+            return target_order.action_open_resend_contract_wizard()
+
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'contract.resend.wizard',
@@ -2365,12 +2646,7 @@ class SaleSubscription(models.Model):
         if contract_record:
             contract_record.message_post(body=link_msg)
 
-        if contract.contract_send_method == 'whatsapp':
-            try:
-                contract._send_magic_link_via_whatsapp(contract.partner_id, token, magic_url)
-            except Exception as exc:
-                _logger.error("[DocuSign] Failed to send magic link via WhatsApp: %s", exc, exc_info=True)
-                raise
+        # Delivery of the magic link is orchestrated after envelope send, with fallback logic.
         
         _logger.info("[DocuSign] Returning connector_record ID=%s with 1 recipient", connector_record.id)
         return connector_record
@@ -2406,8 +2682,18 @@ class SaleSubscription(models.Model):
             path = f"/contracts/sign/{token}"
             magic_url = f"{base_url}{path}" if base_url else path
 
-        # Prefer explicit WhatsApp number, then fall back to mobile/phone
-        normalized_phone = WhatsApp.normalize_phone(partner.whatsapp)
+        partner_for_comm = partner.commercial_partner_id or partner
+        phone_candidates = [
+            partner.whatsapp,
+            partner_for_comm.whatsapp if partner_for_comm != partner else None,
+            partner.mobile,
+            partner.phone,
+            partner_for_comm.mobile if partner_for_comm != partner else None,
+            partner_for_comm.phone if partner_for_comm != partner else None,
+        ]
+        raw_phone = next((num for num in phone_candidates if num), None)
+
+        normalized_phone = WhatsApp.normalize_phone(raw_phone)
         client_phone = f'+{normalized_phone}' if normalized_phone else None
         if not client_phone:
             raise ValidationError(_("Número de teléfono inválido"))
@@ -2473,6 +2759,190 @@ class SaleSubscription(models.Model):
         self.message_post(body=message)
 
         return log_record or True
+
+    def _send_magic_link_via_email(self, partner, magic_url):
+        """Send the magic link to the customer via email."""
+        self.ensure_one()
+
+        email_to = (partner.email or partner.email_normalized or '').strip()
+        if not email_to:
+            raise ValidationError(_("Customer does not have an email address configured."))
+
+        ICP = self.env['ir.config_parameter'].sudo()
+        base_url = (ICP.get_param('web.base.url') or '').rstrip('/')
+        wa_logo_file = (ICP.get_param('wa_logo_file', '') or '').strip()
+
+        if wa_logo_file and (wa_logo_file.startswith('http://') or wa_logo_file.startswith('https://')):
+            logo_src = wa_logo_file
+        elif wa_logo_file:
+            logo_src = f"{base_url}/{wa_logo_file.lstrip('/')}" if base_url else f"/{wa_logo_file.lstrip('/')}"
+        else:
+            logo_src = f"/web/image/res.company/{self.company_id.id}/logo"
+
+        template = self.env.ref('contract_management.mail_template_email_contract_link', raise_if_not_found=False)
+        if not template:
+            raise ValidationError(_("Magic link email template is missing. Please contact an administrator."))
+
+        template = template.with_context(
+            magic_url=magic_url,
+            logo_src=logo_src,
+            lang=partner.lang or self.env.lang,
+        )
+
+        # Optional: force a valid From
+        email_from = self.company_id.email or self.env.user.email_formatted or False
+
+        _logger.info(
+            "[DocuSign] Magic link email prep: order_id=%s, to=%s, template_id=%s, email_from=%s",
+            self.id,
+            email_to,
+            template.id,
+            email_from,
+        )
+        _logger.debug(
+            "[DocuSign] Magic link URL (truncated): %s",
+            (magic_url[:200] + "...") if magic_url and len(magic_url) > 200 else magic_url,
+        )
+
+        mail_id = template.send_mail(
+            self.id,
+            force_send=True,
+            email_values={
+                'email_to': email_to,
+                **({'email_from': email_from} if email_from else {}),
+            },
+        )
+        if not mail_id:
+            raise ValidationError(_("Failed to queue the magic link email."))
+
+        _logger.info(
+            "[DocuSign] Magic link email queued: mail_id=%s, order_id=%s, to=%s",
+            mail_id,
+            self.id,
+            email_to,
+        )
+
+        self.message_post(
+            body=_('Magic signing link sent via Email to %s.') % email_to,
+            subtype_xmlid='mail.mt_note',
+            message_type='comment',
+        )
+        return True
+
+    def send_customer_contract_link(self, connector_id=None, preferred_method=None):
+        """Deliver the magic link using partner preferences (wa > email > sms) with fallback.
+
+        Preferred ordering uses partner/commercial partner flags: preference_wa,
+        preference_correo, preference_sms. Unsupported SMS is skipped but logged.
+        Remaining channels are attempted afterward with WhatsApp prioritized when available.
+        """
+        self.ensure_one()
+
+        connector = connector_id or self.docusign_ids.filtered(lambda c: c.connector_line_ids)
+        connector = connector.sorted(key=lambda c: c.id, reverse=True)[:1]
+        if not connector:
+            raise ValidationError(_("No DocuSign envelope is available to build a magic link. Send the contract first."))
+
+        customer_line = connector.connector_line_ids.filtered(lambda l: l.partner_id.id == self.partner_id.id)[:1]
+        if not customer_line:
+            customer_line = connector.connector_line_ids[:1]
+
+        if not customer_line:
+            raise ValidationError(_("No DocuSign recipient was found to generate a magic link."))
+
+        token, magic_url = customer_line.generate_magic_link()
+
+        partner_for_comm = self.partner_id.commercial_partner_id or self.partner_id
+        pref_wa = bool(getattr(partner_for_comm, 'preference_wa', False))
+        pref_email = bool(getattr(partner_for_comm, 'preference_correo', False))
+        pref_sms = bool(getattr(partner_for_comm, 'preference_sms', False))
+
+        wa_partner = self.partner_id if self.partner_id.whatsapp else partner_for_comm
+        whatsapp_candidates = [
+            self.partner_id.whatsapp,
+            partner_for_comm.whatsapp,
+            self.partner_id.mobile,
+            self.partner_id.phone,
+            partner_for_comm.mobile,
+            partner_for_comm.phone,
+        ]
+        has_whatsapp = bool(next((num for num in whatsapp_candidates if num), None))
+        has_email = bool(self.partner_id.email or self.partner_id.email_normalized)
+
+        preferred_methods = [m for m, flag in (
+            ('whatsapp', pref_wa),
+            ('email', pref_email),
+            ('sms', pref_sms),
+        ) if flag]
+
+        chosen_preferred = None
+        for method in preferred_methods:
+            if method == 'whatsapp' and has_whatsapp:
+                chosen_preferred = 'whatsapp'
+                break
+            if method == 'email' and has_email:
+                chosen_preferred = 'email'
+                break
+            if method == 'sms':
+                _logger.info("[DocuSign] SMS preference noted but SMS delivery is not implemented; skipping")
+                continue
+
+        if not chosen_preferred:
+            chosen_preferred = preferred_method or (self.contract_send_method if self.contract_send_method else None)
+        if not chosen_preferred:
+            chosen_preferred = 'whatsapp' if has_whatsapp else 'email'
+
+        methods = []
+        for m in (
+            chosen_preferred,
+            *(preferred_methods or []),
+            'whatsapp' if has_whatsapp else None,
+            'email' if has_email else None,
+            'whatsapp',
+        ):
+            if m and m not in methods:
+                methods.append(m)
+
+        _logger.info(
+            "[DocuSign] Magic link delivery ordering=%s chosen=%s prefs(wa=%s email=%s sms=%s) has_whatsapp=%s partner_whatsapp=%s comm_whatsapp=%s",
+            methods,
+            chosen_preferred,
+            pref_wa,
+            pref_email,
+            pref_sms,
+            has_whatsapp,
+            self.partner_id.whatsapp,
+            partner_for_comm.whatsapp,
+        )
+
+        last_error = None
+        partner_for_comm = self.partner_id.commercial_partner_id or self.partner_id
+
+        for method in methods:
+            try:
+                if method == 'email':
+                    if not (self.partner_id.email or self.partner_id.email_normalized):
+                        last_error = _('Customer email is missing')
+                        continue
+                    self._send_magic_link_via_email(self.partner_id, magic_url)
+                    self.sudo().write({'contract_send_method': 'email'})
+                    return 'email'
+                if method == 'whatsapp':
+                    if not has_whatsapp:
+                        last_error = _('Customer WhatsApp number is missing')
+                        continue
+                    self._send_magic_link_via_whatsapp(wa_partner, token, magic_url)
+                    self.sudo().write({'contract_send_method': 'whatsapp'})
+                    return 'whatsapp'
+                if method == 'sms':
+                    last_error = _('SMS delivery not implemented')
+                    continue
+            except Exception as exc:
+                _logger.warning("[DocuSign] Failed sending magic link via %s: %s", method, exc, exc_info=True)
+                last_error = str(exc)
+                continue
+
+        raise ValidationError(last_error or _('No valid contact method available to send the contract link.'))
 
     def action_send_contract_link_whatsapp(self):
         """Send the existing contract magic link via WhatsApp template."""
@@ -2748,14 +3218,14 @@ class ContractResendWizard(models.TransientModel):
         contract = self._get_contract()
         if not self.can_resend_email:
             raise ValidationError(_("Contract cannot be resent right now."))
-        result = contract.action_resend_contract()
-        return result or {'type': 'ir.actions.act_window_close'}
+        contract.send_customer_contract_link(preferred_method='email')
+        return {'type': 'ir.actions.act_window_close'}
 
     def action_send_magic_link(self):
         contract = self._get_contract()
         if not self.can_send_magic_link:
             raise ValidationError(_("Contract is not ready for a magic link."))
-        contract.action_send_contract_link_whatsapp()
+        contract.send_customer_contract_link(preferred_method='whatsapp')
         return {'type': 'ir.actions.act_window_close'}
 
     def action_sign_in_person(self):

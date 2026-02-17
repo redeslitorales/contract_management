@@ -186,6 +186,13 @@
                                         <p class="mb-2"><strong>Orden:</strong> <t t-esc="order_name"/></p>
                                         <p class="mb-0"><strong>Método de Envío:</strong> <t t-esc="send_method_label"/></p>
                                     </div>
+
+                                    <t t-if="already_confirmed">
+                                        <div class="alert alert-info" role="alert">
+                                            <i class="fa fa-info-circle me-2"/>
+                                            Buenas noticias: esta orden ya estaba confirmada. No necesitas hacer nada más.
+                                        </div>
+                                    </t>
                                     
                                     <p class="lead mb-4">
                                         Hemos recibido la confirmación de su cotización. 

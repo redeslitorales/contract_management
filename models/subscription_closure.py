@@ -174,6 +174,22 @@ class SubscriptionClose(models.Model):
         self.ensure_one()
         return self.action_reactivate_subscription_wizard()
 
+    def reactivate_subscription_now(self):
+        """Bring a paused/terminated subscription back to active service."""
+        self.ensure_one()
+
+        if self.cpe_unit_asset:
+            self.enable_onu()
+
+        self.write({
+            'subscription_state': '3_progress',
+            'internet_service_state': 'active',
+        })
+
+        invoices = self._create_invoices()
+        invoices.action_post()
+        return True
+
 #  Redefining methods from the sale_subscription.sale_order.py file to accommadate CPE 
 
     def _get_order_digest(self, origin='', template='sale_subscription.sale_order_digest', lang=None):
@@ -321,48 +337,29 @@ class ReactivateSubscriptionWizard(models.TransientModel):
     _description = 'Wizard to Reactivate Subscription'
 
     subscription_id = fields.Many2one('sale.order', string='Subscription', required=True)
-    reactivation_date = fields.Datetime(string='Reactivation Date', default=fields.Date.context_today, required=True)
+    reactivation_date = fields.Date(string='Reactivation Date', default=fields.Date.context_today, required=True)
 
     def action_reactivate_subscription(self):
         self.ensure_one()
         subscription = self.subscription_id
-
-        # Get the current date in the user's timezone
-        user_tz = self.env.user.tz or 'CST'
-        timezone = pytz.timezone(user_tz)
-        current_date = datetime.now(timezone).date()
 
         # Delete any existing scheduled actions for this subscription
         cron_jobs = self.env['ir.cron'].search([('name', 'ilike', 'Service ' + str(subscription.name))])
         if cron_jobs:
             cron_jobs.unlink()
 
-        # If the reactivation date is today, enable ONU, set subscription state, and create invoice
-        if self.reactivation_date == current_date:
-            if subscription.cpe_unit_asset:
-                activated = subscription.enable_onu()
-                if activated:
-                    subscription.subscription_state = '	3_progress'
-                    subscription.internet_service_state = 'active'
-                    invoice = subscription._create_invoices()
-                    posted = invoice.action_post()
+        today = fields.Date.context_today(self)
+
+        # If the reactivation date is today or in the past, reactivate immediately
+        if self.reactivation_date <= today:
+            subscription.reactivate_subscription_now()
         else:
             # Schedule the enable_onu method on the reactivation date
             self.env['ir.cron'].create({
                 'name': 'Reactivate Service ' + str(subscription.name),
                 'model_id': self.env.ref('sale.model_sale_order').id,
                 'state': 'code',
-                'code': f'model.browse({subscription.id}).enable_onu()',
-                'nextcall': self.reactivation_date,
-                'numbercall': 1,
-            })
-
-            # Schedule the invoice creation on the reactivation date
-            self.env['ir.cron'].create({
-                'name': 'Create Invoice for ' + str(subscription.name),
-                'model_id': self.env.ref('sale.model_sale_order').id,
-                'state': 'code',
-                'code': f'model.browse({subscription.id})._create_invoice()',
+                'code': f"model.browse({subscription.id}).sudo().reactivate_subscription_now()",
                 'nextcall': self.reactivation_date,
                 'numbercall': 1,
             })

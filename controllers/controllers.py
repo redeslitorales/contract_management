@@ -566,10 +566,28 @@ class SaleOrderConfirmationController(http.Controller):
                 _logger.warning("[QuoteConfirm] Invalid signature for order %s. IP: %s", sale_order.name, request.httprequest.remote_addr)
                 return request.redirect('/quote_reject?reason=invalid_sig')
             
-            # Validate order state
+            # Validate order state; if already confirmed, show friendly success page instead of an error.
             if sale_order.state not in ['draft', 'sent']:
-                _logger.warning("[QuoteConfirm] Order %s (ID: %s) in invalid state for confirmation: %s. IP: %s",
-                              sale_order.name, sale_order.id, sale_order.state, request.httprequest.remote_addr)
+                if sale_order.state in ('sale', 'done'):
+                    friendly_method = sale_order.contract_send_method or send_method or 'email'
+                    _logger.info(
+                        "[QuoteConfirm] Order %s (ID: %s) already confirmed; showing friendly success page. IP: %s",
+                        sale_order.name,
+                        sale_order.id,
+                        request.httprequest.remote_addr,
+                    )
+                    return request.redirect(
+                        '/quote_confirmed?order=%s&method=%s&already_confirmed=1'
+                        % (sale_order.name, friendly_method)
+                    )
+
+                _logger.warning(
+                    "[QuoteConfirm] Order %s (ID: %s) in invalid state for confirmation: %s. IP: %s",
+                    sale_order.name,
+                    sale_order.id,
+                    sale_order.state,
+                    request.httprequest.remote_addr,
+                )
                 return request.redirect('/quote_reject?reason=invalid_state&order=%s' % sale_order.name)
             
             # Validate send method
@@ -603,7 +621,7 @@ class SaleOrderConfirmationController(http.Controller):
             try:
                 # Call action_confirm_via_uuid which handles contract sending
                 sale_order.action_confirm_via_uuid()
-                _logger.info("[QuoteConfirm] ✓ Order %s auto-confirmed and contract sent via %s",
+                _logger.info("[QuoteConfirm] ✓ Order %s auto-confirmed; contract envelope prepared with delivery=%s",
                            sale_order.name, send_method)
             except Exception as confirm_error:
                 _logger.error("[QuoteConfirm] ✗ Failed to auto-confirm order %s: %s",
@@ -627,6 +645,8 @@ class SaleOrderConfirmationController(http.Controller):
             order: Order name (for display)
             method: Send method chosen (for display)
         """
+        already_confirmed = str(kwargs.get('already_confirmed', '')).lower() in ('1', 'true', 'yes', 'on')
+
         return request.render('contract_management.quote_confirmed_template', {
             'order_name': order or _('Your Order'),
             'send_method': method or 'email',
@@ -636,6 +656,7 @@ class SaleOrderConfirmationController(http.Controller):
                 ('physical', 'Physical Copy'),
                 ('donotsend', 'Will Not Send'),
             ]).get(method, 'Email'),
+            'already_confirmed': already_confirmed,
         })
 
     @http.route('/quote_reject', type='http', auth='public', methods=['GET'], csrf=False, website=True)

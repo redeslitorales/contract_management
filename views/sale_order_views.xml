@@ -213,6 +213,9 @@
             <xpath expr="//form/header//button[@name='action_draft']" position="attributes">
                 <attribute name="invisible">True</attribute>
             </xpath>
+            <xpath expr="//button[@name='prepare_upsell_order']" position="attributes">
+                <attribute name="invisible">not is_subscription or subscription_state not in ["3_progress", "4_paused"] or state != "sale" or not has_active_contract</attribute>
+            </xpath>
 
             <xpath expr="//form/header" position="inside">
                 <!-- Keep contract_state in scope for header modifiers even when Status tab is restricted -->
@@ -222,6 +225,7 @@
                 <field name="has_docusign_client_user_id" invisible="1"/>
                 <field name="progress_stage" invisible="1"/>
                 <field name="upsell_from_id" invisible="1"/>
+                <field name="has_active_contract" invisible="1"/>
                 <!-- <field name="next_action" invisible="1"/> FSM field - commented out until FSM modules installed -->
                 <button string="Send Contract" type="object" name="action_send_contract"
                     class="btn-primary" icon="fa-file-signature"

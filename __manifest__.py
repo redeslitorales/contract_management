@@ -16,6 +16,7 @@
         'data/contract_auto_renew_cron.xml',
         'data/email_domain_fix_cron.xml',
         'data/cm_renewals_pipeline.xml',
+        'data/mail_templates.xml',
         'views/view_contract_clause.xml',
         'views/contract_addendum_views.xml',
         'views/sale_order_views.xml',

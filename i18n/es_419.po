@@ -2351,7 +2351,7 @@ msgstr "DE LOS ESTADOS UNIDOS DE AMÉRICA"
 #: model_terms:ir.ui.view,arch_db:contract_management.iptv_contract_template model_terms:ir.ui.view,arch_db:contract_management.rental_contract_template
 #: model_terms:ir.ui.view,arch_db:contract_management.report_contract_template
 msgid "DUI:"
-msgstr "Conducir bajo los efectos del alcohol:"
+msgstr "DUI:"
 
 #. module: contract_management
 #: model:ir.ui.menu,name:contract_management.menu_contract_dashboard
@@ -6425,3 +6425,24 @@ msgstr "¡Cotización Confirmada!"
 #: model_terms:ir.ui.view,arch_db:contract_management.quote_confirmed_template
 msgid "¿Necesita Ayuda? / Need Help?"
 msgstr "¿Necesita ayuda? / ¿Necesitas ayuda?"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Churn cleanup executed from subscription %(sub)s (%(sub_id)s). Partner cleared: %(old_partner)s → None. Subscription cleared: %(old_sub)s → None. Asset flagged for recovery (to_be_recovered=True, deployed=False). %(delete_status)s."
+msgstr "Limpieza por churn ejecutada desde la suscripción %(sub)s (%(sub_id)s). Cliente limpiado: %(old_partner)s → Ninguno. Suscripción limpiada: %(old_sub)s → Ninguna. Activo marcado para recuperación (to_be_recovered=True, deployed=False). %(delete_status)s."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Churn cleanup completed. CPE cleared (lot: %(lot)s, asset: %(asset)s). %(asset_info)s"
+msgstr "Limpieza por churn completada. CPE limpiado (lote: %(lot)s, activo: %(asset)s). %(asset_info)s"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/sale_order.py:0
+#, python-format
+msgid "Asset unassigned and flagged for recovery (to_be_recovered=True, deployed=False). %(delete_status)s"
+msgstr "Activo desasignado y marcado para recuperación (to_be_recovered=True, deployed=False). %(delete_status)s"

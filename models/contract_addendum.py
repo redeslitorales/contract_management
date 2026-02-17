@@ -134,6 +134,22 @@ class ContractAddendum(models.Model):
             parent_subscription.message_post(body=msg)
             upsell_order.message_post(body=msg)
 
+        # Apply financial/service updates to the parent contract immediately on signature
+        if self.state == 'signed':
+            try:
+                self.action_activate()
+                _logger.info(
+                    "[Addendum] Activated addendum %s and applied updates to contract %s",
+                    self.id,
+                    self.contract_id.id,
+                )
+            except Exception as exc:
+                _logger.exception(
+                    "[Addendum] Failed to auto-activate addendum %s: %s",
+                    self.id,
+                    exc,
+                )
+
     @api.depends('docusign_id', 'docusign_id.connector_line_ids.signed_attachment_ids')
     def _compute_signed_documents(self):
         """Get all signed documents from related DocuSign envelopes"""
@@ -244,7 +260,7 @@ class ContractAddendum(models.Model):
         }
 
     def _sync_parent_contract_services(self):
-        """Replace parent contract service lines with services from the parent subscription."""
+        """Replace parent contract services using the parent subscription lines only."""
         self.ensure_one()
         contract = self.contract_id
         subscription = contract.subscription_id
@@ -253,7 +269,9 @@ class ContractAddendum(models.Model):
             _logger.warning("[Addendum] Cannot sync services: missing contract or subscription for addendum %s", self.id)
             return
 
+        # Rebuild solely from the parent subscription lines; upsell order becomes an artifact post-activation
         lines = subscription.order_line.filtered(lambda l: l.product_id and not l.display_type)
+
         contract.service_ids.sudo().unlink()
 
         service_vals = []
@@ -268,13 +286,12 @@ class ContractAddendum(models.Model):
         if service_vals:
             self.env['contract.service'].sudo().create(service_vals)
             _logger.info(
-                "[Addendum] Synced %d service lines to parent contract %s from subscription %s",
+                "[Addendum] Synced %d service lines to parent contract %s (parent subscription only)",
                 len(service_vals),
                 contract.name,
-                subscription.name,
             )
         else:
-            _logger.info("[Addendum] No service lines found on subscription %s to sync", subscription.name)
+            _logger.info("[Addendum] No service lines found to sync for addendum %s", self.id)
 
     def action_activate(self):
         """Activate addendum and apply changes"""
