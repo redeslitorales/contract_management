@@ -132,6 +132,17 @@ class SubscriptionClose(models.Model):
     
     sub_pause_start_date = fields.Datetime(string="Subscription Pause Date")
     sub_pause_end_date = fields.Datetime(string="Anticipated Reactivation Date")
+    contract_end_in_past = fields.Boolean(
+        string="Contract End In Past",
+        compute="_compute_contract_end_in_past",
+        store=False,
+    )
+    customer_balance_ok = fields.Boolean(
+        string="Customer Balance Nonpositive",
+        compute="_compute_customer_balance_ok",
+        store=False,
+        help="True when the partner's total due is zero or a credit (nonpositive).",
+    )
     
     def action_open_closure_wizard(self):
         return {
@@ -144,6 +155,20 @@ class SubscriptionClose(models.Model):
                 'default_subscription_id': self.id,
             },
         }
+
+    def _compute_contract_end_in_past(self):
+        today = fields.Date.context_today(self)
+        for order in self:
+            order.contract_end_in_past = any(
+                contract.end_date and contract.end_date < today
+                for contract in order.contract_ids
+            )
+
+    def _compute_customer_balance_ok(self):
+        for order in self:
+            partner = order.partner_id.commercial_partner_id
+            total_due = partner.total_due if partner else 0.0
+            order.customer_balance_ok = total_due <= 0
     
     def action_pause_subscription_wizard(self):
         return {

@@ -1062,9 +1062,9 @@ class ContractManagement(models.Model):
                 if not self.subscription_id:
                     raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
                 
-                # Call subscription's send_docs to create new envelope
+                # Trigger the normal send flow on the subscription to recreate the envelope
                 try:
-                    self.subscription_id.send_docs()
+                    self.subscription_id.action_send_for_signature()
                     # Update send method after successful creation
                     self.subscription_id.write({'contract_send_method': 'whatsapp'})
                     msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via WhatsApp to {self.partner_id.whatsapp}."
@@ -1203,9 +1203,9 @@ class ContractManagement(models.Model):
                 if not self.subscription_id:
                     raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
                 
-                # Call subscription's send_docs to create new envelope
+                # Trigger the normal send flow on the subscription to recreate the envelope
                 try:
-                    self.subscription_id.send_docs()
+                    self.subscription_id.action_send_for_signature()
                     # Update send method after successful creation
                     self.subscription_id.write({'contract_send_method': 'email'})
                     msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via Email to {self.partner_id.email}."
