@@ -1050,11 +1050,23 @@ class SaleSubscription(models.Model):
                     if asset:
                         old_partner = asset.partner_id
                         old_sub = asset.subscription_id
-                        try:
-                            asset.sudo().delete_onu()
-                            delete_status = 'SmartOLT delete_onu invoked'
-                        except Exception as e:
-                            delete_status = f"SmartOLT delete_onu error: {e}"
+                        other_active = self.sudo().search([
+                            ('id', '!=', order.id),
+                            ('subscription_state', '=', '3_progress'),
+                            ('partner_id.commercial_partner_id', '=', order.partner_id.commercial_partner_id.id),
+                            ('cpe_unit_asset', '=', asset.id),
+                        ], limit=1)
+
+                        if other_active:
+                            delete_status = _(
+                                "Skipped delete_onu: ONU still used by active subscription %(sub)s"
+                            ) % {"sub": other_active.display_name}
+                        else:
+                            try:
+                                asset.sudo().delete_onu()
+                                delete_status = 'SmartOLT delete_onu invoked'
+                            except Exception as e:
+                                delete_status = f"SmartOLT delete_onu error: {e}"
 
                         asset_vals = {
                             'to_be_recovered': True,
@@ -3418,8 +3430,11 @@ class SubscriptionTransferWizard(models.TransientModel):
         from_fields = from_sub._fields
         to_fields = to_sub._fields
 
-        if self.state != 'confirm' or not self.confirm_ack:
-            raise ValidationError(_('Please review and confirm the transfer details before proceeding.'))
+        # Allow transfer to proceed once review has been done; auto-acknowledge if the box was skipped.
+        if self.state != 'confirm':
+            raise ValidationError(_('Please review the transfer details before proceeding.'))
+        if not self.confirm_ack:
+            self.confirm_ack = True
 
         def _field(record, name):
             return record[name] if name in record._fields else False
