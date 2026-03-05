@@ -187,6 +187,11 @@ class SaleSubscription(models.Model):
     quote_confirmed = fields.Boolean(string='Quote Confirmed', default=False)
     contract_term = fields.Many2one('dte.base.contract', string="Contract Term")
     contract_value = fields.Float(string = "Contract Value")
+    allow_pause_service = fields.Boolean(
+        string='Pause Allowed',
+        compute='_compute_allow_pause_service',
+        help='True when any related contract allows pausing via the Pause Subscription wizard.',
+    )
     last_invoice_date = fields.Date(string='Last Invoice Date', compute='_compute_last_invoice_date', store=False)
     termination_cost = fields.Monetary(
         string='Termination Cost',
@@ -233,6 +238,11 @@ class SaleSubscription(models.Model):
         if not self.env.context.get('contract_transfer_label'):
             return res
         return [(order.id, order._get_transfer_display_name()) for order in self]
+
+    @api.depends('contract_ids.allow_pause_service')
+    def _compute_allow_pause_service(self):
+        for order in self:
+            order.allow_pause_service = any(order.contract_ids.mapped('allow_pause_service'))
 
     @api.depends('contract_ids.state')
     def _compute_has_active_contract(self):

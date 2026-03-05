@@ -12,12 +12,13 @@
             <xpath expr="//header" position="inside">
                 <field name="contract_end_in_past" invisible="1"/>
                 <field name="customer_balance_ok" invisible="1"/>
+                <field name="allow_pause_service" invisible="1"/>
             </xpath>
             <xpath expr="//button[@name='action_pause_subscription_wizard']" position="before">
                     <button name="action_reactivate_subscription_wizard" string="Reactivate Subscription" type="object" class="oe_highlight"/> 
             </xpath>
             <xpath expr="//button[@name='action_pause_subscription_wizard']" position="attributes">
-                <attribute name="invisible">((contract_term != 4 and not contract_end_in_past) or not customer_balance_ok) or not id</attribute>
+                <attribute name="invisible">((contract_term != 4 and not contract_end_in_past) or not customer_balance_ok or not allow_pause_service) or not id</attribute>
             </xpath>
             <xpath expr="//button[@name='action_reactivate_subscription_wizard']" position="attributes">
                 <attribute name="invisible">subscription_state != '4_paused' or not id</attribute>

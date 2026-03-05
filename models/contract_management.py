@@ -108,6 +108,11 @@ class ContractManagement(models.Model):
     contract_send_method = fields.Selection(string='Send Method', selection=CONTRACT_SEND_METHODS, default="email")
     early_termination_fee = fields.Float(string='Early Termination Fee')
     late_charge = fields.Float(string='Late Charge')
+    allow_pause_service = fields.Boolean(
+        string='Pause Allowed',
+        help='If enabled, the subscription can be paused using the Pause Subscription wizard.',
+        default=False,
+    )
     service_pause_count = fields.Integer(string='Number of Service Pauses', default=0)
     max_service_pause_duration = fields.Integer(string='Maximum Duration of Service Pauses (days)', default=0)
     contract_term = fields.Many2one(related='subscription_id.contract_term', string='Contract Term')

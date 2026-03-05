@@ -137,6 +137,7 @@
                                     <field name="late_charge" widget="monetary"/>
                                 </group>
                                 <group string="Service Pauses">
+                                    <field name="allow_pause_service"/>
                                     <field name="service_pause_count"/>
                                     <field name="max_service_pause_duration"/>
                                 </group>
