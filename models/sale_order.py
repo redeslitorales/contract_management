@@ -2402,58 +2402,43 @@ class SaleSubscription(models.Model):
     def action_resend_contract(self):
         self.ensure_one()
 
-        connector_candidates = self.docusign_ids.filtered(lambda c: c.state == 'sent' and c.connector_line_ids)
+        connector_candidates = self.docusign_ids.filtered(lambda c: c.connector_line_ids)
         if not connector_candidates:
-            raise ValidationError(_("No sent DocuSign envelope found to resend."))
+            raise ValidationError(_("No DocuSign envelope is available to generate a magic link. Send the contract first."))
 
-        connector = connector_candidates.sorted(key=lambda c: c.id, reverse=True)[0]
+        connector = connector_candidates.sorted(key=lambda c: c.id, reverse=True)[:1]
 
+        # Keep a safety guard to avoid resending once any recipient has signed.
         if any(line.sign_status for line in connector.connector_line_ids):
             raise ValidationError(_("At least one recipient has already signed. Please void and create a new envelope to resend."))
 
-        if not any(connector.connector_line_ids.mapped('envelope_id')):
-            raise ValidationError(_("Cannot resend because the envelope ID is missing."))
+        preferred_method = self.contract_send_method or None
 
-        if not self.contract_template:
-            raise ValidationError(_("Contract template is not specified."))
-
-        if not self.cabal_sequence:
-            self.sudo().cabal_sequence = self._get_cabal_sequence()
-
-        contract_value_source = self._get_contract_value_source_order()
-        recurring_lines = contract_value_source.order_line.filtered(lambda l: l.product_id.recurring_invoice) if contract_value_source else self.env['sale.order.line']
-        monthly_payment = sum(recurring_lines.mapped('price_total'))
-
-        contract_value = 0.0
-        billing_source = contract_value_source if contract_value_source else self
-        if billing_source.contract_term and billing_source.plan_id:
-            contract_term_months = billing_source.contract_term.term
-            billing_period_months = billing_source.plan_id.billing_period_value if billing_source.plan_id.billing_period_unit == 'month' else 1
-            if billing_period_months > 0:
-                duration = contract_term_months / billing_period_months
-                contract_value = monthly_payment * duration
-            else:
-                contract_value = monthly_payment * 12
-        else:
-            contract_value = monthly_payment * 12
-
-        document = self._create_document_to_be_signed(self, self.contract_template)
-
-        connector.sudo().write({
-            'attachment_ids': [(6, 0, [document.id])],
-            'monthly_payment': monthly_payment,
-            'contract_value': contract_value,
-        })
-
-        result = connector.send_docs(self.contract_send_method)
-
-        envelope_id = connector.connector_line_ids[:1].envelope_id if connector.connector_line_ids else False
-        msg = f"Contract {document.name} replaced and resent via DocuSign"
-        if envelope_id:
-            msg += f" - Envelope ID: {envelope_id}"
-        self.sudo().message_post(body=msg, attachment_ids=[document.id])
-
-        return result
+        try:
+            delivered_via = self.send_customer_contract_link(
+                connector_id=connector,
+                preferred_method=preferred_method,
+            )
+            self.sudo().write({'contract_send_method': delivered_via or preferred_method or 'whatsapp'})
+            msg = _("Magic signing link resent (delivered via %s).") % (delivered_via or _('unknown'))
+            self.message_post(body=msg, subject="Contract link delivered")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Success'),
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except Exception as err:
+            error_msg = str(err)
+            self.message_post(
+                body=f"Failed to resend contract link: {error_msg}",
+                subject="DocuSign Resend Failed",
+            )
+            raise
 
     def action_open_resend_contract_wizard(self):
         self.ensure_one()

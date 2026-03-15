@@ -474,93 +474,82 @@ class ContractAddendum(models.Model):
             return None
 
     def action_resend_via_whatsapp(self):
-        """Resend DocuSign envelope via WhatsApp - reuses parent contract's logic"""
+        """Resend using embedded signing: always send our magic link (WhatsApp preferred)."""
         self.ensure_one()
-        
-        _logger.info("[DocuSign Addendum] action_resend_via_whatsapp called for addendum %s", self.id)
-        
+
+        _logger.info("[DocuSign Addendum] action_resend_via_whatsapp (magic link) for addendum %s", self.id)
+
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this addendum."))
-        
-        if not self.partner_id.whatsapp:
-            raise UserError(_("Customer does not have a WhatsApp number configured."))
-        
-        # Validate WhatsApp format
-        match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
-        if not match:
-            raise UserError(_("Customer WhatsApp number is not in valid format (+country_code phone_number)."))
-        
-        # Get customer signer from DocuSign connector lines
-        customer_line = self.docusign_id.connector_line_ids.filtered(
-            lambda l: l.partner_id.id == self.partner_id.id
-        )[:1]
-        
-        if not customer_line:
-            raise UserError(_("No customer signer found in DocuSign envelope."))
-        
-        if not customer_line.envelope_id:
-            raise UserError(_("No envelope ID found. Cannot resend."))
-        
-        # Note: Reuse the parent contract's resend logic by calling its methods
-        # For now, we'll just update the send method and log
-        self.write({'contract_send_method': 'whatsapp'})
-        self.message_post(
-            body=_("DocuSign notification resent via WhatsApp to %s.") % self.partner_id.whatsapp,
-            subject="DocuSign Resent via WhatsApp"
-        )
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Success'),
-                'message': _('DocuSign notification resent via WhatsApp.'),
-                'type': 'success',
-                'sticky': False,
+
+        contract = getattr(self, 'contract_id', False)
+        if not contract:
+            raise UserError(_("No parent contract linked to this addendum."))
+
+        try:
+            delivered_via = contract.send_customer_contract_link(
+                connector_id=self.docusign_id,
+                preferred_method='whatsapp',
+            )
+            self.sudo().write({'contract_send_method': delivered_via or 'whatsapp'})
+            msg = _("Magic signing link sent via WhatsApp." if delivered_via == 'whatsapp' else "Magic signing link sent.")
+            self.message_post(body=msg, subject="Contract link delivered")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Success'),
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
             }
-        }
+        except Exception as err:
+            error_msg = str(err)
+            self.message_post(
+                body=f"Failed to resend via WhatsApp: {error_msg}",
+                subject="DocuSign Resend Failed",
+            )
+            raise
 
     def action_resend_via_email(self):
-        """Resend DocuSign envelope via Email - reuses parent contract's logic"""
+        """Resend using embedded signing: always send our magic link (Email preferred)."""
         self.ensure_one()
-        
-        _logger.info("[DocuSign Addendum] action_resend_via_email called for addendum %s", self.id)
-        
+
+        _logger.info("[DocuSign Addendum] action_resend_via_email (magic link) for addendum %s", self.id)
+
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this addendum."))
-        
-        if not self.partner_id.email:
-            raise UserError(_("Customer does not have an email address configured."))
-        
-        # Get customer signer from DocuSign connector lines
-        customer_line = self.docusign_id.connector_line_ids.filtered(
-            lambda l: l.partner_id.id == self.partner_id.id
-        )[:1]
-        
-        if not customer_line:
-            raise UserError(_("No customer signer found in DocuSign envelope."))
-        
-        if not customer_line.envelope_id:
-            raise UserError(_("No envelope ID found. Cannot resend."))
-        
-        # Note: Reuse the parent contract's resend logic by calling its methods
-        # For now, we'll just update the send method and log
-        self.write({'contract_send_method': 'email'})
-        self.message_post(
-            body=_("DocuSign notification resent via Email to %s.") % self.partner_id.email,
-            subject="DocuSign Resent via Email"
-        )
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Success'),
-                'message': _('DocuSign notification resent via Email.'),
-                'type': 'success',
-                'sticky': False,
+
+        contract = getattr(self, 'contract_id', False)
+        if not contract:
+            raise UserError(_("No parent contract linked to this addendum."))
+
+        try:
+            delivered_via = contract.send_customer_contract_link(
+                connector_id=self.docusign_id,
+                preferred_method='email',
+            )
+            self.sudo().write({'contract_send_method': delivered_via or 'email'})
+            msg = _("Magic signing link sent via Email." if delivered_via == 'email' else "Magic signing link sent.")
+            self.message_post(body=msg, subject="Contract link delivered")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Success'),
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
             }
-        }
+        except Exception as err:
+            error_msg = str(err)
+            self.message_post(
+                body=f"Failed to resend via Email: {error_msg}",
+                subject="DocuSign Resend Failed",
+            )
+            raise
 
     def _compute_access_url(self):
         """Compute portal URL for addendum records."""

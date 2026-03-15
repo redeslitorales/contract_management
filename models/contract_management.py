@@ -994,129 +994,22 @@ class ContractManagement(models.Model):
             raise ValidationError(_(f"Error resending envelope notification: {str(e)}"))
     
     def action_resend_via_whatsapp(self):
-        """Resend DocuSign envelope via WhatsApp - updates contact if not signed, resends if signed."""
+        """Resend using embedded signing: always send our magic link (WhatsApp preferred)."""
         self.ensure_one()
-        
-        _logger.info("[DocuSign] action_resend_via_whatsapp called for contract %s", self.id)
-        _logger.info("[DocuSign] Partner: %s, WhatsApp: %s", self.partner_id.name, self.partner_id.whatsapp)
-        
+
+        _logger.info("[DocuSign] action_resend_via_whatsapp (magic link) for contract %s", self.id)
+
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this contract."))
-        
-        if not self.partner_id.whatsapp:
-            raise UserError(_("Customer does not have a WhatsApp number configured."))
-        
-        # Validate WhatsApp format
-        match = re.match(r'^\+(\d{1,3})(\d+)$', self.partner_id.whatsapp)
-        if not match:
-            raise UserError(_("Customer WhatsApp number is not in valid format (+country_code phone_number)."))
-        
-        # Get first connector line (customer signer)
-        customer_line = self.docusign_id.connector_line_ids.filtered(
-            lambda l: l.partner_id.id == self.partner_id.id
-        )[:1]
-        
-        _logger.info("[DocuSign] Found %d connector lines for partner", len(customer_line))
-        
-        if not customer_line:
-            raise UserError(_("No customer signer found in DocuSign envelope."))
-        
-        if not customer_line.envelope_id:
-            raise UserError(_("No envelope ID found. Cannot resend."))
-        
-        # If this recipient is embedded, bypass DocuSign notifications and deliver our magic link instead
-        if customer_line.client_user_id or self.docusign_client_user_id:
-            _logger.info("[DocuSign] Embedded signer detected; delivering magic link via Odoo (email).")
-            try:
-                self.subscription_id.send_customer_contract_link(connector_id=self.docusign_id, preferred_method='email')
-                self.write({'contract_send_method': 'email'})
-                self.message_post(body=_("Magic signing link delivered via email (Odoo)."), subject="Contract link delivered")
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('Success'),
-                        'message': _('Magic link sent via email.'),
-                        'type': 'success',
-                        'sticky': False,
-                    }
-                }
-            except Exception as delivery_err:
-                _logger.warning("[DocuSign] Embedded delivery via email failed: %s", delivery_err, exc_info=True)
-                raise
 
-        # Check if customer has already signed (sign_status is Boolean)
-        customer_signed = customer_line.sign_status == True
-
-        envelope_id = customer_line.envelope_id
-        recipient_id = customer_line.recipient_id or '1'  # Default to '1' if not set
-
-        _logger.info("[DocuSign] Envelope ID: %s, Recipient ID: %s, Customer signed: %s", envelope_id, recipient_id, customer_signed)
-        
         try:
-            # Get envelope status to determine how to proceed
-            envelope_status = self._get_envelope_status(envelope_id)
-            _logger.info("[DocuSign] Envelope status: %s", envelope_status)
-            
-            if not envelope_status:
-                raise UserError(_("Failed to get envelope status from DocuSign"))
-            
-            if envelope_status in ['voided', 'declined']:
-                # Envelope was voided or declined - create and send new envelope
-                _logger.info("[DocuSign] Envelope status is '%s' - creating new envelope", envelope_status)
-                if not self.subscription_id:
-                    raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
-                
-                # Trigger the normal send flow on the subscription to recreate the envelope
-                try:
-                    self.subscription_id.action_send_for_signature()
-                    # Update send method after successful creation
-                    self.subscription_id.write({'contract_send_method': 'whatsapp'})
-                    msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via WhatsApp to {self.partner_id.whatsapp}."
-                except Exception as create_error:
-                    _logger.error("[DocuSign] Failed to create new envelope: %s", str(create_error))
-                    raise UserError(_(f"Failed to create new envelope: {str(create_error)}"))
-            elif envelope_status == 'completed':
-                # Envelope is completed - just resend notification (reminder of signed document)
-                _logger.info("[DocuSign] Envelope status is 'completed' - resending notification")
-                self._resend_envelope_notification(envelope_id, recipient_id)
-                msg = f"DocuSign notification resent for completed envelope (reminder sent via WhatsApp)."
-            elif envelope_status == 'created':
-                # Envelope was created but never sent - send it now
-                _logger.info("[DocuSign] Envelope status is 'created' - sending envelope")
-                # Update delivery method to WhatsApp and send
-                self._update_envelope_recipient(
-                    envelope_id,
-                    recipient_id,
-                    new_phone=self.partner_id.whatsapp,
-                    resend_envelope=True
-                )
-                msg = f"DocuSign envelope sent via WhatsApp to {self.partner_id.whatsapp}."
-            elif envelope_status == 'sent':
-                # Envelope was sent - update recipient and resend
-                _logger.info("[DocuSign] Envelope status is 'sent' - updating and resending")
-                self._update_envelope_recipient(
-                    envelope_id,
-                    recipient_id,
-                    new_phone=self.partner_id.whatsapp,
-                    resend_envelope=True
-                )
-                msg = f"DocuSign notification resent via WhatsApp to {self.partner_id.whatsapp}."
-            else:
-                # Other statuses (delivered, signed, etc.)
-                _logger.info("[DocuSign] Envelope status is '%s' - resending notification", envelope_status)
-                self._resend_envelope_notification(envelope_id, recipient_id)
-                msg = f"DocuSign notification resent (envelope status: {envelope_status})."
-            
-            # Update send method
-            self.write({'contract_send_method': 'whatsapp'})
-            
-            # Log to chatter
-            self.message_post(
-                body=msg,
-                subject="DocuSign Resent via WhatsApp"
+            delivered_via = self.subscription_id.send_customer_contract_link(
+                connector_id=self.docusign_id,
+                preferred_method='whatsapp',
             )
-            
+            self.sudo().write({'contract_send_method': delivered_via or 'whatsapp'})
+            msg = _("Magic signing link sent via WhatsApp." if delivered_via == 'whatsapp' else "Magic signing link sent.")
+            self.message_post(body=msg, subject="Contract link delivered")
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -1127,137 +1020,31 @@ class ContractManagement(models.Model):
                     'sticky': False,
                 }
             }
-            
-        except Exception as e:
-            error_msg = str(e)
+        except Exception as err:
+            error_msg = str(err)
             self.message_post(
                 body=f"Failed to resend via WhatsApp: {error_msg}",
-                subject="DocuSign Resend Failed"
+                subject="DocuSign Resend Failed",
             )
             raise
     
     def action_resend_via_email(self):
-        """Resend DocuSign envelope via Email - updates contact if not signed, resends if signed."""
+        """Resend using embedded signing: always send our magic link (Email preferred)."""
         self.ensure_one()
-        
-        _logger.info("[DocuSign] action_resend_via_email called for contract %s", self.id)
-        _logger.info("[DocuSign] Partner: %s, Email: %s", self.partner_id.name, self.partner_id.email)
-        
+
+        _logger.info("[DocuSign] action_resend_via_email (magic link) for contract %s", self.id)
+
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this contract."))
-        
-        if not self.partner_id.email:
-            raise UserError(_("Customer does not have an email address configured."))
-        
-        # Get first connector line (customer signer)
-        customer_line = self.docusign_id.connector_line_ids.filtered(
-            lambda l: l.partner_id.id == self.partner_id.id
-        )[:1]
-        
-        _logger.info("[DocuSign] Found %d connector lines for partner", len(customer_line))
-        
-        if not customer_line:
-            raise UserError(_("No customer signer found in DocuSign envelope."))
-        
-        if not customer_line.envelope_id:
-            raise UserError(_("No envelope ID found. Cannot resend."))
 
-        # If this recipient is embedded, bypass DocuSign notifications and deliver our magic link instead
-        if customer_line.client_user_id or self.docusign_client_user_id:
-            _logger.info("[DocuSign] Embedded signer detected; delivering magic link via Odoo (email).")
-            try:
-                self.subscription_id.send_customer_contract_link(
-                    connector_id=self.docusign_id,
-                    preferred_method='email',
-                )
-                self.write({'contract_send_method': 'email'})
-                self.message_post(body=_("Magic signing link delivered via email (Odoo)."), subject="Contract link delivered")
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('Success'),
-                        'message': _('Magic link sent via email.'),
-                        'type': 'success',
-                        'sticky': False,
-                    }
-                }
-            except Exception as delivery_err:
-                _logger.warning("[DocuSign] Embedded delivery via email failed: %s", delivery_err, exc_info=True)
-                raise
-        
-        # Check if customer has already signed (sign_status is Boolean)
-        customer_signed = customer_line.sign_status == True
-        
-        envelope_id = customer_line.envelope_id
-        recipient_id = customer_line.recipient_id or '1'  # Default to '1' if not set
-        
-        _logger.info("[DocuSign] Envelope ID: %s, Recipient ID: %s, Customer signed: %s", envelope_id, recipient_id, customer_signed)
-        
         try:
-            # Get envelope status to determine how to proceed
-            envelope_status = self._get_envelope_status(envelope_id)
-            _logger.info("[DocuSign] Envelope status: %s", envelope_status)
-            
-            if not envelope_status:
-                raise UserError(_("Failed to get envelope status from DocuSign"))
-            
-            if envelope_status in ['voided', 'declined']:
-                # Envelope was voided or declined - create and send new envelope
-                _logger.info("[DocuSign] Envelope status is '%s' - creating new envelope", envelope_status)
-                if not self.subscription_id:
-                    raise UserError(_(f"Cannot create new envelope: No subscription linked to this contract."))
-                
-                # Trigger the normal send flow on the subscription to recreate the envelope
-                try:
-                    self.subscription_id.action_send_for_signature()
-                    # Update send method after successful creation
-                    self.subscription_id.write({'contract_send_method': 'email'})
-                    msg = f"Previous envelope was {envelope_status}. New DocuSign envelope created and sent via Email to {self.partner_id.email}."
-                except Exception as create_error:
-                    _logger.error("[DocuSign] Failed to create new envelope: %s", str(create_error))
-                    raise UserError(_(f"Failed to create new envelope: {str(create_error)}"))
-            elif envelope_status == 'completed':
-                # Envelope is completed - just resend notification (reminder of signed document)
-                _logger.info("[DocuSign] Envelope status is 'completed' - resending notification")
-                self._resend_envelope_notification(envelope_id, recipient_id)
-                msg = f"DocuSign notification resent for completed envelope (reminder sent via Email)."
-            elif envelope_status == 'created':
-                # Envelope was created but never sent - send it now
-                _logger.info("[DocuSign] Envelope status is 'created' - sending envelope")
-                # Update delivery method to email and send
-                self._update_envelope_recipient(
-                    envelope_id,
-                    recipient_id,
-                    new_email=self.partner_id.email,
-                    resend_envelope=True
-                )
-                msg = f"DocuSign envelope sent via Email to {self.partner_id.email}."
-            elif envelope_status == 'sent':
-                # Envelope was sent - update recipient and resend
-                _logger.info("[DocuSign] Envelope status is 'sent' - updating and resending")
-                self._update_envelope_recipient(
-                    envelope_id,
-                    recipient_id,
-                    new_email=self.partner_id.email,
-                    resend_envelope=True
-                )
-                msg = f"DocuSign notification resent via Email to {self.partner_id.email}."
-            else:
-                # Other statuses (delivered, signed, etc.)
-                _logger.info("[DocuSign] Envelope status is '%s' - resending notification", envelope_status)
-                self._resend_envelope_notification(envelope_id, recipient_id)
-                msg = f"DocuSign notification resent (envelope status: {envelope_status})."
-            
-            # Update send method
-            self.write({'contract_send_method': 'email'})
-            
-            # Log to chatter
-            self.message_post(
-                body=msg,
-                subject="DocuSign Resent via Email"
+            delivered_via = self.subscription_id.send_customer_contract_link(
+                connector_id=self.docusign_id,
+                preferred_method='email',
             )
-            
+            self.sudo().write({'contract_send_method': delivered_via or 'email'})
+            msg = _("Magic signing link sent via Email." if delivered_via == 'email' else "Magic signing link sent.")
+            self.message_post(body=msg, subject="Contract link delivered")
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -1268,12 +1055,11 @@ class ContractManagement(models.Model):
                     'sticky': False,
                 }
             }
-            
-        except Exception as e:
-            error_msg = str(e)
+        except Exception as err:
+            error_msg = str(err)
             self.message_post(
                 body=f"Failed to resend via Email: {error_msg}",
-                subject="DocuSign Resend Failed"
+                subject="DocuSign Resend Failed",
             )
             raise
 
