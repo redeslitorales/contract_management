@@ -65,6 +65,13 @@ class ResConfigSettings(models.TransientModel):
         default=True,
     )
 
+    quote_confirm_skip_threshold = fields.Float(
+        string='Quote Confirm Skip Threshold',
+        help='Skip quote confirmation and auto-send contract when monthly payment is below this amount.',
+        config_parameter='contract_management.quote_confirm_skip_threshold',
+        default=100.0,
+    )
+
     bad_email_domain_map_raw = fields.Char(
         string='Bad Email Domain Map',
         help='One mapping per line. Format: bad_domain -> correct_domain (e.g., gamil.com -> gmail.com).',

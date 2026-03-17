@@ -1665,6 +1665,96 @@ class SaleSubscription(models.Model):
             'context': {'default_send_method': self.contract_send_method}
         }
 
+    def _auto_confirm_low_payment(self, can_use_whatsapp=False, whatsapp_number=''):
+        """Skip quote confirmation when monthly payment is below the threshold."""
+        self.ensure_one()
+
+        if self.quote_confirmed:
+            return False
+
+        ICP = self.env['ir.config_parameter'].sudo()
+        threshold_param = ICP.get_param('contract_management.quote_confirm_skip_threshold', '100')
+        try:
+            threshold = float(threshold_param)
+        except Exception:
+            threshold = 100.0
+
+        recurring_lines = self.order_line.filtered(lambda l: l.product_id.recurring_invoice)
+        monthly_payment = sum(recurring_lines.mapped('price_total'))
+
+        if monthly_payment >= threshold:
+            return False
+
+        send_method = 'whatsapp' if can_use_whatsapp else ('email' if self.partner_id.email else 'physical')
+        valid_methods = {'whatsapp', 'email', 'physical', 'donotsend'}
+        if send_method not in valid_methods:
+            send_method = 'email'
+        if send_method == 'whatsapp' and not whatsapp_number:
+            send_method = 'email' if self.partner_id.email else 'physical'
+
+        tag = self.env.ref('contract_management.contract_quote_confirmed_tag', raise_if_not_found=False)
+        updates = {
+            'quote_confirmed': True,
+            'contract_send_method': send_method,
+        }
+        if tag:
+            updates['tag_ids'] = [(4, tag.id)]
+
+        self.write(updates)
+
+        note = _(
+            "Quote confirmation skipped automatically because monthly payment $%(mp).2f is below $%(th).2f. "
+            "Contract will be sent via %(method)s."
+        ) % {
+            'mp': monthly_payment,
+            'th': threshold,
+            'method': send_method,
+        }
+        self.message_post(body=note, subtype_xmlid='mail.mt_note', message_type='comment')
+
+        try:
+            self.action_confirm_via_uuid()
+        except Exception as exc:
+            _logger.exception(
+                "[QuoteSend] Auto-confirm failed for order %s (monthly_payment=%.2f, threshold=%.2f): %s",
+                self.name,
+                monthly_payment,
+                threshold,
+                exc,
+            )
+            error_note = _(
+                "Automatic confirmation failed after skipping the quote: %s. Please confirm and send the contract manually."
+            ) % str(exc)
+            self.message_post(body=error_note, subtype_xmlid='mail.mt_note', message_type='comment')
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Auto-confirm failed'),
+                    'message': _('Automatic confirmation failed; see chatter for details.'),
+                    'type': 'warning',
+                    'sticky': True,
+                }
+            }
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Confirmation Skipped'),
+                'message': _(
+                    'Monthly payment $%(mp).2f is below $%(th).2f. Contract is being sent via %(method)s.'
+                ) % {
+                    'mp': monthly_payment,
+                    'th': threshold,
+                    'method': send_method,
+                },
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     def action_quotation_send(self):
         """Send quote via WhatsApp template when possible; fallback to email."""
         self.ensure_one()
@@ -1692,6 +1782,10 @@ class SaleSubscription(models.Model):
         if force_email_only and can_use_whatsapp:
             _logger.info("[QuoteSend] WhatsApp sending disabled via config; using email for order %s", self.name)
             can_use_whatsapp = False
+
+        auto_confirm_result = self._auto_confirm_low_payment(can_use_whatsapp=can_use_whatsapp, whatsapp_number=whatsapp_number)
+        if auto_confirm_result:
+            return auto_confirm_result
 
         pdf_base64 = None
         if can_use_whatsapp:
