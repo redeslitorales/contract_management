@@ -2177,6 +2177,32 @@ class SaleSubscription(models.Model):
                     partner_for_comm.whatsapp,
                 )
 
+            has_email = bool((contract.partner_id.email or '').strip() or (partner_for_comm.email or '').strip())
+            if send_method == 'physical' and not has_whatsapp and not has_email:
+                target_order = base_order if base_order and base_order != contract else contract
+                blocking_note = _(
+                    "Contract could not be sent because the customer has no email and no phone/WhatsApp in the profile. "
+                    "Please correct the customer contact data, then send the contract manually using the Send Contract button."
+                )
+                target_order.sudo().message_post(
+                    body=blocking_note,
+                    subject=_("Contract Send Blocked"),
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
+                if target_order != contract:
+                    contract.sudo().message_post(
+                        body=_("Contract send was blocked on parent subscription %s due to missing customer contact data.") % target_order.name,
+                        subject=_("Contract Send Blocked"),
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_note',
+                    )
+                _logger.warning(
+                    "[DocuSign] Blocking physical send for contract ID=%s due to missing email and phone/WhatsApp",
+                    contract.id,
+                )
+                continue
+
             # Step 1: Generate contract number
             if contract.is_subscription and not contract.cabal_sequence:
                 contract.sudo().cabal_sequence = contract._get_cabal_sequence()

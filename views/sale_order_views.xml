@@ -220,6 +220,7 @@
             <xpath expr="//form/header" position="inside">
                 <!-- Keep contract_state in scope for header modifiers even when Status tab is restricted -->
                 <field name="contract_state" invisible="1"/>
+                <field name="contract_send_method" invisible="1"/>
                 <field name="can_resend_contract" invisible="1"/>
                 <field name="docusign_connector_ids" invisible="1"/>
                 <field name="has_docusign_client_user_id" invisible="1"/>
@@ -229,7 +230,7 @@
                 <!-- <field name="next_action" invisible="1"/> FSM field - commented out until FSM modules installed -->
                 <button string="Send Contract" type="object" name="action_send_contract"
                     class="btn-primary" icon="fa-file-signature"
-                    invisible="contract_state != 'pending_contract' or docusign_connector_ids"/>
+                    invisible="(contract_state not in ['pending_contract', 'pending_customer_signature']) or contract_send_method != 'physical' or docusign_connector_ids"/>
                 <button string="Resend Contract" type="object" name="action_open_resend_contract_wizard"
                     class="btn-secondary" icon="fa-refresh"
                     invisible = "not can_resend_contract"/>
