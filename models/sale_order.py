@@ -1649,12 +1649,16 @@ class SaleSubscription(models.Model):
         }
 
     def action_send_contract(self):
-        """Button action to send contract when in pending contract state without docusign connector."""
+        """Button action to send contract when eligible without docusign connector."""
         self.ensure_one()
         if self.docusign_connector_ids:
             raise UserError(_('Contract has already been sent. Use Resend Contract instead.'))
-        if self.contract_state != 'pending_contract':
-            raise UserError(_('Contract can only be sent when contract state is Pending Contract.'))
+
+        allowed_states = {'pending_contract'}
+        if self.contract_send_method == 'physical':
+            allowed_states.add('pending_customer_signature')
+        if self.contract_state not in allowed_states:
+            raise UserError(_('Contract can only be sent when contract state is Pending Contract or Pending Customer Signature.'))
         
         # Open the send method wizard
         return {
