@@ -195,9 +195,42 @@ class SubscriptionClose(models.Model):
         }
 
     def reactivate_service(self):
-        """Alias used by UI buttons to reopen the reactivation wizard."""
+        """Reactivate a suspended subscription with ONU and state updates.
+        
+        If payment brought the account out of suspension, this ensures both
+        ONU reactivation and subscription_state are synchronized.
+        """
         self.ensure_one()
-        return self.action_reactivate_subscription_wizard()
+        try:
+            if self.cpe_unit_asset:
+                self.cpe_unit_asset.reactivate_onu()
+                # Verify ONU is now enabled
+                if self.cpe_unit_asset.onu_state == 'enabled':
+                    self.write({
+                        'subscription_state': '3_progress',
+                        'internet_service_state': 'active',
+                        'suspension_effective_date': False,
+                        'suspension_reason': False,
+                    })
+                    self.message_post(body="✅ Subscription reactivated: ONU enabled and state restored to active.")
+                    return True
+                else:
+                    self.message_post(body="⚠️ Subscription reactivation incomplete: ONU enable failed.")
+                    return False
+            else:
+                # No CPE asset, just update state
+                self.write({
+                    'subscription_state': '3_progress',
+                    'internet_service_state': 'active',
+                    'suspension_effective_date': False,
+                    'suspension_reason': False,
+                })
+                self.message_post(body="✅ Subscription state restored to active (no ONU asset).")
+                return True
+        except Exception as e:
+            _logger.exception("Error during reactivate_service for %s", self.name)
+            self.message_post(body=f"❌ Reactivation error: {str(e)}")
+            return False
 
     def reactivate_subscription_now(self):
         """Bring a paused/terminated subscription back to active service."""
