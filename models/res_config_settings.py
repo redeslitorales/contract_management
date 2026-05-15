@@ -8,6 +8,24 @@ from .email_domain_utils import format_default_bad_email_domain_map
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
+    suspended_reservation_product_id = fields.Many2one(
+        'product.product',
+        string='Suspended Line Reservation Product',
+        config_parameter='contract_management.suspended_reservation_product_id',
+        domain="[('sale_ok', '=', True)]",
+    )
+
+    suspended_reservation_amount = fields.Float(
+        string='Suspended Line Reservation Amount',
+        config_parameter='contract_management.suspended_reservation_amount',
+        default=7.0,
+    )
+
+    company_currency_id = fields.Many2one(
+        related='company_id.currency_id',
+        readonly=True,
+    )
+
     docusign_company_signer_email = fields.Char(
         string='DocuSign Company Signer Email',
         help='Email address of the company representative who signs contracts after the customer',

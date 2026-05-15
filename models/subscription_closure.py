@@ -1,6 +1,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError,ValidationError
 from datetime import datetime, timedelta, time
+from dateutil.relativedelta import relativedelta
 import pytz
 import requests, json, time, unicodedata
 import logging
@@ -132,6 +133,17 @@ class SubscriptionClose(models.Model):
     
     sub_pause_start_date = fields.Datetime(string="Subscription Pause Date")
     sub_pause_end_date = fields.Datetime(string="Anticipated Reactivation Date")
+    next_reservation_invoice_date = fields.Date(
+        string='Next Reservation Invoice Date',
+        copy=False,
+        help='Used only while suspended. Does not replace next_invoice_date.',
+    )
+    last_reservation_invoice_id = fields.Many2one(
+        'account.move',
+        string='Last Reservation Invoice',
+        copy=False,
+        readonly=True,
+    )
     contract_end_in_past = fields.Boolean(
         string="Contract End In Past",
         compute="_compute_contract_end_in_past",
@@ -194,6 +206,139 @@ class SubscriptionClose(models.Model):
             },
         }
 
+    def write(self, vals):
+        res = super().write(vals)
+        if vals.get('subscription_state') == '8_suspend':
+            self.action_mark_suspended_for_reservation_billing()
+        return res
+
+    def _get_suspended_reservation_product(self):
+        raw_product_id = self.env['ir.config_parameter'].sudo().get_param(
+            'contract_management.suspended_reservation_product_id',
+            default='0',
+        )
+        try:
+            product_id = int(raw_product_id or 0)
+        except (TypeError, ValueError):
+            product_id = 0
+        product = self.env['product.product'].browse(product_id).exists()
+        if not product:
+            raise UserError(_('Configure the Suspended Line Reservation Product in Settings first.'))
+        return product
+
+    def _get_suspended_reservation_amount(self):
+        raw_amount = self.env['ir.config_parameter'].sudo().get_param(
+            'contract_management.suspended_reservation_amount',
+            default='7.0',
+        )
+        try:
+            return float(raw_amount or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _advance_reservation_invoice_date(self, base_date):
+        self.ensure_one()
+        return base_date + relativedelta(months=1)
+
+    def _prepare_suspended_reservation_invoice_line(self, product, amount):
+        self.ensure_one()
+        line_vals = {
+            'product_id': product.id,
+            'name': _('Line reservation fee while service is suspended'),
+            'quantity': 1.0,
+            'price_unit': amount,
+        }
+
+        taxes = product.taxes_id.filtered(
+            lambda tax: not tax.company_id or tax.company_id == self.company_id
+        )
+        if taxes:
+            fiscal_position = self.fiscal_position_id or self.partner_id.property_account_position_id
+            taxes = fiscal_position.map_tax(taxes) if fiscal_position else taxes
+            line_vals['tax_ids'] = [(6, 0, taxes.ids)]
+
+        account = product.property_account_income_id or product.categ_id.property_account_income_categ_id
+        if account:
+            line_vals['account_id'] = account.id
+
+        return line_vals
+
+    def _create_suspended_reservation_invoice(self):
+        self.ensure_one()
+
+        if self.subscription_state != '8_suspend':
+            raise ValidationError(_('Reservation invoices can only be created for suspended subscriptions.'))
+
+        product = self._get_suspended_reservation_product()
+        amount = self._get_suspended_reservation_amount()
+        if amount <= 0:
+            raise ValidationError(_('Suspended line reservation amount must be greater than zero.'))
+
+        today = fields.Date.context_today(self)
+        reservation_date = self.next_reservation_invoice_date or self.next_invoice_date or today
+        origin = '%s - suspended reservation - %s' % (self.name, reservation_date)
+
+        existing_invoice = self.env['account.move'].sudo().search([
+            ('move_type', '=', 'out_invoice'),
+            ('state', '!=', 'cancel'),
+            ('invoice_origin', '=', origin),
+            ('partner_id', '=', self.partner_invoice_id.id),
+        ], limit=1)
+        if existing_invoice:
+            return existing_invoice
+
+        invoice_vals = self._prepare_invoice()
+        invoice_vals.update({
+            'invoice_date': today,
+            'invoice_origin': origin,
+            'invoice_line_ids': [(0, 0, self._prepare_suspended_reservation_invoice_line(product, amount))],
+        })
+
+        invoice = self.env['account.move'].sudo().create(invoice_vals)
+        invoice.action_post()
+
+        self.sudo().write({
+            'next_reservation_invoice_date': self._advance_reservation_invoice_date(reservation_date),
+            'last_reservation_invoice_id': invoice.id,
+        })
+
+        self.message_post(body=_(
+            'Suspended line reservation invoice %s created for %s. Service next invoice date remains %s. Next reservation invoice date is %s.'
+        ) % (
+            invoice.display_name,
+            reservation_date,
+            self.next_invoice_date,
+            self.next_reservation_invoice_date,
+        ))
+
+        return invoice
+
+    @api.model
+    def cron_create_suspended_reservation_invoices(self):
+        today = fields.Date.context_today(self)
+        subscriptions = self.sudo().search([
+            ('is_subscription', '=', True),
+            ('state', '=', 'sale'),
+            ('subscription_state', '=', '8_suspend'),
+            ('next_reservation_invoice_date', '!=', False),
+            ('next_reservation_invoice_date', '<=', today),
+        ])
+        for subscription in subscriptions:
+            try:
+                subscription._create_suspended_reservation_invoice()
+            except Exception as exc:
+                subscription.message_post(body=_(
+                    'Failed to create suspended line reservation invoice: %s'
+                ) % exc)
+        return True
+
+    def action_mark_suspended_for_reservation_billing(self):
+        for order in self:
+            if order.subscription_state != '8_suspend':
+                continue
+            if not order.next_reservation_invoice_date:
+                order.next_reservation_invoice_date = order.next_invoice_date or fields.Date.context_today(order)
+
     def reactivate_service(self):
         """Reactivate a suspended subscription with ONU and state updates.
         
@@ -233,8 +378,9 @@ class SubscriptionClose(models.Model):
             return False
 
     def reactivate_subscription_now(self):
-        """Bring a paused/terminated subscription back to active service."""
+        """Bring a suspended subscription back to active service and invoice immediately."""
         self.ensure_one()
+        today = fields.Date.context_today(self)
 
         if self.cpe_unit_asset:
             self.enable_onu()
@@ -242,10 +388,23 @@ class SubscriptionClose(models.Model):
         self.write({
             'subscription_state': '3_progress',
             'internet_service_state': 'active',
+            'suspension_effective_date': False,
+            'suspension_reason': False,
+            'next_invoice_date': today,
+            'next_reservation_invoice_date': False,
         })
 
         invoices = self._create_invoices()
-        invoices.action_post()
+        if invoices:
+            invoices.action_post()
+
+        # Ensure next cycle moves forward for normal service billing.
+        if self.next_invoice_date and self.next_invoice_date <= today:
+            self.write({'next_invoice_date': today + relativedelta(months=1)})
+
+        self.message_post(body=_(
+            'Subscription reactivated and normal service invoice created from %s.'
+        ) % today)
         return True
 
 #  Redefining methods from the sale_subscription.sale_order.py file to accommadate CPE 

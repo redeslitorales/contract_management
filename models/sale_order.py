@@ -2828,64 +2828,48 @@ class SaleSubscription(models.Model):
         client_phone = f'+{normalized_phone}' if normalized_phone else None
         if not client_phone:
             raise ValidationError(_("Número de teléfono inválido"))
-        
-        context_info = f"magic link contract {self.id} to {partner.name} ({client_phone})"
-        recipient_phone, test_mode = WhatsApp._apply_test_mode_phone(client_phone, context_info)
+        default_lang = ICP.get_param('wa_template_language', 'es_ES')
+        partner_lang = (partner.lang or (partner.commercial_partner_id.lang if partner.commercial_partner_id else '') or '').strip()
+        lang_code = (partner_lang or default_lang or 'es_ES').replace('-', '_')
 
-        partner_lang = partner.lang or ICP.get_param('wa_template_language', 'es_ES')
-        lang_code = (partner_lang or 'es').split('_')[0]
-
-        rich_template_data = {
-            "body": {
-                "params": [
-                    {"data": partner.name or ''},
-                    {"data": magic_url},
-                ]
-            }
-        }
-
+        components = []
         if logo:
-            rich_template_data["header"] = {"type": "image", "media_url": str(logo)}
+            components.append({
+                "type": "header",
+                "parameters": [{
+                    "type": "image",
+                    "image": {"link": str(logo)},
+                }],
+            })
 
-        payload = WhatsApp._build_fc_payload(
-            to_phone=recipient_phone,
-            template_name=template_name,
-            language_code=lang_code,
-            rich_template_data=rich_template_data,
-        )
+        components.append({
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": partner.name or ''},
+                {"type": "text", "text": magic_url},
+            ],
+        })
 
-        result = WhatsApp._send_fc_template_request(payload)
-        
-        if not result.get('success'):
-            error_msg = result.get('error') or _('Unknown error sending WhatsApp')
-            _logger.error("[DocuSign] WhatsApp magic link send failed: %s", error_msg)
-            raise ValidationError(_("No se pudo enviar el enlace por WhatsApp: %s") % error_msg)
-
-        response = result.get('response') or {}
-        log_record = False
-
-        if response.get('request_id'):
-            base_vals = {
-                "name": _("Enlace de firma"),
-                "partner_id": partner.id,
-                "sale_order": self.id,
-                "to_phone": recipient_phone,
-                "template_name": template_name,
-            }
-
-            log_record = WhatsApp._create_fc_whatsapp_log(
-                base_vals=base_vals,
-                response_dict=result,
-                verification_dict=None,
-                test_mode=test_mode,
+        try:
+            log_record = WhatsApp._send_cloud_template(
+                to_phone=client_phone,
+                template_name=template_name,
+                language_code=lang_code,
+                components=components,
+                log_vals={
+                    "name": _("Enlace de firma"),
+                    "partner_id": partner.id,
+                    "sale_order": self.id,
+                    "template_name": template_name,
+                },
             )
-        request_id = response.get('request_id') or (log_record.request_id if log_record else '')
-        message = _("Enlace de firma enviado por WhatsApp")
+        except UserError as exc:
+            _logger.error("[DocuSign] WhatsApp magic link send failed: %s", exc)
+            raise ValidationError(_("No se pudo enviar el enlace por WhatsApp: %s") % exc)
 
-        if test_mode:
-            message += " [TEST MODE]"
-        if request_id:
-            message += _(" (Request ID: %s)") % request_id
+        message = _("Enlace de firma enviado por WhatsApp")
+        if log_record and log_record.message_id:
+            message += _(" (Message ID: %s)") % log_record.message_id
 
         self.message_post(body=message)
 

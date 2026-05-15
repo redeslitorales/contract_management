@@ -78,6 +78,30 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Suspended Reservation Billing">
+                        <setting>
+                            <label for="suspended_reservation_product_id" string="Suspended Reservation Product"/>
+                            <div class="text-muted">
+                                Product used to bill monthly line reservation while internet service is suspended.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="suspended_reservation_product_id" options="{'no_open': True}"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="suspended_reservation_amount" string="Suspended Reservation Amount"/>
+                            <div class="text-muted">
+                                Flat amount charged each reservation cycle while suspended.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="suspended_reservation_amount"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                     <block title="Security">
                         <setting>
                             <label for="contract_confirmation_secret" string="Quote Confirmation Secret"/>
