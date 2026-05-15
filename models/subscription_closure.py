@@ -210,6 +210,8 @@ class SubscriptionClose(models.Model):
         res = super().write(vals)
         if vals.get('subscription_state') == '8_suspend':
             self.action_mark_suspended_for_reservation_billing()
+        if vals.get('subscription_state') == '4_paused':
+            self.action_mark_paused_for_reservation_billing()
         return res
 
     def _get_suspended_reservation_product(self):
@@ -335,6 +337,13 @@ class SubscriptionClose(models.Model):
     def action_mark_suspended_for_reservation_billing(self):
         for order in self:
             if order.subscription_state != '8_suspend':
+                continue
+            if not order.next_reservation_invoice_date:
+                order.next_reservation_invoice_date = order.next_invoice_date or fields.Date.context_today(order)
+
+    def action_mark_paused_for_reservation_billing(self):
+        for order in self:
+            if order.subscription_state != '4_paused':
                 continue
             if not order.next_reservation_invoice_date:
                 order.next_reservation_invoice_date = order.next_invoice_date or fields.Date.context_today(order)
@@ -507,6 +516,9 @@ class PauseSubscriptionWizard(models.TransientModel):
             subscription.next_invoice_date = self.pause_end_date
         else:
             subscription.next_invoice_date = self.pause_start_date + timedelta(days=pause_duration)
+
+        # Reservation billing starts counting from the pause start date.
+        subscription.next_reservation_invoice_date = fields.Date.to_date(self.pause_start_date)
 
         # Log the activity
         subscription.message_post(body=f"Subscription paused by user from {self.pause_start_date} to {subscription.next_invoice_date}.")
