@@ -154,14 +154,14 @@
                                         <small style="font-weight: bold; color: #f0ad4e;">Paused<br/>(Click to Reactivate)</small>
                                     </button>
                                     <!-- Suspended with Issues (8_suspend but contract/install/config not completed) -->
-                                    <button name="reactivate_service" type="object"
+                                    <button name="action_reactivate_subscription_wizard" type="object"
                                             style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
                                             invisible="progress_stage != 'suspended_with_issues'">
                                         <i class="fa fa-ban fa-2x" style="color: #d9534f;" title="Suspended with Issues"/><br/>
                                         <small style="font-weight: bold; color: #d9534f;">Suspended w/ Issues<br/>(Click to Reactivate)</small>
                                     </button>
                                     <!-- Suspended (8_suspend) -->
-                                    <button name="reactivate_service" type="object"
+                                    <button name="action_reactivate_subscription_wizard" type="object"
                                             style="text-align: center; flex: 1; border: none; background: none; cursor: pointer; padding: 10px;"
                                             invisible="progress_stage != 'suspended'">
                                         <i class="fa fa-ban fa-2x" style="color: #d9534f;"/><br/>
