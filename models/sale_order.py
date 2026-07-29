@@ -193,6 +193,13 @@ class SaleSubscription(models.Model):
         help='True when any related contract allows pausing via the Pause Subscription wizard.',
     )
     last_invoice_date = fields.Date(string='Last Invoice Date', compute='_compute_last_invoice_date', store=False)
+
+    installation_fee_paid = fields.Boolean(
+        string='Installation Fee Paid',
+        compute='_compute_installation_fee_paid',
+        search='_search_installation_fee_paid',
+        help='True when a posted paid customer invoice linked to this subscription contains an installation fee line.',
+    )
     termination_cost = fields.Monetary(
         string='Termination Cost',
         currency_field='currency_id',
@@ -249,6 +256,19 @@ class SaleSubscription(models.Model):
         for order in self:
             active_contract = bool(order.contract_ids.filtered(lambda c: c.state in ('active', 'signed')))
             order.has_active_contract = active_contract
+
+    def _ensure_iptv_contract_signed(self):
+        self.ensure_one()
+        signed_contract = self.contract_ids.filtered(lambda contract: (
+            contract.state == 'active'
+            and (
+                getattr(contract, 'has_signed_documents', False)
+                or getattr(contract, 'docusign_status', False) == 'completed'
+            )
+        ))
+        if not signed_contract:
+            raise UserError(_('IPTV can only be activated after the contract is signed.'))
+        return signed_contract[0]
 
     def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
         res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
@@ -456,6 +476,53 @@ class SaleSubscription(models.Model):
                     order.progress_stage = 'confirmed'
             else:
                 order.progress_stage = 'draft'
+                
+    def _is_installation_fee_invoice_line(self, line):
+        """Return whether an invoice line represents an installation fee."""
+        candidates = [line.name or '']
+        product = line.product_id
+        if product:
+            candidates.extend([
+                product.display_name or '',
+                product.name or '',
+                product.categ_id.display_name or '',
+                product.categ_id.name or '',
+            ])
+        return any('install' in candidate.lower() for candidate in candidates if candidate)
+
+    def _has_paid_installation_fee(self):
+        self.ensure_one()
+        paid_states = ('paid', 'in_payment')
+        invoices = self.invoice_ids.filtered(
+            lambda inv: inv.state == 'posted'
+            and getattr(inv, 'move_type', 'out_invoice') == 'out_invoice'
+            and inv.payment_state in paid_states
+        )
+        return any(
+            self._is_installation_fee_invoice_line(line)
+            for line in invoices.mapped('invoice_line_ids')
+        )
+
+    @api.depends(
+        'invoice_ids.state',
+        'invoice_ids.payment_state',
+        'invoice_ids.move_type',
+        'invoice_ids.invoice_line_ids.name',
+        'invoice_ids.invoice_line_ids.product_id',
+        'invoice_ids.invoice_line_ids.product_id.name',
+        'invoice_ids.invoice_line_ids.product_id.categ_id.name',
+    )
+    def _compute_installation_fee_paid(self):
+        for order in self:
+            order.installation_fee_paid = order._has_paid_installation_fee()
+
+    def _search_installation_fee_paid(self, operator, value):
+        if operator not in ('=', '!=') or not isinstance(value, bool):
+            raise UserError(_('Unsupported search operator for Installation Fee Paid.'))
+        subscriptions = self.search([('is_subscription', '=', True)])
+        paid_ids = subscriptions.filtered(lambda order: order._has_paid_installation_fee()).ids
+        positive = (operator == '=' and value) or (operator == '!=' and not value)
+        return [('id', 'in' if positive else 'not in', paid_ids)]
 
     def _compute_last_invoice_date(self):
         for order in self:
@@ -579,7 +646,16 @@ class SaleSubscription(models.Model):
         return orders
 
     def _get_product_signature(self, order):
-        lines = order.order_line.filtered(lambda l: not l.display_type and l.product_id)
+        # Odoo intentionally copies only recurring lines into renewal orders.
+        # Ignore one-time charges/equipment here as well so their omission is
+        # not mistaken for a service change.
+        lines = order.order_line.filtered(
+            lambda l: (
+                not l.display_type
+                and l.product_id
+                and l.product_id.recurring_invoice
+            )
+        )
         precision = order.env['decimal.precision'].precision_get('Product Unit of Measure') or 6
         return sorted(
             (
@@ -591,7 +667,7 @@ class SaleSubscription(models.Model):
         )
 
     def _is_identical_renewal(self):
-        """True when renewal lines match parent (product + qty)."""
+        """True when recurring renewal lines match the parent (product + qty)."""
         self.ensure_one()
         if not self.renewal_of_id:
             return False
@@ -600,7 +676,13 @@ class SaleSubscription(models.Model):
         return parent_signature == renewal_signature
 
     def _get_product_template_signature(self, order):
-        lines = order.order_line.filtered(lambda l: not l.display_type and l.product_id)
+        lines = order.order_line.filtered(
+            lambda l: (
+                not l.display_type
+                and l.product_id
+                and l.product_id.recurring_invoice
+            )
+        )
         precision = order.env['decimal.precision'].precision_get('Product Unit of Measure') or 6
         return sorted(
             (
@@ -1607,13 +1689,14 @@ class SaleSubscription(models.Model):
         description = "\n".join(description_parts)
         
         # Create addendum
+        effective_date = self._get_addendum_effective_date(parent_contract)
         addendum_vals = {
             'name': f'Upsell Addendum - {self.name}',
             'contract_id': parent_contract.id,
             'upsell_subscription_id': self.id,  # Link to upsell order
             'addendum_type': 'service_addition',
             'description': description,
-            'effective_date': fields.Date.today(),
+            'effective_date': effective_date,
             'state': 'draft',
             'contract_send_method': self.contract_send_method or 'whatsapp',
             'monthly_payment_change': monthly_payment_change,
@@ -2455,6 +2538,7 @@ class SaleSubscription(models.Model):
                             delivered_via = target_order.send_customer_contract_link(
                                 connector_id=connector_id,
                                 preferred_method=send_method,
+                                refresh_document=False,
                             )
                             _logger.info(
                                 "[DocuSign] Embedded signer detected; magic link delivered via %s for order %s",
@@ -2564,6 +2648,87 @@ class SaleSubscription(models.Model):
             )
             raise
 
+    def _refresh_unsigned_docusign_envelope(self, connector):
+        """Regenerate the current contract and replace the unsigned envelope PDF."""
+        self.ensure_one()
+        connector.ensure_one()
+
+        # Serialize concurrent employee resends. After the first transaction
+        # refreshes the PDF, the next one will observe the new checksum and skip
+        # an unnecessary second DocuSign replacement.
+        self.env.cr.execute(
+            "SELECT id FROM docusign_connector WHERE id = %s FOR UPDATE",
+            [connector.id],
+        )
+        connector.invalidate_recordset()
+
+        if any(line.sign_status for line in connector.connector_line_ids):
+            raise ValidationError(
+                _("At least one recipient has already signed. Create a new envelope for changes.")
+            )
+
+        document_order = self
+        if connector.contract_addendum_id and connector.contract_addendum_id.upsell_subscription_id:
+            document_order = connector.contract_addendum_id.upsell_subscription_id
+
+        if not document_order.cabal_sequence and document_order.is_subscription:
+            document_order.sudo().write({
+                'cabal_sequence': document_order._get_cabal_sequence(),
+            })
+
+        document_order._compute_contract_template()
+        if not document_order.contract_template:
+            raise ValidationError(_("No contract template is configured for the current order."))
+
+        value_source = document_order._get_contract_value_source_order() or document_order
+        recurring_lines = value_source.order_line.filtered(
+            lambda line: line.product_id.recurring_invoice
+        )
+        monthly_payment = sum(recurring_lines.mapped('price_total'))
+        contract_value = monthly_payment * 12
+        if value_source.contract_term and value_source.plan_id:
+            term_months = value_source.contract_term.term
+            billing_months = (
+                value_source.plan_id.billing_period_value
+                if value_source.plan_id.billing_period_unit == 'month'
+                else 1
+            )
+            if billing_months:
+                contract_value = monthly_payment * (term_months / billing_months)
+
+        document_order.sudo().write({'contract_value': contract_value})
+        document = document_order._create_document_to_be_signed(
+            document_order,
+            document_order.contract_template,
+        )
+        connector.sudo().write({
+            'monthly_payment': monthly_payment,
+            'contract_value': contract_value,
+        })
+        current_document = connector.attachment_ids[:1]
+        if (
+            current_document
+            and current_document.checksum
+            and current_document.checksum == document.checksum
+        ):
+            # The regenerated PDF is byte-for-byte identical. Keep the envelope
+            # untouched so repeated resend clicks do not disturb signing sessions.
+            document.sudo().unlink()
+            return current_document
+
+        connector.replace_unsigned_envelope_document(document, resend_envelope=False)
+
+        self.sudo().message_post(
+            body=_(
+                "DocuSign envelope document refreshed from the current contract data "
+                "before sending a new signing link."
+            ),
+            attachment_ids=[document.id],
+            subtype_xmlid='mail.mt_note',
+            message_type='comment',
+        )
+        return document
+
     def action_open_resend_contract_wizard(self):
         self.ensure_one()
 
@@ -2596,6 +2761,28 @@ class SaleSubscription(models.Model):
         if is_upsell and getattr(self, 'origin_order_id', False):
             return self.origin_order_id
         return self
+
+    def _get_addendum_effective_date(self, parent_contract=False):
+        """Return the first valid date for an upsell addendum to take effect."""
+        self.ensure_one()
+
+        existing_addendum = self.env['contract.addendum'].sudo().search([
+            ('upsell_subscription_id', '=', self.id),
+            ('state', '!=', 'cancelled'),
+        ], order='create_date desc', limit=1)
+        if existing_addendum and existing_addendum.effective_date:
+            return existing_addendum.effective_date
+
+        base_order = self._get_addendum_base_order()
+        today = fields.Date.context_today(self)
+        candidate_dates = [
+            today,
+            self.start_date,
+            base_order.start_date if base_order and base_order != self else False,
+            parent_contract.start_date if parent_contract else False,
+        ]
+        valid_dates = [candidate for candidate in candidate_dates if candidate]
+        return max(valid_dates) if valid_dates else today
 
     def _get_contract_value_source_order(self):
         """Walk up the chain to a non-upsell order for contract value math."""
@@ -2944,7 +3131,12 @@ class SaleSubscription(models.Model):
         )
         return True
 
-    def send_customer_contract_link(self, connector_id=None, preferred_method=None):
+    def send_customer_contract_link(
+        self,
+        connector_id=None,
+        preferred_method=None,
+        refresh_document=True,
+    ):
         """Deliver the magic link using partner preferences (wa > email > sms) with fallback.
 
         Preferred ordering uses partner/commercial partner flags: preference_wa,
@@ -2957,6 +3149,9 @@ class SaleSubscription(models.Model):
         connector = connector.sorted(key=lambda c: c.id, reverse=True)[:1]
         if not connector:
             raise ValidationError(_("No DocuSign envelope is available to build a magic link. Send the contract first."))
+
+        if refresh_document:
+            self._refresh_unsigned_docusign_envelope(connector)
 
         customer_line = connector.connector_line_ids.filtered(lambda l: l.partner_id.id == self.partner_id.id)[:1]
         if not customer_line:
@@ -3076,6 +3271,7 @@ class SaleSubscription(models.Model):
         if not customer_line:
             raise ValidationError(_("No DocuSign recipient was found to generate a magic link."))
 
+        self._refresh_unsigned_docusign_envelope(connector)
         token, magic_url = customer_line.generate_magic_link()
 
         return self._send_magic_link_via_whatsapp(self.partner_id, token, magic_url)
@@ -3259,7 +3455,7 @@ class SaleSubscription(models.Model):
         is_subscription = subscription_state in ['2_renewal', '7_upsell']
         option_lines_data = [Command.link(option.copy().id) for option in subscription.sale_order_option_ids]
         if subscription_state == '7_upsell':
-            start_date = fields.Date.today()
+            start_date = max(candidate for candidate in (today, subscription.start_date) if candidate)
             next_invoice_date = self.next_invoice_date
         else:
             # renewal
@@ -3411,11 +3607,6 @@ class SubscriptionTransferWizard(models.TransientModel):
     _name = 'subscription.transfer.wizard'
     _description = 'Subscription Transfer Wizard'
 
-    state = fields.Selection(
-        [('select', 'Select Subscriptions'), ('confirm', 'Confirm Transfer')],
-        default='select',
-        required=True,
-    )
     from_subscription_id = fields.Many2one('sale.order', string='From Subscription', required=True)
     to_subscription_id = fields.Many2one(
         'sale.order',
@@ -3428,12 +3619,6 @@ class SubscriptionTransferWizard(models.TransientModel):
         default=fields.Date.context_today,
         required=True,
     )
-    from_summary = fields.Html(string='From Summary', compute='_compute_summaries', sanitize=False)
-    to_summary = fields.Html(string='To Summary', compute='_compute_summaries', sanitize=False)
-    from_label = fields.Char(string='From Label', compute='_compute_labels')
-    to_label = fields.Char(string='To Label', compute='_compute_labels')
-    confirm_ack = fields.Boolean(string='I confirm the transfer details are correct')
-
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
@@ -3457,66 +3642,9 @@ class SubscriptionTransferWizard(models.TransientModel):
             return '%s - %s' % (sub_name, partner)
         return sub_name or partner
 
-    def _build_summary(self, subscription):
-        if not subscription:
-            return ''
-
-        parts = []
-        parts.append(_('Partner: %s') % html_escape(subscription.partner_id.display_name or ''))
-        if subscription.partner_shipping_id:
-            parts.append(_('Service Address: %s') % html_escape(subscription.partner_shipping_id.contact_address or ''))
-        parts.append(_('Contract: %s') % html_escape(subscription.cabal_sequence or subscription.name or ''))
-        if subscription.start_date:
-            parts.append(_('Start: %s') % subscription.start_date)
-        if subscription.end_date:
-            parts.append(_('End: %s') % subscription.end_date)
-
-        # Basic service/equipment hints (shown only if fields exist)
-        equipment = []
-        for fname, label in [
-            ('cpe_unit', _('ONT/Router')),
-            ('cpe_stb', _('STB')),
-            ('download_speed_profile_id', _('Download Profile')),
-            ('upload_speed_profile_id', _('Upload Profile')),
-        ]:
-            if fname in subscription._fields:
-                val = subscription[fname]
-                if val:
-                    equipment.append('%s: %s' % (label, html_escape(val.display_name if hasattr(val, 'display_name') else str(val))))
-
-        if equipment:
-            parts.append(_('Equipment/Config: %s') % ', '.join(equipment))
-
-        return Markup('<br/>').join(parts)
-
-    @api.depends('from_subscription_id', 'to_subscription_id', 'transfer_date')
-    def _compute_summaries(self):
-        for wiz in self:
-            wiz.from_summary = wiz._build_summary(wiz.from_subscription_id)
-            wiz.to_summary = wiz._build_summary(wiz.to_subscription_id)
-
-    @api.depends('from_subscription_id', 'to_subscription_id')
-    def _compute_labels(self):
-        for wiz in self:
-            wiz.from_label = wiz._build_label(wiz.from_subscription_id)
-            wiz.to_label = wiz._build_label(wiz.to_subscription_id)
-
-    def action_review(self):
-        self.ensure_one()
-        # Validate selections before showing confirmation
-        if not self.from_subscription_id or not self.to_subscription_id:
-            raise ValidationError(_('Select both the source and destination subscriptions before reviewing.'))
-        if self.from_subscription_id == self.to_subscription_id:
-            raise ValidationError(_('The source and destination subscriptions must be different.'))
-
-        self.write({'state': 'confirm'})
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'subscription.transfer.wizard',
-            'view_mode': 'form',
-            'res_id': self.id,
-            'target': 'new',
-        }
+    def _transfer_subscription_label(self, subscription):
+        """Return a useful identifier for transfer validation messages."""
+        return self._build_label(subscription) or subscription.display_name or str(subscription.id)
 
     def _validate_destination_contract(self, to_subscription):
         has_active_contract = (
@@ -3524,20 +3652,26 @@ class SubscriptionTransferWizard(models.TransientModel):
             or bool(to_subscription.contract_ids.filtered(lambda c: c.state == 'active'))
         )
         if not has_active_contract:
-            raise ValidationError(_('The destination subscription must have an active contract before transferring service.'))
+            contract_states = ', '.join(
+                dict(to_subscription.contract_ids._fields['state'].selection).get(contract.state, contract.state)
+                for contract in to_subscription.contract_ids
+            ) or _('no contracts found')
+            raise ValidationError(
+                _(
+                    'Destination %(subscription)s has no active contract '
+                    '(subscription state: %(subscription_state)s; contract states: %(contract_states)s). '
+                    'Activate a destination contract before transferring service.'
+                ) % {
+                    'subscription': self._transfer_subscription_label(to_subscription),
+                    'subscription_state': to_subscription.contract_state or _('not set'),
+                    'contract_states': contract_states,
+                }
+            )
 
     def transfer_subscription(self):
         self.ensure_one()
         from_sub = self.from_subscription_id
         to_sub = self.to_subscription_id
-        from_fields = from_sub._fields
-        to_fields = to_sub._fields
-
-        # Allow transfer to proceed once review has been done; auto-acknowledge if the box was skipped.
-        if self.state != 'confirm':
-            raise ValidationError(_('Please review the transfer details before proceeding.'))
-        if not self.confirm_ack:
-            self.confirm_ack = True
 
         def _field(record, name):
             return record[name] if name in record._fields else False
@@ -3545,10 +3679,15 @@ class SubscriptionTransferWizard(models.TransientModel):
         def _filter_field_vals(record, vals):
             return {key: value for key, value in vals.items() if key in record._fields}
 
-        if not from_sub or not to_sub:
-            raise ValidationError(_('Select both the source and destination subscriptions.'))
+        if not from_sub:
+            raise ValidationError(_('The source subscription is missing. Return to the first step and select it again.'))
+        if not to_sub:
+            raise ValidationError(_('The destination subscription is missing. Return to the first step and select it again.'))
         if from_sub == to_sub:
-            raise ValidationError(_('The source and destination subscriptions must be different.'))
+            raise ValidationError(
+                _('The source and destination are both %(subscription)s. Select a different destination subscription.')
+                % {'subscription': self._transfer_subscription_label(from_sub)}
+            )
 
         self._validate_destination_contract(to_sub)
 
@@ -3558,17 +3697,35 @@ class SubscriptionTransferWizard(models.TransientModel):
         if from_end_date:
             if not to_end_date or to_end_date < from_end_date:
                 raise ValidationError(
-                    _('The destination contract must end on or after the source contract (%s). Please extend the destination contract before transferring.')
-                    % from_end_date
+                    _(
+                        'Destination %(destination)s ends on %(destination_end)s, before source '
+                        '%(source)s ends on %(source_end)s. Extend the destination contract through '
+                        '%(source_end)s before transferring.'
+                    ) % {
+                        'destination': self._transfer_subscription_label(to_sub),
+                        'destination_end': to_end_date or _('no end date set'),
+                        'source': self._transfer_subscription_label(from_sub),
+                        'source_end': from_end_date,
+                    }
                 )
 
-        if any([
-            _field(to_sub, 'cpe_unit'),
-            _field(to_sub, 'cpe_unit_asset'),
-            _field(to_sub, 'cpe_stb'),
-            _field(to_sub, 'cpe_stb_asset'),
-        ]):
-            raise ValidationError(_('The destination subscription already has equipment assigned. Clear it before transferring.'))
+        assigned_equipment = []
+        for field_name in ('cpe_unit', 'cpe_unit_asset', 'cpe_stb', 'cpe_stb_asset'):
+            equipment = _field(to_sub, field_name)
+            if equipment:
+                field_label = to_sub._fields[field_name].string
+                equipment_label = getattr(equipment, 'display_name', equipment)
+                assigned_equipment.append('%s: %s' % (field_label, equipment_label))
+        if assigned_equipment:
+            raise ValidationError(
+                _(
+                    'Destination %(subscription)s already has equipment assigned: %(equipment)s. '
+                    'Clear these fields before transferring.'
+                ) % {
+                    'subscription': self._transfer_subscription_label(to_sub),
+                    'equipment': ', '.join(assigned_equipment),
+                }
+            )
 
         transfer_date = self.transfer_date or fields.Date.context_today(self)
 
@@ -3619,6 +3776,8 @@ class SubscriptionTransferWizard(models.TransientModel):
         if cpe_unit or cpe_unit_asset:
             to_sub_vals['internet_service_state'] = 'active'
         if cpe_stb or cpe_stb_asset or iptv_account:
+            if hasattr(to_sub, '_ensure_iptv_contract_signed'):
+                to_sub._ensure_iptv_contract_signed()
             to_sub_vals['iptv_service_state'] = 'active'
         to_sub.write(_filter_field_vals(to_sub, to_sub_vals))
 

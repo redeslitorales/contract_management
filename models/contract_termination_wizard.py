@@ -89,9 +89,20 @@ class ContractTerminationWizard(models.TransientModel):
             defaults['contract_id'] = contract_id
             contract = self.env['contract.management'].browse(contract_id)
             request = self._get_or_create_request(contract)
+            current_cost = abs(contract.early_termination_cost or 0.0)
+            applied_cost = request.applied_termination_cost if request.applied_termination_cost is not None else current_cost
+            zero_cost_without_override = (
+                float_compare(current_cost, 0.0, precision_digits=2) == 0
+                and float_compare(applied_cost or 0.0, 0.0, precision_digits=2) == 0
+                and not request.cost_override_requested
+                and not request.cost_override_applied
+            )
+            restored_state = request.wizard_state or defaults.get('state')
+            if zero_cost_without_override and restored_state in (self.STATE_APPROVAL, self.STATE_PAYMENT):
+                restored_state = self.STATE_COST
             defaults['request_id'] = request.id
 
-            defaults.setdefault('applied_termination_cost', request.applied_termination_cost or abs(contract.early_termination_cost or 0.0))
+            defaults.setdefault('applied_termination_cost', applied_cost)
             defaults.setdefault('cost_override_requested', request.cost_override_requested)
             defaults.setdefault('cost_override_request_reason', request.cost_override_request_reason)
             defaults.setdefault('cost_override_request_user_id', request.cost_override_request_user_id.id)
@@ -106,7 +117,7 @@ class ContractTerminationWizard(models.TransientModel):
             defaults.setdefault('equipment_returned', request.equipment_returned)
             defaults.setdefault('manager_approved', request.manager_approved)
             defaults.setdefault('manager_user_id', request.manager_user_id.id)
-            defaults.setdefault('state', request.wizard_state or defaults.get('state'))
+            defaults.setdefault('state', restored_state)
             defaults.setdefault('reason', request.reason.id)
             defaults.setdefault('notes', request.notes)
             defaults.setdefault('other_reason', request.other_reason)
@@ -120,6 +131,12 @@ class ContractTerminationWizard(models.TransientModel):
             defaults.setdefault('service_rating', request.service_rating)
             defaults.setdefault('cost_override_attachment_ids', [(6, 0, request.cost_override_attachment_ids.ids)])
             defaults.setdefault('problems_experienced', [(6, 0, request.problems_experienced.ids)])
+
+            if restored_state != request.wizard_state or applied_cost != request.applied_termination_cost:
+                request.write({
+                    'applied_termination_cost': applied_cost,
+                    'wizard_state': restored_state,
+                })
         return defaults
 
     def _get_or_create_request(self, contract):
@@ -212,11 +229,10 @@ class ContractTerminationWizard(models.TransientModel):
                 wizard.requires_manager_approval = True
                 continue
             applied_cost = wizard.applied_termination_cost if wizard.applied_termination_cost is not None else wizard.early_termination_cost
-            wizard.requires_manager_approval = float_compare(
-                applied_cost or 0.0,
-                100.0,
-                precision_digits=2,
-            ) == -1
+            wizard.requires_manager_approval = (
+                float_compare(applied_cost or 0.0, 0.0, precision_digits=2) == 1
+                and float_compare(applied_cost or 0.0, 100.0, precision_digits=2) == -1
+            )
 
     def _requires_payment_step(self, applied_cost):
         return (
@@ -239,7 +255,7 @@ class ContractTerminationWizard(models.TransientModel):
         """Evaluate whether the wizard can advance past cost/approval.
 
         Allowed paths:
-        1) Standard flow: termination cost is paid; if the cost is below $100, a manager must approve.
+        1) Standard flow: termination cost is either $0, or paid; if the positive cost is below $100, a manager must approve.
         2) Waiver: manager approved the waiver/reduction and the applied cost is $0.
         3) Reduction: manager approved the reduction and the reduced cost has been paid.
         """
@@ -250,11 +266,12 @@ class ContractTerminationWizard(models.TransientModel):
         payment_done = bool(self.payment_confirmed) if cost_positive else False
         manager_ok = bool(self.manager_approved)
 
+        standard_zero = cost_zero and not self.cost_override_requested and not self.cost_override_applied
         standard_paid = cost_positive and payment_done and (not cost_under_100 or manager_ok)
         waiver_approved = cost_zero and self.cost_override_applied and manager_ok
         reduction_paid = cost_positive and self.cost_override_applied and manager_ok and payment_done
 
-        return standard_paid or waiver_approved or reduction_paid
+        return standard_zero or standard_paid or waiver_approved or reduction_paid
 
     @api.constrains('applied_termination_cost')
     def _check_applied_cost(self):
@@ -423,7 +440,7 @@ class ContractTerminationWizard(models.TransientModel):
             if not self._requires_payment_step(applied_cost):
                 if not self._meets_next_conditions(applied_cost):
                     raise ValidationError(_(
-                        'To continue, either confirm the termination cost is paid (and manager approval is present when the amount is under $100), approve a waiver with $0 applied cost, or approve a reduction and confirm the reduced cost is paid.'
+                        'To continue, either keep the termination cost at $0, confirm the termination cost is paid (and manager approval is present when the amount is under $100), approve a waiver with $0 applied cost, or approve a reduction and confirm the reduced cost is paid.'
                     ))
                 self.state = self.STATE_EQUIPMENT
             else:

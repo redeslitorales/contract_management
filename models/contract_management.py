@@ -220,7 +220,7 @@ class ContractManagement(models.Model):
             contract_value = contract.contract_value or 0.0
             total_paid = contract.total_paid or 0.0
             early_fee = contract.early_termination_fee or 0.0
-            contract.early_termination_cost = contract_value - total_paid + early_fee
+            contract.early_termination_cost = max(0.0, contract_value - total_paid + early_fee)
 
     @api.depends('end_date', 'state', 'mtm_start_date')
     def _compute_mtm_age(self):

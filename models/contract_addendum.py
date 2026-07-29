@@ -482,7 +482,7 @@ class ContractAddendum(models.Model):
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this addendum."))
 
-        contract = getattr(self, 'contract_id', False)
+        contract = self.contract_id.subscription_id
         if not contract:
             raise UserError(_("No parent contract linked to this addendum."))
 
@@ -521,7 +521,7 @@ class ContractAddendum(models.Model):
         if not self.docusign_id:
             raise UserError(_("No DocuSign envelope found for this addendum."))
 
-        contract = getattr(self, 'contract_id', False)
+        contract = self.contract_id.subscription_id
         if not contract:
             raise UserError(_("No parent contract linked to this addendum."))
 

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_residential_internet_iptv_report_tree" model="ir.ui.view">
+        <field name="name">residential.internet.iptv.report.tree</field>
+        <field name="model">residential.internet.iptv.report</field>
+        <field name="arch" type="xml">
+            <tree string="$25 Residential Internet Customers with IPTV" create="false" edit="false" delete="false">
+                <field name="partner_id"/>
+                <field name="phone" optional="show"/>
+                <field name="mobile" optional="hide"/>
+                <field name="email" optional="show"/>
+                <field name="internet_subscriptions"/>
+                <field name="iptv_subscriptions"/>
+                <field name="internet_service_count" sum="$25 Internet Services"/>
+                <field name="iptv_account_count" sum="IPTV Accounts"/>
+                <field name="internet_monthly_amount" sum="Internet Monthly Amount"/>
+                <field name="iptv_monthly_amount" sum="IPTV Monthly Amount"/>
+                <field name="total_monthly_payment" sum="Total Monthly Payment"/>
+                <field name="same_subscription"/>
+                <field name="internet_products" optional="hide"/>
+                <field name="iptv_products" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_residential_internet_iptv_report_search" model="ir.ui.view">
+        <field name="name">residential.internet.iptv.report.search</field>
+        <field name="model">residential.internet.iptv.report</field>
+        <field name="arch" type="xml">
+            <search string="$25 Residential Internet Customers with IPTV">
+                <field name="partner_id"/>
+                <field name="internet_subscriptions"/>
+                <field name="iptv_subscriptions"/>
+                <filter string="Same Subscription" name="same_subscription" domain="[('same_subscription', '=', True)]"/>
+                <filter string="Different Subscriptions" name="different_subscriptions" domain="[('same_subscription', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_residential_internet_iptv_report" model="ir.actions.act_window">
+        <field name="name">$25 Residential Internet + IPTV</field>
+        <field name="res_model">residential.internet.iptv.report</field>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_residential_internet_iptv_report_tree"/>
+        <field name="search_view_id" ref="view_residential_internet_iptv_report_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No current customers have both a $25 residential internet plan and an IPTV plan.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_residential_internet_iptv_report"
+              name="$25 Residential Internet + IPTV"
+              parent="menu_contract_management_root"
+              action="action_residential_internet_iptv_report"
+              sequence="35"/>
+</odoo>

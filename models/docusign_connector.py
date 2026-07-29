@@ -72,8 +72,16 @@ class OverrideDocumentStatus(models.Model):
                     recipient_meta = []  # keep recipient_id/email per line for webhook matching
                     for idx, line in enumerate(self.connector_line_ids.sorted(key=lambda l: l.id), 1):
                         recipient_email = line._get_recipient_email()
+                        recipient_name = (line.partner_id.name or '').strip()
                         if not recipient_email:
                             raise ValidationError(_(f"Email not set for recipient: {line.partner_id.name}"))
+                        if not recipient_name:
+                            raise ValidationError(_("Name not set for recipient."))
+
+                        # Embedded recipient matching uses the identity stored on
+                        # the envelope. Keep that identity stable if the partner
+                        # record is corrected after the envelope is sent.
+                        line.sudo().write({'recipient_name': recipient_name})
                         
                         # First signer uses the send_method from wizard, others always use email
                         current_send_method = send_method
@@ -112,7 +120,7 @@ class OverrideDocumentStatus(models.Model):
                             )
 
                         signer = Signer(
-                            name=line.partner_id.name,
+                            name=recipient_name,
                             email=recipient_email,
                             recipient_id=str(idx),
                             routing_order=str(idx),
@@ -182,6 +190,7 @@ class OverrideDocumentStatus(models.Model):
                             'envelope_id': envelope_id,  # Same envelope ID for all!
                             'send_status': True,
                             'recipient_id': recipient_id,
+                            'recipient_name': line.recipient_name or line.partner_id.name,
                             'recipient_email': recipient_email,
                         })
                         _logger.info("[DocuSign Send] Set envelope_id=%s on line %d (%s)",
@@ -258,6 +267,65 @@ class OverrideDocumentStatus(models.Model):
 
         except Exception as e:
             raise ValidationError(_(str(e)))
+
+    def replace_unsigned_envelope_document(self, attachment, resend_envelope=False):
+        """Replace the PDF in an existing envelope while it remains unsigned."""
+        self.ensure_one()
+        if not attachment:
+            raise ValidationError(_("A regenerated contract PDF is required."))
+
+        lines_with_envelope = self.connector_line_ids.filtered(lambda line: line.envelope_id)
+        if not lines_with_envelope:
+            raise ValidationError(_("Cannot replace the contract because the DocuSign envelope is missing."))
+        if any(line.sign_status for line in lines_with_envelope):
+            raise ValidationError(
+                _("The contract document cannot be changed after a recipient has signed.")
+            )
+
+        envelope_ids = set(lines_with_envelope.mapped('envelope_id'))
+        if len(envelope_ids) != 1:
+            raise ValidationError(_("The connector contains more than one DocuSign envelope."))
+        envelope_id = next(iter(envelope_ids))
+
+        user = self.responsible_id or self.env['res.users'].browse(196)
+        envelope_details = docu_client.get_envelope_details(self.env, user, envelope_id)
+        envelope_status = (
+            envelope_details.get('status') if isinstance(envelope_details, dict) else None
+        )
+        if envelope_status and envelope_status.lower() not in {'created', 'sent', 'delivered'}:
+            raise ValidationError(
+                _("Envelope status is '%s'; its contract document can no longer be changed.")
+                % envelope_status
+            )
+
+        document_id = '1'
+        envelope_documents = (
+            envelope_details.get('documents')
+            or envelope_details.get('envelopeDocuments')
+            or []
+        ) if isinstance(envelope_details, dict) else []
+        if envelope_documents:
+            document_id = str(envelope_documents[0].get('documentId') or document_id)
+
+        attachment_data = attachment.sudo().read(['datas'])[0]['datas']
+        docu_client.replace_envelope_document(
+            self.env,
+            user,
+            envelope_id,
+            document_id,
+            attachment.name,
+            attachment_data,
+            resend_envelope=resend_envelope,
+        )
+
+        self.sudo().write({'attachment_ids': [(6, 0, [attachment.id])]})
+        lines_with_envelope.sudo().write({
+            'un_signed_attachment_ids': [(6, 0, [attachment.id])],
+            'status': 'sent',
+            'name': attachment.name,
+            'send_status': True,
+        })
+        return True
 
     def download_docs(self):
         try:

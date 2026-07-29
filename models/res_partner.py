@@ -34,6 +34,158 @@ class ResPartner(models.Model):
     email_verify_last_sent = fields.Datetime(copy=False)
 
     BAD_EMAIL_DOMAIN_PARAM_KEY = 'contract_management.bad_email_domain_map'
+    ACTIVE_SUBSCRIPTION_STATES = ('3_progress', '4_paused', '8_suspend')
+    ACTIVATABLE_SUBSCRIPTION_STATES = ('3_progress', '4_paused')
+
+    @api.model
+    def cron_mark_customers_without_active_subscriptions_inactive(self):
+        """Synchronize blank/inactive customer statuses from subscription states."""
+        self.env.cr.execute(
+            """
+            SELECT partner.id
+              FROM res_partner AS partner
+             WHERE partner.parent_id IS NULL
+               AND partner.customer_rank > 0
+               AND partner.customer_status IS DISTINCT FROM 'inactive'
+               AND NOT EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state IN %s
+               )
+            """,
+            [self.ACTIVE_SUBSCRIPTION_STATES],
+        )
+        inactive_partners = self.sudo().browse(
+            row[0] for row in self.env.cr.fetchall()
+        )
+        if inactive_partners:
+            inactive_partners.write({'customer_status': 'inactive'})
+
+        self.env.cr.execute(
+            """
+            SELECT partner.id
+              FROM res_partner AS partner
+             WHERE partner.parent_id IS NULL
+               AND partner.customer_rank > 0
+               AND partner.customer_status IN ('active', 'active_with_issues')
+               AND NOT EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state IN %s
+               )
+               AND EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state = '8_suspend'
+               )
+            """,
+            [self.ACTIVATABLE_SUBSCRIPTION_STATES],
+        )
+        suspended_partners = self.sudo().browse(
+            row[0] for row in self.env.cr.fetchall()
+        )
+        if suspended_partners:
+            suspended_partners.write({'customer_status': 'suspended'})
+
+        self.env.cr.execute(
+            """
+            SELECT partner.id
+              FROM res_partner AS partner
+             WHERE partner.parent_id IS NULL
+               AND partner.customer_rank > 0
+               AND (
+                    COALESCE(partner.customer_status, '') = ''
+                    OR partner.customer_status = 'suspended'
+               )
+               AND EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state IN %s
+               )
+               AND NOT EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state = '8_suspend'
+               )
+            """,
+            [self.ACTIVATABLE_SUBSCRIPTION_STATES],
+        )
+        active_partners = self.sudo().browse(
+            row[0] for row in self.env.cr.fetchall()
+        )
+        if active_partners:
+            active_partners.write({'customer_status': 'active'})
+
+        self.env.cr.execute(
+            """
+            SELECT partner.id
+              FROM res_partner AS partner
+             WHERE partner.parent_id IS NULL
+               AND partner.customer_rank > 0
+               AND partner.customer_status IS DISTINCT FROM 'active_with_issues'
+               AND EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state IN %s
+               )
+               AND EXISTS (
+                    SELECT 1
+                      FROM sale_order AS subscription
+                      JOIN res_partner AS subscription_partner
+                        ON subscription_partner.id = subscription.partner_id
+                     WHERE subscription_partner.commercial_partner_id = partner.id
+                       AND subscription.is_subscription IS TRUE
+                       AND subscription.subscription_state = '8_suspend'
+               )
+            """,
+            [self.ACTIVATABLE_SUBSCRIPTION_STATES],
+        )
+        active_with_issues_partners = self.sudo().browse(
+            row[0] for row in self.env.cr.fetchall()
+        )
+        if active_with_issues_partners:
+            active_with_issues_partners.write({
+                'customer_status': 'active_with_issues',
+            })
+
+        _logger.info(
+            "Customer status cron marked %s inactive, %s suspended, %s active, "
+            "and %s active with issues",
+            len(inactive_partners),
+            len(suspended_partners),
+            len(active_partners),
+            len(active_with_issues_partners),
+        )
+        return (
+            len(inactive_partners)
+            + len(suspended_partners)
+            + len(active_partners)
+            + len(active_with_issues_partners)
+        )
 
     def action_open_change_payment_day_batch_wizard(self):
         self.ensure_one()

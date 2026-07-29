@@ -18,9 +18,23 @@ class DocusignConnectorLineMagic(models.Model):
         string='Recipient Email',
         help='Explicit recipient email used for DocuSign. Falls back to partner email when empty.',
     )
+    recipient_name = fields.Char(
+        string='DocuSign Recipient Name',
+        copy=False,
+        help=(
+            'Exact recipient name stored in the DocuSign envelope. This snapshot '
+            'must not change when the partner name is corrected later.'
+        ),
+    )
     magic_token_hash = fields.Char(string='Magic Link Token Hash', index=True, copy=False)
     magic_token_expires_at = fields.Datetime(string='Magic Link Expires At', copy=False)
     magic_token_used_at = fields.Datetime(string='Magic Link Used At', copy=False)
+    magic_link_token_ids = fields.One2many(
+        'docusign.magic.link.token',
+        'line_id',
+        string='Magic Link Tokens',
+        copy=False,
+    )
 
     @api.constrains('partner_id', 'recipient_email')
     def _check_partner_email(self):
@@ -38,6 +52,11 @@ class DocusignConnectorLineMagic(models.Model):
         self.ensure_one()
         return (self.recipient_email or self.email or self.partner_id.email or '').strip()
 
+    def _get_recipient_name(self):
+        """Return the immutable envelope name, falling back for unsent legacy lines."""
+        self.ensure_one()
+        return (self.recipient_name or self.partner_id.name or '').strip()
+
     def generate_magic_link(self, hours_valid: int = 72):
         """Generate and store a one-time magic-link token, returning (token, url)."""
         self.ensure_one()
@@ -49,6 +68,11 @@ class DocusignConnectorLineMagic(models.Model):
             'magic_token_hash': token_hash,
             'magic_token_expires_at': expires_at,
             'magic_token_used_at': False,
+        })
+        self.env['docusign.magic.link.token'].sudo().create({
+            'line_id': self.id,
+            'token_hash': token_hash,
+            'expires_at': expires_at,
         })
 
         base_url = (self.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
@@ -62,6 +86,18 @@ class DocusignConnectorLineMagic(models.Model):
         if not token:
             return False, 'missing'
         token_hash = _hash_token(token)
+        token_record = self.env['docusign.magic.link.token'].sudo().search([
+            ('token_hash', '=', token_hash),
+        ], limit=1)
+        if token_record:
+            now = fields.Datetime.now()
+            if token_record.used_at:
+                return False, 'used'
+            if token_record.expires_at and token_record.expires_at < now:
+                return False, 'expired'
+            return token_record.line_id, None
+
+        # Compatibility for links issued before the token-history model existed.
         line = self.sudo().search([('magic_token_hash', '=', token_hash)], limit=1)
         if not line:
             return False, 'not_found'
@@ -75,6 +111,30 @@ class DocusignConnectorLineMagic(models.Model):
         return line, None
 
     def consume_magic_token(self):
-        """Mark the current token as used."""
+        """Invalidate every outstanding link after the envelope is completed."""
         self.ensure_one()
-        self.sudo().write({'magic_token_used_at': fields.Datetime.now()})
+        used_at = fields.Datetime.now()
+        self.sudo().write({'magic_token_used_at': used_at})
+        self.sudo().magic_link_token_ids.filtered(lambda token: not token.used_at).write({
+            'used_at': used_at,
+        })
+
+
+class DocusignMagicLinkToken(models.Model):
+    _name = 'docusign.magic.link.token'
+    _description = 'DocuSign Magic Link Token'
+    _order = 'id desc'
+
+    line_id = fields.Many2one(
+        'docusign.connector.lines',
+        required=True,
+        index=True,
+        ondelete='cascade',
+    )
+    token_hash = fields.Char(required=True, index=True, copy=False)
+    expires_at = fields.Datetime(required=True, copy=False)
+    used_at = fields.Datetime(copy=False)
+
+    _sql_constraints = [
+        ('token_hash_unique', 'unique(token_hash)', 'Magic-link tokens must be unique.'),
+    ]

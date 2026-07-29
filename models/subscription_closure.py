@@ -390,30 +390,41 @@ class SubscriptionClose(models.Model):
         """Bring a suspended subscription back to active service and invoice immediately."""
         self.ensure_one()
         today = fields.Date.context_today(self)
+        invoice_due = bool(self.next_invoice_date and self.next_invoice_date < today)
 
         if self.cpe_unit_asset:
             self.enable_onu()
 
-        self.write({
+        update_vals = {
             'subscription_state': '3_progress',
             'internet_service_state': 'active',
             'suspension_effective_date': False,
             'suspension_reason': False,
-            'next_invoice_date': today,
             'next_reservation_invoice_date': False,
-        })
+        }
+        if invoice_due:
+            update_vals['next_invoice_date'] = today
 
-        invoices = self._create_invoices()
-        if invoices:
-            invoices.action_post()
+        self.write(update_vals)
 
-        # Ensure next cycle moves forward for normal service billing.
-        if self.next_invoice_date and self.next_invoice_date <= today:
-            self.write({'next_invoice_date': today + relativedelta(months=1)})
+        invoices = False
+        if invoice_due:
+            invoices = self._create_invoices()
+            if invoices:
+                invoices.action_post()
 
-        self.message_post(body=_(
-            'Subscription reactivated and normal service invoice created from %s.'
-        ) % today)
+            # Ensure next cycle moves forward for normal service billing.
+            if self.next_invoice_date and self.next_invoice_date <= today:
+                self.write({'next_invoice_date': today + relativedelta(months=1)})
+
+        if invoice_due:
+            self.message_post(body=_(
+                'Subscription reactivated and normal service invoice created from %s.'
+            ) % today)
+        else:
+            self.message_post(body=_(
+                'Subscription reactivated without issuing a new invoice because the next invoice date is still in the future (%s).'
+            ) % (self.next_invoice_date or today))
         return True
 
 #  Redefining methods from the sale_subscription.sale_order.py file to accommadate CPE 

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_subscription_no_install_fee_12_month_tree" model="ir.ui.view">
+        <field name="name">sale.order.no.installation.fee.12.month.tree</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <tree string="12-Month Subscriptions Without Installation Fee">
+                <field name="name" string="Subscription"/>
+                <field name="cabal_sequence"/>
+                <field name="partner_id"/>
+                <field name="subscription_state"/>
+                <field name="contract_term"/>
+                <field name="installation_fee_paid"/>
+                <field name="last_invoice_date"/>
+                <field name="next_invoice_date" optional="hide"/>
+                <field name="amount_total"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_subscription_no_install_fee_12_month_search" model="ir.ui.view">
+        <field name="name">sale.order.no.installation.fee.12.month.search</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <search string="12-Month Subscriptions Without Installation Fee">
+                <field name="name"/>
+                <field name="cabal_sequence"/>
+                <field name="partner_id"/>
+                <field name="subscription_state"/>
+                <filter string="Active" name="active_subscriptions" domain="[('subscription_state', '=', '3_progress')]"/>
+                <filter string="Group by Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                <filter string="Group by Status" name="group_subscription_state" context="{'group_by': 'subscription_state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_subscription_no_install_fee_12_month" model="ir.actions.act_window">
+        <field name="name">12-Month Subs Without Installation Fee</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_subscription_no_install_fee_12_month_tree"/>
+        <field name="search_view_id" ref="view_subscription_no_install_fee_12_month_search"/>
+        <field name="domain">[('is_subscription', '=', True), ('contract_term.term', '=', 12), ('installation_fee_paid', '=', False)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No 12-month subscriptions without a paid installation fee were found.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_subscription_no_install_fee_12_month"
+              name="12-Month Subs Without Installation Fee"
+              parent="menu_contract_management_root"
+              action="action_subscription_no_install_fee_12_month"
+              sequence="30"/>
+</odoo>

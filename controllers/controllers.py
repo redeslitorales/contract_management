@@ -209,9 +209,31 @@ class ContractPortal(CustomerPortal):
 
         return_url = self._build_return_url(contract_sudo.id)
         signer_email = line_sudo._get_recipient_email()
-        signer_name = line_sudo.partner_id.name
 
         env_sudo = request.env['ir.config_parameter'].sudo().env
+        signer_name = line_sudo._get_recipient_name()
+
+        # Older lines have no name snapshot. Resolve the exact identity stored
+        # in DocuSign once, then retain it for every subsequent signing launch.
+        if not line_sudo.recipient_name:
+            recipient = docu_client.get_envelope_recipient(
+                env_sudo,
+                request.env.user,
+                line_sudo.envelope_id,
+                recipient_id=line_sudo.recipient_id,
+                client_user_id=client_user_id,
+                email=signer_email,
+            )
+            signer_name = (recipient.get('name') or recipient.get('userName') or signer_name).strip()
+            signer_email = (recipient.get('email') or signer_email).strip()
+            snapshot_vals = {
+                'recipient_name': signer_name,
+                'recipient_email': signer_email,
+            }
+            if recipient.get('recipientId') and not line_sudo.recipient_id:
+                snapshot_vals['recipient_id'] = str(recipient['recipientId'])
+            line_sudo.sudo().write(snapshot_vals)
+
         signing_url = docu_client.create_recipient_view(
             env_sudo,
             request.env.user,
