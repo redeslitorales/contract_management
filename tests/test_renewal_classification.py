@@ -69,3 +69,50 @@ class TestRenewalClassification(TransactionCase):
         self.assertEqual(renewal.service_change_mode, 'install_no_activation')
         self.assertEqual(renewal.installation_state, 'to_be_scheduled')
         self.assertEqual(renewal.configuration_state, 'to_be_scheduled')
+
+    def test_line_edit_is_reclassified_before_install_task_creation(self):
+        attribute = self.env['product.attribute'].create({
+            'name': 'Renewal Speed',
+        })
+        speed_50 = self.env['product.attribute.value'].create({
+            'name': '50 Mbps',
+            'attribute_id': attribute.id,
+        })
+        speed_150 = self.env['product.attribute.value'].create({
+            'name': '150 Mbps',
+            'attribute_id': attribute.id,
+        })
+        template = self.env['product.template'].create({
+            'name': 'Variant Internet Service',
+            'recurring_invoice': True,
+            'attribute_line_ids': [(0, 0, {
+                'attribute_id': attribute.id,
+                'value_ids': [(6, 0, [speed_50.id, speed_150.id])],
+            })],
+        })
+        variant_50 = template.product_variant_ids.filtered(
+            lambda product: speed_50 in product.product_template_attribute_value_ids.product_attribute_value_id
+        )
+        variant_150 = template.product_variant_ids.filtered(
+            lambda product: speed_150 in product.product_template_attribute_value_ids.product_attribute_value_id
+        )
+        parent = self._create_order([variant_50])
+        renewal = self._create_order(
+            [variant_50],
+            subscription_state='2_renewal',
+            renewal_of_id=parent.id,
+        )
+        self.assertEqual(renewal.service_change_mode, 'no_change')
+
+        renewal.order_line.product_id = variant_150
+        self.assertEqual(renewal.service_change_mode, 'no_change')
+
+        result = renewal.action_create_install_task()
+
+        self.assertEqual(renewal.service_change_mode, 'config_only')
+        self.assertEqual(renewal.installation_state, 'completed')
+        self.assertEqual(renewal.configuration_state, 'to_be_scheduled')
+        self.assertEqual(result['params']['title'], 'No Installation Required')
+        self.assertFalse(self.env['project.task'].search([
+            ('sale_order_id', '=', renewal.id),
+        ]))

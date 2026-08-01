@@ -610,33 +610,10 @@ class SaleSubscription(models.Model):
             if not parent:
                 continue
 
-            parent_signature = self._get_product_signature(parent)
-            renewal_signature = self._get_product_signature(order)
-            if order._is_speed_only_variant_renewal():
-                target_mode = 'config_only'
-            else:
-                target_mode = 'no_change' if renewal_signature == parent_signature else 'install_no_activation'
-
-            if order.service_change_mode != target_mode:
-                order.service_change_mode = target_mode
-
-            # Identical renewals (no_change) should not surface install scheduling; mark install/config done.
-            is_renewal = order.subscription_state == '2_renewal' or bool(order.renewal_of_id)
-            if is_renewal and order.service_change_mode == 'no_change':
-                order.write({
-                    'installation_state': 'completed',
-                    'configuration_state': 'completed',
-                })
-
-            # Speed-only variant renewals should treat install as done and leave config to be scheduled.
-            if is_renewal and order.service_change_mode == 'config_only':
-                order.write({
-                    'installation_state': 'completed',
-                    'configuration_state': 'to_be_scheduled',
-                })
+            order._refresh_renewal_service_change_mode()
 
             # Always carry forward service states from the parent subscription
-            if is_renewal and parent:
+            if parent:
                 state_updates = {
                     'internet_service_state': parent.internet_service_state or 'not_active',
                     'iptv_service_state': parent.iptv_service_state or 'not_active',
@@ -704,6 +681,52 @@ class SaleSubscription(models.Model):
         parent_signature = self._get_product_template_signature(self.renewal_of_id)
         renewal_signature = self._get_product_template_signature(self)
         return parent_signature == renewal_signature
+
+    def _refresh_renewal_service_change_mode(self):
+        """Reclassify a renewal from its current recurring products and quantities.
+
+        Renewal lines can be edited after the order is created, so the value
+        assigned by ``create()`` is only a snapshot. Refresh immediately before
+        any installation decision to prevent a stale mode from creating an FSM
+        task for an identical or speed-only renewal.
+        """
+        self.ensure_one()
+        if not self.renewal_of_id:
+            return self.service_change_mode
+
+        if self._is_identical_renewal():
+            target_mode = 'no_change'
+            state_values = {
+                'installation_state': 'completed',
+                'configuration_state': 'completed',
+            }
+        elif self._is_speed_only_variant_renewal():
+            target_mode = 'config_only'
+            state_values = {
+                'installation_state': 'completed',
+                'configuration_state': 'to_be_scheduled',
+            }
+        else:
+            target_mode = 'install_no_activation'
+            state_values = {
+                'installation_state': 'to_be_scheduled',
+                'configuration_state': 'to_be_scheduled',
+            }
+
+        values = dict(state_values, service_change_mode=target_mode)
+        if any(self[field_name] != value for field_name, value in values.items()):
+            self.with_context(skip_renewal_completion=True).write(values)
+        return target_mode
+
+    def _renewal_requires_install_task(self):
+        """Return whether the current renewal comparison requires field work."""
+        self.ensure_one()
+        if not self.renewal_of_id:
+            return True
+        return self._refresh_renewal_service_change_mode() not in (
+            'no_change',
+            'config_only',
+        )
 
     def _apply_speed_profile_changes(self):
         """Push speed-profile changes to SmartOLT when available."""
@@ -902,6 +925,39 @@ class SaleSubscription(models.Model):
     def action_create_install_task(self):
         """Create install task for the subscription based on product category"""
         self.ensure_one()
+
+        if not self._renewal_requires_install_task():
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('No Installation Required'),
+                    'message': _(
+                        'This renewal is identical or only changes the service '
+                        'configuration, so no field installation task was created.'
+                    ),
+                    'type': 'info',
+                    'sticky': False,
+                },
+            }
+
+        existing_task = self.env['project.task'].search([
+            ('sale_order_id', '=', self.id),
+            ('fsm_task_type_id.is_installation', '=', True),
+        ], limit=1)
+        if existing_task:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Installation Task Already Exists'),
+                    'message': _(
+                        'Installation task %s already exists; no duplicate was created.'
+                    ) % existing_task.display_name,
+                    'type': 'info',
+                    'sticky': False,
+                },
+            }
         
         # Get first subscription product category
         subscription_product = self.order_line.filtered(lambda l: l.product_id).mapped('product_id')[:1]

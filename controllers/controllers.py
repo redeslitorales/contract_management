@@ -76,24 +76,34 @@ class DocuSignWebhookController(http.Controller):
                     if event == 'recipient-completed':
                         connector.state = 'customer'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        # Create the install task as soon as the customer signature is done and mark active
-                        try:
-                            subscription.action_create_install_task()
-                            _logger.info("[DocuSign Webhook] Installation task auto-created after customer signature for subscription %s", subscription.id)
-                        except Exception as e:
-                            _logger.warning("[DocuSign Webhook] Failed to auto-create install task after customer signature: %s", str(e))
-                            subscription.write({'installation_state': 'to_be_scheduled'})
+                        if subscription._renewal_requires_install_task():
+                            try:
+                                subscription.action_create_install_task()
+                                _logger.info("[DocuSign Webhook] Installation task ensured after customer signature for subscription %s", subscription.id)
+                            except Exception as e:
+                                _logger.warning("[DocuSign Webhook] Failed to ensure install task after customer signature: %s", str(e))
+                                subscription.write({'installation_state': 'to_be_scheduled'})
+                        else:
+                            _logger.info(
+                                "[DocuSign Webhook] Skipping field installation for no-change/config-only renewal %s",
+                                subscription.id,
+                            )
                         subscription.contract_state = 'active'
                     if event == 'envelope-completed':
                         connector.state = 'completed'
                         subscription = request.env['sale.order'].sudo().browse(connector.sale_id.id)
-                        # Auto-create installation task and mark contract active
-                        try:
-                            subscription.action_create_install_task()
-                            _logger.info("[DocuSign Webhook] Installation task auto-created for subscription %s", subscription.id)
-                        except Exception as e:
-                            _logger.warning("[DocuSign Webhook] Failed to auto-create install task: %s", str(e))
-                            subscription.write({'installation_state': 'to_be_scheduled'})
+                        if subscription._renewal_requires_install_task():
+                            try:
+                                subscription.action_create_install_task()
+                                _logger.info("[DocuSign Webhook] Installation task ensured for subscription %s", subscription.id)
+                            except Exception as e:
+                                _logger.warning("[DocuSign Webhook] Failed to ensure install task: %s", str(e))
+                                subscription.write({'installation_state': 'to_be_scheduled'})
+                        else:
+                            _logger.info(
+                                "[DocuSign Webhook] Skipping field installation for no-change/config-only renewal %s",
+                                subscription.id,
+                            )
 
                         subscription.contract_state = 'active'
                         

@@ -534,9 +534,13 @@ class OverrideDocumentStatus(models.Model):
                 # All signatures complete - auto-create install task
                 sub = self.env['sale.order'].browse(self.sale_id.id)
                 if sub.contract_state in ['pending_customer_signature', 'pending_contract']:
-                    # Skip install task creation for no-change renewals/config-only flows
-                    if sub.service_change_mode == 'no_change':
-                        _logger.info("[DocuSign Status Check] Skipping install task for no-change subscription %s", sub.id)
+                    # Recompute from current lines before deciding; renewal
+                    # products may have changed after the order was created.
+                    if not sub._renewal_requires_install_task():
+                        _logger.info(
+                            "[DocuSign Status Check] Skipping install task for no-change/config-only subscription %s",
+                            sub.id,
+                        )
                     else:
                         # Auto-create installation task
                         try:
