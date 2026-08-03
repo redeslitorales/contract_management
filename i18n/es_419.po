@@ -3063,6 +3063,7 @@ msgstr "Lenguaje de la cláusula amistosa"
 
 #. module: contract_management
 #: model_terms:ir.ui.view,arch_db:contract_management.view_subscription_transfer_wizard_form
+#: model:ir.model.fields,field_description:contract_management.field_customer_account_statement_wizard__date_from
 msgid "From"
 msgstr "Desde"
 
@@ -6446,3 +6447,188 @@ msgstr "Limpieza por churn completada. CPE limpiado (lote: %(lot)s, activo: %(as
 #, python-format
 msgid "Asset unassigned and flagged for recovery (to_be_recovered=True, deployed=False). %(delete_status)s"
 msgstr "Activo desasignado y marcado para recuperación (to_be_recovered=True, deployed=False). %(delete_status)s"
+
+# Customer account statement
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Customer accounts"
+msgstr "Cuentas de clientes"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+#: model_terms:ir.ui.view,arch_db:contract_management.view_partner_form_customer_account_statement
+msgid "Account Statement"
+msgstr "Estado de cuenta"
+
+#. module: contract_management
+#: model:ir.actions.act_window,name:contract_management.action_customer_account_statement_wizard
+#: model_terms:ir.ui.view,arch_db:contract_management.view_customer_account_statement_wizard_form
+msgid "Customer Account Statement"
+msgstr "Estado de cuenta del cliente"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_customer_account_statement_wizard_form
+msgid "Print Statement"
+msgstr "Imprimir estado de cuenta"
+
+#. module: contract_management
+#: model:ir.model.fields,field_description:contract_management.field_customer_account_statement_wizard__date_to
+msgid "Through"
+msgstr "Hasta"
+
+#. module: contract_management
+#: model_terms:ir.ui.view,arch_db:contract_management.view_customer_account_statement_wizard_form
+msgid "The statement includes posted invoices, credit notes, payments, and other receivable entries. Activity before the start date is summarized as the opening balance."
+msgstr "El estado de cuenta incluye facturas publicadas, notas de crédito, pagos y otros movimientos por cobrar. La actividad anterior a la fecha inicial se resume como saldo inicial."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Reference"
+msgstr "Referencia"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Tax ID"
+msgstr "Identificación fiscal"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Statement period"
+msgstr "Período del estado de cuenta"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Issued"
+msgstr "Emitido"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Opening balance"
+msgstr "Saldo inicial"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Charges"
+msgstr "Cargos"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Payments / credits"
+msgstr "Pagos / créditos"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Closing balance"
+msgstr "Saldo final"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Account activity"
+msgstr "Actividad de la cuenta"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Date"
+msgstr "Fecha"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Due"
+msgstr "Vencimiento"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Type"
+msgstr "Tipo"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Credits"
+msgstr "Créditos"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Balance"
+msgstr "Saldo"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "No posted account activity was found in this period."
+msgstr "No se encontraron movimientos contables publicados en este período."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Period totals"
+msgstr "Totales del período"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "This statement reflects posted accounting entries through"
+msgstr "Este estado de cuenta refleja los asientos contables publicados hasta"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Please contact us if you have questions about any transaction."
+msgstr "Contáctenos si tiene preguntas sobre alguna transacción."
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Generated electronically by"
+msgstr "Generado electrónicamente por"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Amounts are shown in"
+msgstr "Los importes se muestran en"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Invoice"
+msgstr "Factura"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Credit Note"
+msgstr "Nota de crédito"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Sales Receipt"
+msgstr "Recibo de venta"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: contract_management
+#. odoo-python
+#: code:addons/contract_management/models/customer_account_statement.py:0
+msgid "Entry"
+msgstr "Asiento"

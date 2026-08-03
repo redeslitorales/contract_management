@@ -37,6 +37,21 @@ class ResPartner(models.Model):
     ACTIVE_SUBSCRIPTION_STATES = ('3_progress', '4_paused', '8_suspend')
     ACTIVATABLE_SUBSCRIPTION_STATES = ('3_progress', '4_paused')
 
+    def action_open_account_statement_wizard(self):
+        self.ensure_one()
+        partner = self.commercial_partner_id
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Account Statement'),
+            'res_model': 'customer.account.statement.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_partner_id': partner.id,
+                'default_company_id': self.env.company.id,
+            },
+        }
+
     @api.model
     def cron_mark_customers_without_active_subscriptions_inactive(self):
         """Synchronize blank/inactive customer statuses from subscription states."""

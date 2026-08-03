@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="customer_account_statement_paperformat" model="report.paperformat">
+        <field name="name">Customer Account Statement</field>
+        <field name="format">Letter</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">12</field>
+        <field name="margin_bottom">12</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_customer_account_statement" model="ir.actions.report">
+        <field name="name">Customer Account Statement</field>
+        <field name="model">customer.account.statement.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">contract_management.report_customer_account_statement_document</field>
+        <field name="report_file">contract_management.report_customer_account_statement_document</field>
+        <field name="paperformat_id" ref="customer_account_statement_paperformat"/>
+        <field name="print_report_name">'Account Statement - %s - %s' % (object.partner_id.name, object.date_to)</field>
+    </record>
+
+    <function model="printnode.report.policy"
+              name="configure_customer_account_statement_policy"/>
+
+    <template id="report_customer_account_statement_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="statement">
+                <t t-set="data" t-value="statement._get_statement_data()"/>
+                <t t-set="labels" t-value="statement._get_report_labels()"/>
+                <div class="page" style="font-family: Arial, sans-serif; color: #24323d;">
+                        <style>
+                            .cas-brand { border-bottom: 2px solid #101820; margin-bottom: 10px; padding-bottom: 9px; width: 100%; }
+                            .cas-brand-logo { max-height: 58px; max-width: 230px; }
+                            .cas-company-address { color: #24323d; font-size: 10px; line-height: 1.35; text-align: right; }
+                            .cas-heading { margin-bottom: 4px; width: 100%; }
+                            .cas-kicker { color: #008f8c; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+                            .cas-title { color: #17394a; font-size: 27px; font-weight: 700; line-height: 1.15; margin: 3px 0 0; }
+                            .cas-reference { background: #e6f6f5; border: 1px solid #b9e4e2; border-radius: 4px; color: #087d7a; font-size: 10px; font-weight: 700; padding: 7px 10px; text-align: center; }
+                            .cas-customer { border-bottom: 1px solid #dfe7eb; border-top: 1px solid #dfe7eb; margin: 16px 0; padding: 10px 0; width: 100%; }
+                            .cas-label { color: #667883; font-size: 9px; font-weight: 700; letter-spacing: .7px; margin-bottom: 4px; text-transform: uppercase; }
+                            .cas-value { color: #17394a; font-size: 13px; font-weight: 700; line-height: 1.3; }
+                            .cas-summary { border-collapse: separate; border-spacing: 7px 0; margin: 0 0 18px; table-layout: fixed; width: 100%; }
+                            .cas-summary td { background: #f5f8fa; border: 1px solid #e1e8ec; border-radius: 5px; padding: 11px 12px; vertical-align: top; }
+                            .cas-summary td.cas-total { background: #008f8c; border-color: #008f8c; color: #fff; }
+                            .cas-summary .cas-total .cas-label { color: #d8f6f4; }
+                            .cas-summary .cas-total .cas-value { color: #fff; font-size: 18px; }
+                            .cas-section-title { color: #17394a; font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+                            .cas-detail { border: 1px solid #d9e3e8; border-collapse: collapse; font-size: 9px; table-layout: fixed; width: 100%; }
+                            .cas-detail thead { display: table-header-group; }
+                            .cas-detail thead th { background: #17394a; border: 1px solid #17394a; color: #fff; font-size: 8px; font-weight: 700; letter-spacing: .2px; padding: 7px 4px; text-transform: uppercase; vertical-align: middle; }
+                            .cas-detail tbody td { border: 1px solid #d9e3e8; padding: 7px 4px; vertical-align: top; }
+                            .cas-detail tbody tr:nth-child(even) td { background: #f7fafb; }
+                            .cas-detail tfoot td { background: #edf5f5; border: 1px solid #c9dddd; color: #17394a; font-weight: 700; padding: 8px 5px; }
+                            .cas-number { text-align: right; white-space: nowrap; }
+                            .cas-empty { color: #667883; font-style: italic; padding: 18px !important; text-align: center; }
+                            .cas-note { background: #f2f8fa; border-left: 4px solid #36a9b2; color: #405864; font-size: 9.5px; line-height: 1.45; margin-top: 16px; padding: 9px 11px; }
+                            .cas-footer { color: #7b8b93; font-size: 8px; margin-top: 12px; text-align: center; }
+                        </style>
+
+                        <table class="cas-brand">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 45%; vertical-align: middle;">
+                                        <img t-if="statement.company_id.logo"
+                                             t-att-src="image_data_uri(statement.company_id.logo)"
+                                             class="cas-brand-logo"
+                                             alt="Company logo"/>
+                                        <div t-if="not statement.company_id.logo"
+                                             style="color: #17394a; font-size: 18px; font-weight: 700;"
+                                             t-field="statement.company_id.name"/>
+                                    </td>
+                                    <td class="cas-company-address" style="width: 55%; vertical-align: middle;">
+                                        <div t-foreach="statement._company_address_lines()" t-as="address_line"
+                                             t-out="statement._pdf_text(address_line)"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cas-heading">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 72%; vertical-align: bottom;">
+                                        <div class="cas-kicker" t-out="statement._pdf_text(labels['kicker'])"/>
+                                        <h1 class="cas-title" t-out="statement._pdf_text(labels['title'])"/>
+                                    </td>
+                                    <td style="width: 28%; vertical-align: bottom;">
+                                        <div class="cas-reference">
+                                            <span t-out="statement._pdf_text(labels['reference'].upper())"/><br/>
+                                            <span t-out="statement._pdf_text(data['reference'])"/>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cas-customer">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 46%; vertical-align: top;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['customer'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement.partner_id.display_name)"/>
+                                        <div t-if="statement.partner_id.vat" style="font-size: 9px; margin-top: 3px;">
+                                            <span t-out="statement._pdf_text(labels['tax_id'])"/>:
+                                            <span t-out="statement._pdf_text(statement.partner_id.vat)"/>
+                                        </div>
+                                    </td>
+                                    <td style="width: 31%; vertical-align: top;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['statement_period'])"/>
+                                        <div class="cas-value">
+                                            <span t-field="statement.date_from"/>
+                                            <span> - </span>
+                                            <span t-field="statement.date_to"/>
+                                        </div>
+                                    </td>
+                                    <td style="width: 23%; vertical-align: top; text-align: right;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['issued'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement._format_date(data['issued_date']))"/>
+                                        <div style="font-size: 9px; margin-top: 3px;" t-out="statement._pdf_text(statement.company_id.name)"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cas-summary">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 25%;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['opening_balance'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement._format_amount(data['opening_balance']))"/>
+                                    </td>
+                                    <td style="width: 25%;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['charges'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement._format_amount(data['period_debit']))"/>
+                                    </td>
+                                    <td style="width: 25%;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['payments_credits'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement._format_amount(data['period_credit']))"/>
+                                    </td>
+                                    <td class="cas-total" style="width: 25%;">
+                                        <div class="cas-label" t-out="statement._pdf_text(labels['closing_balance'])"/>
+                                        <div class="cas-value" t-out="statement._pdf_text(statement._format_amount(data['closing_balance']))"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 class="cas-section-title" t-out="statement._pdf_text(labels['account_activity'])"/>
+                        <table class="cas-detail">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;" t-out="statement._pdf_text(labels['date'])"/>
+                                    <th style="width: 10%;" t-out="statement._pdf_text(labels['due'])"/>
+                                    <th style="width: 12%;" t-out="statement._pdf_text(labels['type'])"/>
+                                    <th style="width: 26%;" t-out="statement._pdf_text(labels['reference'])"/>
+                                    <th style="width: 14%; text-align: right;" t-out="statement._pdf_text(labels['charges'])"/>
+                                    <th style="width: 14%; text-align: right;" t-out="statement._pdf_text(labels['credits'])"/>
+                                    <th style="width: 14%; text-align: right;" t-out="statement._pdf_text(labels['balance'])"/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4"><strong t-out="statement._pdf_text(labels['opening_balance'])"/></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="cas-number" t-out="statement._pdf_text(statement._format_amount(data['opening_balance']))"/>
+                                </tr>
+                                <t t-foreach="data['entries']" t-as="entry">
+                                    <tr>
+                                        <td t-esc="statement._format_date(entry['date'])"/>
+                                        <td>
+                                            <span t-if="entry['date_maturity']" t-esc="statement._format_date(entry['date_maturity'])"/>
+                                        </td>
+                                        <td t-out="statement._pdf_text(entry['entry_type'])"/>
+                                        <td t-out="statement._pdf_text(entry['reference'])"/>
+                                        <td class="cas-number">
+                                            <span t-if="entry['debit']" t-out="statement._pdf_text(statement._format_amount(entry['debit']))"/>
+                                        </td>
+                                        <td class="cas-number">
+                                            <span t-if="entry['credit']" t-out="statement._pdf_text(statement._format_amount(entry['credit']))"/>
+                                        </td>
+                                        <td class="cas-number" t-out="statement._pdf_text(statement._format_amount(entry['balance']))"/>
+                                    </tr>
+                                </t>
+                                <tr t-if="not data['entries']">
+                                    <td colspan="7" class="cas-empty" t-out="statement._pdf_text(labels['no_activity'])"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" style="text-align: right;" t-out="statement._pdf_text(labels['period_totals'])"/>
+                                    <td class="cas-number" t-out="statement._pdf_text(statement._format_amount(data['period_debit']))"/>
+                                    <td class="cas-number" t-out="statement._pdf_text(statement._format_amount(data['period_credit']))"/>
+                                    <td class="cas-number" t-out="statement._pdf_text(statement._format_amount(data['closing_balance']))"/>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <div class="cas-note">
+                            <span t-out="statement._pdf_text(labels['note_prefix'])"/>
+                            <strong><span t-field="statement.date_to"/></strong>.
+                            <span t-out="statement._pdf_text(labels['note_suffix'])"/>
+                        </div>
+                        <div class="cas-footer">
+                            <span t-out="statement._pdf_text(labels['generated_by'])"/>
+                            <span t-out="statement._pdf_text(statement.company_id.name)"/>.
+                            <span t-out="statement._pdf_text(labels['amounts_in'])"/>
+                            <span t-out="statement._pdf_text(statement.currency_id.display_name)"/>.
+                        </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

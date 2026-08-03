@@ -13,3 +13,4 @@ from . import contract_termination_wizard
 from . import project_task
 from . import termination_request
 from . import residential_iptv_report
+from . import customer_account_statement
