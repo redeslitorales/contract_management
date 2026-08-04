@@ -40,6 +40,12 @@ CONTRACT_STATES = [
     ('not_required', 'Not Required'),
 ]
 
+CONTRACT_SETUP_FIELDS = frozenset({
+    'contract_term',
+    'payment_term_id',
+    'plan_id',
+})
+
 INTERNET_SERVICE_STATES = [
     ('not_active', 'Not Active'),
     ('active', 'Active'),
@@ -941,11 +947,20 @@ class SaleSubscription(models.Model):
                 },
             }
 
-        existing_task = self.env['project.task'].search([
-            ('sale_order_id', '=', self.id),
-            ('fsm_task_type_id.is_installation', '=', True),
-        ], limit=1)
+        task_link_domain = [('sale_order_id', '=', self.id)]
+        if 'fsm_subscription_id' in self.env['project.task']._fields:
+            task_link_domain = [
+                '|',
+                ('sale_order_id', '=', self.id),
+                ('fsm_subscription_id', '=', self.id),
+            ]
+        existing_task = self.env['project.task'].search(
+            task_link_domain + [('fsm_task_type_id.is_installation', '=', True)],
+            limit=1,
+        )
         if existing_task:
+            if not existing_task.sale_order_id:
+                existing_task.sudo().write({'sale_order_id': self.id})
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -990,6 +1005,8 @@ class SaleSubscription(models.Model):
             'fsm_task_type_id': task_type.id,
             'project_id': task_type.project_id.id,
         }
+        if 'fsm_subscription_id' in self.env['project.task']._fields:
+            task_vals['fsm_subscription_id'] = self.id
         
         # Add default stage if configured
         if task_type.default_stage_id:
@@ -1182,6 +1199,34 @@ class SaleSubscription(models.Model):
             self.write({'installation_state': 'to_be_scheduled'})
 
     def write(self, vals):
+        protected_fields = CONTRACT_SETUP_FIELDS.intersection(vals)
+        if protected_fields:
+            for order in self:
+                changed_fields = [
+                    field_name
+                    for field_name in protected_fields
+                    if (order[field_name].id or False) != (vals[field_name] or False)
+                ]
+                target_contract_state = vals.get(
+                    'contract_state',
+                    order.contract_state,
+                )
+                contract_was_sent = (
+                    target_contract_state != 'pending_contract'
+                    or bool(order.contract_ids)
+                    or bool(order.docusign_ids)
+                )
+                if changed_fields and contract_was_sent:
+                    field_labels = ', '.join(
+                        order._fields[field_name].string
+                        for field_name in sorted(changed_fields)
+                    )
+                    raise UserError(_(
+                        "The following contract terms cannot be changed after "
+                        "the contract has been sent: %s. Create a new draft, "
+                        "renewal, or addendum instead."
+                    ) % field_labels)
+
         previous_stage = {order.id: order.progress_stage for order in self}
         previous_contract_state = {order.id: order.contract_state for order in self}
         previous_sub_state = {order.id: order.subscription_state for order in self}
@@ -2176,7 +2221,21 @@ class SaleSubscription(models.Model):
         )
 
         try:
-            template.send_mail(self.id, force_send=False, raise_exception=False)
+            quote_reply_to = (
+                self.user_id.email_formatted
+                or self.company_id.email_formatted
+                or self.env.user.email_formatted
+                or False
+            )
+            template.send_mail(
+                self.id,
+                force_send=False,
+                raise_exception=False,
+                email_values={
+                    'email_from': 'Cabal <DoNotReply@cabal.sv>',
+                    **({'reply_to': quote_reply_to} if quote_reply_to else {}),
+                },
+            )
 
             if self.state in ('draft', 'sent'):
                 self.write({'state': 'sent'})
@@ -3147,15 +3206,18 @@ class SaleSubscription(models.Model):
             lang=partner.lang or self.env.lang,
         )
 
-        # Optional: force a valid From
-        email_from = self.company_id.email or self.env.user.email_formatted or False
+        # ACS only authorizes the default MailFrom address. Preserve the
+        # previous dynamic sender as Reply-To so responses still reach staff.
+        email_from = 'Cabal <DoNotReply@cabal.sv>'
+        reply_to = self.company_id.email or self.env.user.email_formatted or False
 
         _logger.info(
-            "[DocuSign] Magic link email prep: order_id=%s, to=%s, template_id=%s, email_from=%s",
+            "[DocuSign] Magic link email prep: order_id=%s, to=%s, template_id=%s, email_from=%s, reply_to=%s",
             self.id,
             email_to,
             template.id,
             email_from,
+            reply_to,
         )
         _logger.debug(
             "[DocuSign] Magic link URL (truncated): %s",
@@ -3167,7 +3229,8 @@ class SaleSubscription(models.Model):
             force_send=True,
             email_values={
                 'email_to': email_to,
-                **({'email_from': email_from} if email_from else {}),
+                'email_from': email_from,
+                **({'reply_to': reply_to} if reply_to else {}),
             },
         )
         if not mail_id:

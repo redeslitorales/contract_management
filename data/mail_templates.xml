@@ -3,6 +3,8 @@
   <record id="mail_template_email_contract_link" model="mail.template">
       <field name="name">Contract Signing Link</field>
       <field name="model_id" ref="sale.model_sale_order"/>
+      <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
+      <field name="reply_to">contratos@cabal.sv</field>
       <field name="subject">Firma de contrato - enlace de firma</field>
       <field name="email_to">${object.partner_id.email or ''}</field>
       <field name="body_html" type="html">
@@ -162,5 +164,11 @@
           </tbody>
         </table>
       </field>
+  </record>
+
+  <!-- Keep standard quotation sends compatible with the ACS verified MailFrom. -->
+  <record id="sale.email_template_edi_sale" model="mail.template">
+      <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
+      <field name="reply_to">{{ object.user_id.email_formatted or object.company_id.email_formatted or user.email_formatted }}</field>
   </record>
 </odoo>

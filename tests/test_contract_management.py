@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo.tests.common import TransactionCase
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from datetime import date, timedelta
 
 
@@ -79,6 +79,100 @@ class TestContractManagementStateFlow(TransactionCase):
         # Writing subscription_state to 3_progress should activate linked contracts
         self.subscription.write({'subscription_state': '3_progress'})
         self.assertEqual(self.contract.state, 'active')
+
+    def test_completed_initial_contract_confirms_quotation(self):
+        connector = self.env['docusign.connector'].create({
+            'name': 'Completed initial contract',
+            'sale_id': self.subscription.id,
+            'contract_management_id': self.contract.id,
+        })
+        self.contract.docusign_id = connector.id
+
+        connector.write({'state': 'completed'})
+
+        self.assertEqual(self.contract.state, 'active')
+        self.assertEqual(self.subscription.contract_state, 'active')
+        self.assertEqual(self.subscription.state, 'sale')
+
+
+class TestContractSetupLock(TransactionCase):
+    """Commercial terms used in a sent document must be immutable."""
+
+    def setUp(self):
+        super().setUp()
+        self.partner = self.env['res.partner'].create({
+            'name': 'Contract Setup Lock Customer',
+            'email': 'contract-lock@example.com',
+            'billing_email': 'contract-lock@example.com',
+            'billing_preferred_channel': 'email',
+            'operational_email': 'contract-lock@example.com',
+            'operational_preferred_channel': 'email',
+        })
+        self.term_initial = self.env['dte.base.contract'].create({
+            'label': '12 Month Contract',
+            'term': 12,
+        })
+        self.term_replacement = self.env['dte.base.contract'].create({
+            'label': '24 Month Contract',
+            'term': 24,
+        })
+        self.payment_term = self.env['account.payment.term'].create({
+            'name': 'Contract Setup Lock Payment Term',
+        })
+        self.plan = self.env['sale.subscription.plan'].search([], limit=1)
+        self.assertTrue(self.plan, 'A recurring plan is required for this test.')
+        self.order = self.env['sale.order'].create({
+            'partner_id': self.partner.id,
+            'contract_term': self.term_initial.id,
+            'plan_id': False,
+        })
+
+    def test_setup_fields_are_editable_before_send(self):
+        self.order.write({
+            'contract_term': self.term_replacement.id,
+            'payment_term_id': self.payment_term.id,
+            'plan_id': self.plan.id,
+        })
+
+        self.assertEqual(self.order.contract_term, self.term_replacement)
+        self.assertEqual(self.order.payment_term_id, self.payment_term)
+        self.assertEqual(self.order.plan_id, self.plan)
+
+    def test_setup_fields_are_locked_after_send(self):
+        self.order.write({'contract_state': 'pending_customer_signature'})
+
+        for field_name, value in (
+            ('contract_term', self.term_replacement.id),
+            ('payment_term_id', self.payment_term.id),
+            ('plan_id', self.plan.id),
+        ):
+            with self.subTest(field_name=field_name):
+                with self.assertRaises(UserError):
+                    self.order.write({field_name: value})
+
+    def test_existing_contract_artifact_keeps_fields_locked(self):
+        self.env['contract.management'].create({
+            'subscription_id': self.order.id,
+        })
+
+        with self.assertRaises(UserError):
+            self.order.write({'contract_term': self.term_replacement.id})
+
+    def test_noop_write_remains_allowed_after_send(self):
+        self.order.write({'contract_state': 'pending_customer_signature'})
+
+        self.order.write({'contract_term': self.term_initial.id})
+
+    def test_form_uses_contract_lifecycle_not_progress_stage(self):
+        view = self.env.ref(
+            'contract_management.view_sale_order_readonly_fields'
+        )
+
+        self.assertNotIn("progress_stage != 'draft'", view.arch_db)
+        self.assertEqual(
+            view.arch_db.count("contract_state != 'pending_contract'"),
+            3,
+        )
 
 
 class TestSubscriptionTransferWizardErrors(TransactionCase):

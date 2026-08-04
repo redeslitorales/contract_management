@@ -39,6 +39,91 @@ class OverrideDocumentStatus(models.Model):
         readonly=True,
     )
 
+    def write(self, vals):
+        """Finish the commercial workflow when DocuSign completes an envelope.
+
+        The generic DocuSign webhook only changes the connector state.  Initial
+        subscriptions also need their contract activated and their quotation
+        confirmed; otherwise a fully signed contract can remain a draft quote
+        and installation/activation actions stay hidden.
+        """
+        completing = vals.get('state') == 'completed'
+        previously_completed = {record.id: record.state == 'completed' for record in self}
+        result = super().write(vals)
+
+        if completing:
+            for connector in self.filtered(
+                lambda record: record.state == 'completed'
+                and not previously_completed.get(record.id)
+            ):
+                connector._finalize_completed_contract_envelope()
+
+        return result
+
+    def _finalize_completed_contract_envelope(self):
+        """Activate and confirm an initial subscription after all signatures."""
+        for connector in self:
+            # Addendums and renewals have their own post-signature workflows.
+            if connector.contract_addendum_id:
+                continue
+
+            contract = connector.contract_management_id
+            if not contract:
+                contract = self.env['contract.management'].sudo().search(
+                    [('docusign_id', '=', connector.id)],
+                    limit=1,
+                )
+            subscription = connector.sale_id or contract.subscription_id
+            if not subscription:
+                continue
+
+            is_renewal_or_upsell = bool(
+                subscription.renewal_of_id
+                or subscription.upsell_from_id
+                or subscription.origin_order_id
+                or subscription.subscription_state in ('2_renewal', '7_upsell')
+            )
+            if is_renewal_or_upsell:
+                continue
+
+            if contract and contract.state != 'active':
+                contract.sudo().write({'state': 'active'})
+            elif subscription.contract_state != 'active':
+                subscription.sudo().write({'contract_state': 'active'})
+
+            if subscription.state in ('draft', 'sent'):
+                try:
+                    subscription.sudo().action_confirm()
+                except Exception as exc:
+                    _logger.exception(
+                        "Could not confirm signed subscription %s from completed connector %s",
+                        subscription.id,
+                        connector.id,
+                    )
+                    subscription.sudo().message_post(
+                        body=_(
+                            "The contract is fully signed, but the quotation could not be "
+                            "confirmed automatically: %s"
+                        ) % str(exc),
+                        subtype_xmlid='mail.mt_note',
+                    )
+                    continue
+
+            try:
+                subscription.sudo().action_create_install_task()
+            except Exception as exc:
+                _logger.exception(
+                    "Could not ensure installation task for signed subscription %s",
+                    subscription.id,
+                )
+                subscription.sudo().message_post(
+                    body=_(
+                        "The signed quotation was confirmed, but the installation task "
+                        "could not be created automatically: %s"
+                    ) % str(exc),
+                    subtype_xmlid='mail.mt_note',
+                )
+
     def send_docs(self, send_method):
         try:
             user = self.env['res.users'].browse(196)
