@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="helpdesk_team_legal_collections" model="helpdesk.team">
+        <field name="name">Legal Collections</field>
+        <field name="active" eval="True"/>
+        <field name="privacy_visibility">invited_internal</field>
+        <field name="use_alias" eval="True"/>
+        <field name="alias_name">legal</field>
+        <field name="description" type="html">
+            <p>Central inbox for litigation-case email replies and Chatwoot conversations.</p>
+        </field>
+    </record>
+
+    <function model="contract.litigation.case" name="_configure_legal_helpdesk_team"/>
+    <function model="contract.litigation.case" name="_configure_legal_incoming_mailbox"/>
+
+    <record id="sequence_contract_litigation_case" model="ir.sequence">
+        <field name="name">Subscription Litigation Case</field>
+        <field name="code">contract.litigation.case</field>
+        <field name="prefix">LIT/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="ir_cron_create_contract_litigation_cases" model="ir.cron">
+        <field name="name">Create Suspended Subscription Litigation Reviews</field>
+        <field name="model_id" ref="model_contract_litigation_case"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_create_litigation_cases()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="active" eval="True"/>
+    </record>
+
+</odoo>

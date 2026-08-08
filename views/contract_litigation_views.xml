@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_contract_litigation_case_search" model="ir.ui.view">
+        <field name="name">contract.litigation.case.search</field>
+        <field name="model">contract.litigation.case</field>
+        <field name="arch" type="xml">
+            <search string="Litigation Cases">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="subscription_id"/>
+                <field name="responsible_id"/>
+                <filter name="my_cases" string="My Cases" domain="[('responsible_id', '=', uid)]"/>
+                <filter name="needs_remediation" string="Needs Remediation" domain="[('readiness_status', '=', 'remediation')]"/>
+                <filter name="blocked" string="Blocked" domain="[('readiness_status', '=', 'blocked')]"/>
+                <filter name="ready" string="Ready" domain="[('readiness_status', '=', 'ready')]"/>
+                <filter name="legal_hold" string="Legal Hold" domain="[('legal_hold', '=', True)]"/>
+                <separator/>
+                <filter name="open" string="Open" domain="[('state', 'not in', ['settled', 'closed', 'cancelled'])]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Stage" context="{'group_by': 'state'}"/>
+                    <filter name="group_owner" string="Case Owner" context="{'group_by': 'responsible_id'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_contract_litigation_case_tree" model="ir.ui.view">
+        <field name="name">contract.litigation.case.tree</field>
+        <field name="model">contract.litigation.case</field>
+        <field name="arch" type="xml">
+            <tree string="Litigation Cases" create="false" default_order="suspended_on desc"
+                  decoration-danger="readiness_status == 'blocked'"
+                  decoration-warning="readiness_status == 'remediation'"
+                  decoration-success="readiness_status == 'ready'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="subscription_id"/>
+                <field name="suspended_on"/>
+                <field name="days_suspended"/>
+                <field name="gross_open_balance" widget="monetary" sum="Open Balance"/>
+                <field name="claim_balance" widget="monetary" sum="Claim Balance"/>
+                <field name="readiness_status" widget="badge"
+                       decoration-danger="readiness_status == 'blocked'"
+                       decoration-warning="readiness_status == 'remediation'"
+                       decoration-success="readiness_status == 'ready'"/>
+                <field name="state" widget="badge"/>
+                <field name="responsible_id" widget="many2one_avatar_user"/>
+                <field name="company_id" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_contract_litigation_case_form" model="ir.ui.view">
+        <field name="name">contract.litigation.case.form</field>
+        <field name="model">contract.litigation.case</field>
+        <field name="arch" type="xml">
+            <form string="Litigation Case">
+                <header>
+                    <button name="action_refresh_snapshot" type="object" string="Refresh Balance"
+                            class="btn-secondary" invisible="state not in ['review', 'remediation']"/>
+                    <button name="action_mark_remediation" type="object" string="Send to Remediation"
+                            invisible="state not in ['review', 'ready', 'initial_notice', 'final_demand', 'counsel']"/>
+                    <button name="action_mark_ready" type="object" string="Mark Ready"
+                            class="btn-primary" invisible="state not in ['review', 'remediation']"/>
+                    <button name="action_send_initial_notice" type="object" string="Send Initial Notice (Email + WhatsApp + SMS)"
+                            class="btn-primary" invisible="state != 'ready'"/>
+                    <button name="action_send_final_demand" type="object" string="Send Final Demand"
+                            class="btn-primary" groups="contract_management.group_contract_litigation_manager"
+                            invisible="state != 'initial_notice'"/>
+                    <button name="action_refer_to_counsel" type="object" string="Refer to Counsel"
+                            class="btn-primary" groups="contract_management.group_contract_litigation_manager"
+                            invisible="state != 'final_demand'"/>
+                    <button name="action_mark_filed" type="object" string="Mark Filed"
+                            groups="contract_management.group_contract_litigation_manager"
+                            invisible="state != 'counsel'"/>
+                    <button name="action_mark_settled" type="object" string="Mark Settled"
+                            groups="contract_management.group_contract_litigation_manager"
+                            invisible="state not in ['initial_notice', 'final_demand', 'counsel', 'filed']"/>
+                    <button name="action_close_case" type="object" string="Close Case"
+                            groups="contract_management.group_contract_litigation_manager"
+                            invisible="state in ['settled', 'closed', 'cancelled']"/>
+                    <button name="action_print_package" type="object" string="Print Package"
+                            invisible="state in ['review', 'remediation', 'cancelled']"/>
+                    <button name="action_generate_package_archive" type="object" string="Generate ZIP Package"
+                            class="btn-secondary" invisible="state in ['review', 'remediation', 'cancelled']"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="review,remediation,ready,initial_notice,final_demand,counsel,filed,settled,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object"
+                                name="action_open_legal_helpdesk_tickets"
+                                icon="fa-life-ring">
+                            <field name="legal_ticket_count" string="Legal Inbox" widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_mark_communications_read"
+                                icon="fa-envelope-open"
+                                invisible="unread_communication_count == 0">
+                            <field name="unread_communication_count" string="Unread Replies" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="LEGAL HOLD" bg_color="text-bg-danger" invisible="not legal_hold"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="subscription_id" readonly="state not in ['review', 'remediation']"/>
+                            <field name="partner_id"/>
+                            <field name="responsible_id"/>
+                            <field name="company_id"/>
+                        </group>
+                        <group>
+                            <field name="suspended_on" readonly="state not in ['review', 'remediation']"/>
+                            <field name="suspension_date_source"/>
+                            <field name="days_suspended"/>
+                            <field name="threshold_days"/>
+                            <field name="snapshot_date"/>
+                            <field name="package_attachment_id"/>
+                            <field name="package_generated_on"/>
+                        </group>
+                    </group>
+
+                    <group string="Readiness">
+                        <group>
+                            <field name="readiness_status" widget="badge"/>
+                            <field name="has_contract"/>
+                            <field name="has_contract_evidence"/>
+                            <field name="applicable_contract_id" invisible="not has_contract"/>
+                            <field name="pagare_verified" invisible="not has_contract_evidence"
+                                   readonly="state not in ['review', 'remediation']"/>
+                            <field name="has_post_suspension_items"/>
+                            <field name="manager_approved" groups="contract_management.group_contract_litigation_manager"/>
+                        </group>
+                        <group>
+                            <field name="legal_hold"/>
+                            <field name="legal_hold_reason" invisible="not legal_hold"/>
+                            <field name="readiness_notes" nolabel="1" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Balance Summary">
+                        <field name="gross_open_balance" widget="monetary"/>
+                        <field name="current_open_balance" widget="monetary"/>
+                        <field name="balance_changed"/>
+                        <field name="post_suspension_balance" widget="monetary"/>
+                        <field name="claim_balance" widget="monetary"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+
+                    <notebook>
+                        <page string="Invoice Review">
+                            <div class="alert alert-warning" role="alert" invisible="not has_post_suspension_items">
+                                Post-suspension charges are excluded by default. Include them only after confirming their contractual and legal basis.
+                            </div>
+                            <field name="invoice_line_ids" nolabel="1" readonly="state not in ['review', 'remediation']">
+                                <tree editable="bottom" create="false" delete="false"
+                                      decoration-warning="post_suspension">
+                                    <field name="move_id"/>
+                                    <field name="invoice_date"/>
+                                    <field name="due_date"/>
+                                    <field name="total_amount" widget="monetary"/>
+                                    <field name="residual_amount" widget="monetary"/>
+                                    <field name="post_suspension"/>
+                                    <field name="include_in_claim"/>
+                                    <field name="review_note" optional="show"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Evidence Checklist">
+                            <group>
+                                <group>
+                                    <field name="identity_verified" readonly="state not in ['review', 'remediation']"/>
+                                    <field name="contract_reviewed" readonly="state not in ['review', 'remediation']"/>
+                                    <field name="service_delivery_verified" readonly="state not in ['review', 'remediation']"/>
+                                    <field name="address_verified" readonly="state not in ['review', 'remediation']"/>
+                                </group>
+                                <group>
+                                    <field name="balance_reviewed" readonly="state not in ['review', 'remediation']"/>
+                                    <field name="post_suspension_reviewed" invisible="not has_post_suspension_items" readonly="state not in ['review', 'remediation']"/>
+                                    <field name="disputes_cleared" readonly="state not in ['review', 'remediation']"/>
+                                </group>
+                            </group>
+                            <field name="reviewer_notes" readonly="state not in ['review', 'remediation']" placeholder="Document evidence sources, unresolved issues, credits, or exceptions..."/>
+                        </page>
+                        <page string="Communications" name="litigation_communications">
+                            <div class="alert alert-info" role="alert">
+                                Customer email replies and linked Chatwoot messages are collected in the Legal Inbox ticket and copied to this audit history.
+                            </div>
+                            <group>
+                                <group>
+                                    <field name="contact_email"/>
+                                    <field name="contact_phone"/>
+                                    <field name="contact_whatsapp"/>
+                                </group>
+                                <group>
+                                    <field name="notice_deadline"/>
+                                    <field name="helpdesk_ticket_id" readonly="1"/>
+                                    <field name="last_customer_response_on" readonly="1"/>
+                                </group>
+                            </group>
+                            <field name="communication_ids" nolabel="1">
+                                <tree editable="bottom"
+                                      decoration-warning="is_unread"
+                                      decoration-info="direction == 'inbound'">
+                                    <field name="sent_on"/>
+                                    <field name="direction"/>
+                                    <field name="communication_type"/>
+                                    <field name="channel"/>
+                                    <field name="sender" optional="show"/>
+                                    <field name="recipient"/>
+                                    <field name="subject" optional="show"/>
+                                    <field name="status"/>
+                                    <field name="is_unread" optional="show"/>
+                                    <field name="user_id"/>
+                                    <field name="helpdesk_ticket_id" optional="hide"/>
+                                    <field name="notes" optional="show"/>
+                                </tree>
+                                <form string="Communication">
+                                    <group>
+                                        <group>
+                                            <field name="sent_on"/>
+                                            <field name="direction"/>
+                                            <field name="communication_type"/>
+                                            <field name="channel"/>
+                                            <field name="status"/>
+                                            <field name="is_unread"/>
+                                        </group>
+                                        <group>
+                                            <field name="sender"/>
+                                            <field name="recipient"/>
+                                            <field name="subject"/>
+                                            <field name="user_id"/>
+                                            <field name="helpdesk_ticket_id"/>
+                                        </group>
+                                    </group>
+                                    <field name="body_html" widget="html" readonly="1"/>
+                                    <field name="attachment_ids" widget="many2many_binary" readonly="1"/>
+                                    <field name="attachment_urls" readonly="1"/>
+                                    <field name="notes"/>
+                                </form>
+                            </field>
+                        </page>
+                        <page string="Counsel" groups="contract_management.group_contract_litigation_manager">
+                            <group>
+                                <field name="referred_on"/>
+                                <field name="filed_on"/>
+                                <field name="settled_on"/>
+                                <field name="settlement_amount" widget="monetary"/>
+                                <field name="court_reference"/>
+                                <field name="closure_reason"/>
+                            </group>
+                            <field name="counsel_notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_contract_litigation_cases" model="ir.actions.act_window">
+        <field name="name">Litigation Cases</field>
+        <field name="res_model">contract.litigation.case</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_contract_litigation_case_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No suspended subscriptions currently require litigation review.</p>
+            <p>The daily scan creates review cases only; communications always require a user action.</p>
+        </field>
+    </record>
+
+    <record id="action_run_contract_litigation_scan" model="ir.actions.server">
+        <field name="name">Run Litigation Eligibility Scan</field>
+        <field name="model_id" ref="model_contract_litigation_case"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_create_litigation_cases()
+action = env['ir.actions.actions']._for_xml_id('contract_management.action_contract_litigation_cases')</field>
+    </record>
+
+    <menuitem id="menu_contract_litigation_cases" name="Litigation Cases"
+              parent="menu_contract_management_root" action="action_contract_litigation_cases"
+              sequence="25" groups="contract_management.group_contract_litigation_user"/>
+    <menuitem id="menu_contract_litigation_scan" name="Run Litigation Scan"
+              parent="menu_contract_management_root" action="action_run_contract_litigation_scan"
+              sequence="26" groups="contract_management.group_contract_litigation_manager"/>
+
+    <record id="view_sale_order_litigation_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.litigation.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority" eval="220"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object" name="action_view_litigation_cases"
+                        icon="fa-gavel" groups="contract_management.group_contract_litigation_user"
+                        invisible="litigation_case_count == 0">
+                    <field string="Litigation Cases" name="litigation_case_count" widget="statinfo"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Litigation" groups="contract_management.group_contract_litigation_user"
+                      invisible="not is_subscription">
+                    <group>
+                        <group>
+                            <field name="litigation_suspended_on"/>
+                            <field name="litigation_suspension_date_source"/>
+                        </group>
+                        <group>
+                            <field name="litigation_hold"/>
+                            <field name="litigation_hold_reason" invisible="not litigation_hold"/>
+                        </group>
+                    </group>
+                    <field name="litigation_case_ids" readonly="1">
+                        <tree>
+                            <field name="name"/>
+                            <field name="suspended_on"/>
+                            <field name="claim_balance" widget="monetary"/>
+                            <field name="readiness_status" widget="badge"/>
+                            <field name="state" widget="badge"/>
+                            <field name="currency_id" column_invisible="True"/>
+                        </tree>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_suspended_subscriptions_litigation_inherit" model="ir.ui.view">
+        <field name="name">sale.order.suspended.litigation.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="view_suspended_subscriptions_tree"/>
+        <field name="arch" type="xml">
+            <field name="start_date" position="after">
+                <field name="litigation_suspended_on"/>
+                <field name="litigation_hold"/>
+                <field name="litigation_case_count"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_ticket_form_inherit_litigation" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.inherit.litigation</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="priority" eval="230"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object"
+                        name="action_open_litigation_case" icon="fa-gavel"
+                        groups="contract_management.group_contract_litigation_user"
+                        invisible="not litigation_case_id">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Litigation Case</span>
+                    </div>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="partner_has_litigation_case" invisible="1"/>
+                <field name="litigation_case_id"
+                       groups="contract_management.group_contract_litigation_user"
+                       invisible="not partner_has_litigation_case and not litigation_case_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

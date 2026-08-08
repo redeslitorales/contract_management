@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import pytz
+
 from odoo import fields, models
 
 from .email_domain_utils import format_default_bad_email_domain_map
@@ -20,6 +22,39 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='contract_management.suspended_reservation_amount',
         default=7.0,
     )
+
+    litigation_threshold_days = fields.Integer(
+        string='Litigation Review Threshold (Days)',
+        config_parameter='contract_management.litigation_threshold_days',
+        default=90,
+        help='Create a pre-litigation review case after this many suspended days.',
+    )
+
+    litigation_minimum_balance = fields.Float(
+        string='Minimum Litigation Balance',
+        digits=(16, 2),
+        config_parameter='contract_management.litigation_minimum_balance',
+        default=1.0,
+        help='Do not create automated review cases below this open balance.',
+    )
+
+    litigation_response_days = fields.Integer(
+        string='Notice Response Period (Days)',
+        config_parameter='contract_management.litigation_response_days',
+        default=10,
+        help='Default response period used by initial and final notices.',
+    )
+
+    litigation_timezone = fields.Selection(
+        selection=lambda self: [(timezone, timezone) for timezone in pytz.all_timezones],
+        string='Collection Communication Time Zone',
+        config_parameter='contract_management.litigation_timezone',
+        default='America/El_Salvador',
+        help='Time zone used to enforce the permitted collection-contact window.',
+    )
+
+    def action_submit_litigation_whatsapp_templates(self):
+        return self.env['contract.litigation.case'].action_submit_litigation_whatsapp_templates()
 
     company_currency_id = fields.Many2one(
         related='company_id.currency_id',

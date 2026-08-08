@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="contract_litigation_paperformat" model="report.paperformat">
+        <field name="name">Litigation Package</field>
+        <field name="format">Letter</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">12</field><field name="margin_bottom">12</field>
+        <field name="margin_left">12</field><field name="margin_right">12</field>
+        <field name="header_line" eval="False"/><field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_litigation_package" model="ir.actions.report">
+        <field name="name">Litigation Package</field>
+        <field name="model">contract.litigation.case</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">contract_management.report_contract_litigation_package</field>
+        <field name="report_file">contract_management.report_contract_litigation_package</field>
+        <field name="paperformat_id" ref="contract_litigation_paperformat"/>
+        <field name="print_report_name">'Litigation Package - %s' % object.name</field>
+    </record>
+
+    <template id="report_contract_litigation_package">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page" style="font-family: Arial, sans-serif; color: #263238; font-size: 10px;">
+                    <style>
+                        .lit-title { color: #17394a; font-size: 25px; margin: 0; }
+                        .lit-kicker { color: #008f8c; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+                        .lit-meta { border-collapse: collapse; margin: 14px 0; width: 100%; }
+                        .lit-meta td { border: 1px solid #dbe3e8; padding: 7px; vertical-align: top; }
+                        .lit-label { color: #667883; display: block; font-size: 8px; font-weight: bold; text-transform: uppercase; }
+                        .lit-value { color: #17394a; font-size: 11px; font-weight: bold; }
+                        .lit-section { border-bottom: 2px solid #17394a; color: #17394a; font-size: 14px; margin: 18px 0 7px; padding-bottom: 4px; }
+                        .lit-table { border-collapse: collapse; width: 100%; }
+                        .lit-table th { background: #17394a; color: #fff; font-size: 8px; padding: 6px 4px; text-align: left; }
+                        .lit-table td { border: 1px solid #dbe3e8; padding: 6px 4px; }
+                        .lit-number { text-align: right; white-space: nowrap; }
+                        .lit-warning { background: #fff4d6; border-left: 4px solid #e0a800; margin: 8px 0; padding: 8px; }
+                        .lit-footer { color: #71808a; font-size: 8px; margin-top: 14px; }
+                    </style>
+
+                    <table style="border-bottom: 2px solid #17394a; padding-bottom: 8px; width: 100%;">
+                        <tr>
+                            <td style="width: 65%;"><div class="lit-kicker">Internal counsel review</div><h1 class="lit-title">Litigation Package</h1></td>
+                            <td style="text-align: right; width: 35%;"><strong t-out="doc.company_id.name"/><br/><span t-out="doc.name"/></td>
+                        </tr>
+                    </table>
+
+                    <table class="lit-meta">
+                        <tr>
+                            <td><span class="lit-label">Customer</span><span class="lit-value" t-out="doc.partner_id.display_name"/></td>
+                            <td><span class="lit-label">Tax ID</span><span class="lit-value" t-out="doc.partner_id.vat or '—'"/></td>
+                            <td><span class="lit-label">Subscription</span><span class="lit-value" t-out="doc.subscription_id.cabal_sequence or doc.subscription_id.name"/></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><span class="lit-label">Notice Address</span><span class="lit-value" t-out="doc.partner_id.contact_address or '—'"/></td>
+                            <td><span class="lit-label">Verified Contact</span><span class="lit-value" t-out="doc.contact_email or doc.contact_phone or '—'"/></td>
+                        </tr>
+                        <tr>
+                            <td><span class="lit-label">Suspended</span><span class="lit-value" t-field="doc.suspended_on"/></td>
+                            <td><span class="lit-label">Days Suspended</span><span class="lit-value" t-out="doc.days_suspended"/></td>
+                            <td><span class="lit-label">Case Stage</span><span class="lit-value" t-out="dict(doc._fields['state'].selection).get(doc.state)"/></td>
+                        </tr>
+                        <tr>
+                            <td><span class="lit-label">Open Balance</span><span class="lit-value" t-field="doc.gross_open_balance" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                            <td><span class="lit-label">Post-Suspension</span><span class="lit-value" t-field="doc.post_suspension_balance" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                            <td><span class="lit-label">Proposed Claim</span><span class="lit-value" t-field="doc.claim_balance" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                        </tr>
+                    </table>
+
+                    <div t-if="doc.legal_hold" class="lit-warning"><strong>LEGAL HOLD:</strong> <span t-out="doc.legal_hold_reason or 'No reason recorded.'"/></div>
+                    <div t-if="doc.has_post_suspension_items" class="lit-warning">The ledger contains post-suspension items. Only rows affirmatively marked “Included” form part of the proposed claim.</div>
+
+                    <h2 class="lit-section">Enforcement Instrument</h2>
+                    <table class="lit-table">
+                        <tr>
+                            <td><strong>Basis</strong></td>
+                            <td t-out="'Pagaré sin protesto contained in the signed contract' if doc.has_contract_evidence else ('Account evidence; contract record exists without available contract evidence' if doc.has_contract else 'Account evidence (no contract record)')"/>
+                        </tr>
+                        <tr t-if="doc.has_contract">
+                            <td><strong>Applicable contract</strong></td>
+                            <td t-out="doc.applicable_contract_id.display_name or ''"/>
+                        </tr>
+                        <tr t-if="doc.has_contract_evidence">
+                            <td><strong>Customer-signed pagaré verified</strong></td>
+                            <td t-out="'YES' if doc.pagare_verified else 'NO'"/>
+                        </tr>
+                    </table>
+
+                    <h2 class="lit-section">Evidence and Approval Checklist</h2>
+                    <table class="lit-table">
+                        <tr><td>Customer identity verified</td><td t-out="'YES' if doc.identity_verified else 'NO'"/><td>Contract reviewed</td><td t-out="'YES' if doc.contract_reviewed else 'NO'"/></tr>
+                        <tr><td>Service delivery verified</td><td t-out="'YES' if doc.service_delivery_verified else 'NO'"/><td>Balance reviewed</td><td t-out="'YES' if doc.balance_reviewed else 'NO'"/></tr>
+                        <tr><td>Disputes cleared</td><td t-out="'YES' if doc.disputes_cleared else 'NO'"/><td>Notice address verified</td><td t-out="'YES' if doc.address_verified else 'NO'"/></tr>
+                        <tr><td>Post-suspension reviewed</td><td t-out="'YES' if doc.post_suspension_reviewed or not doc.has_post_suspension_items else 'NO'"/><td>Manager approved</td><td t-out="'YES' if doc.manager_approved else 'NO'"/></tr>
+                    </table>
+                    <p><strong>Readiness:</strong> <span t-out="doc.readiness_notes"/></p>
+
+                    <h2 class="lit-section">Invoice-Level Claim Calculation</h2>
+                    <table class="lit-table">
+                        <thead><tr><th>Invoice</th><th>Date</th><th>Due</th><th class="lit-number">Total</th><th class="lit-number">Open</th><th>Post-Susp.</th><th>Included</th><th>Review Note</th></tr></thead>
+                        <tbody>
+                            <tr t-foreach="doc.invoice_line_ids" t-as="line">
+                                <td t-out="line.move_id.name"/><td><span t-field="line.invoice_date"/></td><td><span t-if="line.due_date" t-field="line.due_date"/></td>
+                                <td class="lit-number"><span t-field="line.total_amount" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                <td class="lit-number"><span t-field="line.residual_amount" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
+                                <td t-out="'YES' if line.post_suspension else 'NO'"/><td t-out="'YES' if line.include_in_claim else 'NO'"/><td t-out="line.review_note or ''"/>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2 class="lit-section">Communication Record</h2>
+                    <table class="lit-table">
+                        <thead><tr><th>Date</th><th>Type</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            <tr t-foreach="doc.communication_ids" t-as="communication">
+                                <td><span t-field="communication.sent_on"/></td><td t-out="dict(communication._fields['communication_type'].selection).get(communication.communication_type)"/>
+                                <td t-out="dict(communication._fields['channel'].selection).get(communication.channel)"/><td t-out="communication.recipient"/>
+                                <td t-out="dict(communication._fields['status'].selection).get(communication.status)"/><td t-out="communication.notes or ''"/>
+                            </tr>
+                            <tr t-if="not doc.communication_ids"><td colspan="6">No communications recorded.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 class="lit-section">Document Index</h2>
+                    <ol>
+                        <li>Case cover sheet and claim calculation (this document)</li>
+                        <li>Customer identity and verified notice address</li>
+                        <li>Signed contract and customer-signed pagaré, including any signed replacement addendum</li>
+                        <li>Activation, installation, and service-delivery evidence</li>
+                        <li>Invoices, payments, credits, and certified account statement</li>
+                        <li>Suspension evidence and customer communications</li>
+                        <li>Dispute, outage-credit, equipment, and regulator review</li>
+                    </ol>
+                    <p class="lit-footer">Generated <span t-field="doc.write_date"/>. This is an internal review package, not proof that a court filing has been authorized or made. Counsel must validate venue, procedure, limitation periods, recoverable amounts, and supporting originals.</p>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <record id="action_report_litigation_initial_notice" model="ir.actions.report">
+        <field name="name">Formal Initial Notice</field>
+        <field name="model">contract.litigation.case</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">contract_management.report_contract_litigation_initial_notice</field>
+        <field name="report_file">contract_management.report_contract_litigation_initial_notice</field>
+        <field name="paperformat_id" ref="contract_litigation_paperformat"/>
+        <field name="print_report_name">'Requerimiento formal - %s' % object.name</field>
+    </record>
+
+    <template id="report_contract_litigation_initial_notice">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="deadline" t-value="doc._litigation_response_deadline()"/>
+                <div class="article"
+                     t-att-data-oe-model="doc._name"
+                     t-att-data-oe-id="doc.id"
+                     t-att-data-oe-lang="doc.env.context.get('lang')">
+                <div class="page" style="font-family: Arial, sans-serif; color: #263238; font-size: 11px; line-height: 1.55;">
+                    <style>
+                        .notice-title { color: #17394a; font-size: 22px; margin: 8px 0 2px; }
+                        .notice-subtitle { color: #008f8c; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+                        .notice-meta { border-collapse: collapse; margin: 15px 0; width: 100%; }
+                        .notice-meta td { border: 1px solid #dbe3e8; padding: 7px; }
+                        .notice-table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+                        .notice-table th { background: #17394a; color: white; padding: 6px; text-align: left; }
+                        .notice-table td { border: 1px solid #dbe3e8; padding: 6px; }
+                        .notice-amount { text-align: right; white-space: nowrap; }
+                        .notice-option { border-left: 4px solid #008f8c; margin: 10px 0; padding: 7px 10px; }
+                        .notice-warning { background: #fff0ef; border: 1px solid #c62828; color: #8e1717; margin: 16px 0; padding: 10px; }
+                    </style>
+                    <table style="border-bottom: 2px solid #17394a; padding-bottom: 8px; width: 100%;">
+                        <tr>
+                            <td style="width: 68%;">
+                                <div class="notice-subtitle" t-out="doc.company_id.name"/>
+                                <h1 class="notice-title" t-out="'Requerimiento formal: regularización o terminación' if doc.has_contract_evidence and doc.pagare_verified else 'Requerimiento formal de pago'"/>
+                            </td>
+                            <td style="text-align: right; width: 32%;">
+                                <strong t-out="doc.name"/><br/>
+                                <span t-field="doc.write_date" t-options="{'widget': 'date'}"/>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="notice-meta">
+                        <tr><td><strong>Cliente</strong><br/><span t-out="doc.partner_id.name"/></td><td><strong>Cuenta</strong><br/><span t-out="doc.subscription_id.cabal_sequence or doc.subscription_id.name"/></td></tr>
+                        <tr><td><strong>Servicio suspendido desde</strong><br/><span t-out="doc._format_litigation_long_date(doc.suspended_on)"/></td><td><strong>Fecha límite de respuesta</strong><br/><span t-out="doc._format_litigation_long_date(deadline)"/></td></tr>
+                    </table>
+
+                    <p>Estimado/a <strong t-out="doc.partner_id.name or 'cliente'"/>:</p>
+                    <p>
+                        Por medio de la presente, <strong t-out="doc.company_id.name"/> le requiere formalmente
+                        <t t-if="doc.has_contract_evidence and doc.pagare_verified">regularizar la situación del servicio correspondiente al contrato</t>
+                        <t t-else="">cancelar el saldo vencido del servicio correspondiente a la cuenta</t>
+                        <strong t-out="doc.subscription_id.cabal_sequence or doc.subscription_id.name"/>, suspendido desde el
+                        <strong t-out="doc._format_litigation_long_date(doc.suspended_on)"/>.
+                    </p>
+                    <h2 class="notice-title" style="font-size: 18px; margin-top: 18px;">SALDO VENCIDO: <span t-out="doc._format_litigation_amount(doc.claim_balance)"/></h2>
+                    <p style="font-size: 13px;"><strong>Fecha límite para responder o regularizar: <span t-out="doc._format_litigation_long_date(deadline)"/></strong></p>
+                    <p>Al <strong t-out="doc._format_litigation_long_date(doc.snapshot_date)"/>, se encuentran pendientes las siguientes facturas:</p>
+                    <table class="notice-table">
+                        <thead><tr><th>Factura</th><th>Fecha</th><th class="notice-amount">Saldo</th></tr></thead>
+                        <tbody>
+                            <tr t-foreach="doc.invoice_line_ids.filtered('include_in_claim')" t-as="line">
+                                <td><span t-out="line.move_id.name"/></td>
+                                <td><span t-out="doc._format_litigation_date(line.invoice_date)"/></td>
+                                <td class="notice-amount"><span t-out="doc._format_litigation_amount(line.residual_amount)"/></td>
+                            </tr>
+                            <tr style="background: #f3f6f8; font-weight: bold;"><td>Total vencido</td><td></td><td class="notice-amount"><span t-out="doc._format_litigation_amount(doc.claim_balance)"/></td></tr>
+                        </tbody>
+                    </table>
+
+                    <t t-if="doc.has_contract_evidence and doc.pagare_verified">
+                        <p>
+                            Debido a que existe un <strong>contrato firmado que incorpora un pagaré suscrito por usted</strong>,
+                            deberá seleccionar y formalizar <strong>una de las siguientes alternativas a más tardar el
+                            <span t-out="doc._format_litigation_long_date(deadline)"/></strong>:
+                        </p>
+                        <div class="notice-option">
+                            <strong>1. REGULARIZAR LA CUENTA Y CONTINUAR EL CONTRATO</strong><br/>
+                            Pague el saldo vencido de <strong t-out="doc._format_litigation_amount(doc.claim_balance)"/> o comuníquese con nosotros para evaluar y documentar un plan de pagos.<br/><br/>
+                            Una vez cancelado el saldo pendiente o formalizado el acuerdo y cumplido el pago inicial correspondiente,
+                            procederemos al restablecimiento del servicio por el plazo restante del contrato<t t-if="doc.applicable_contract_id.end_date">,
+                            hasta el <strong t-out="doc._format_litigation_long_date(doc.applicable_contract_id.end_date)"/></t>.
+                        </div>
+                        <div class="notice-option">
+                            <strong>2. SOLICITAR LA TERMINACIÓN ANTICIPADA DEL CONTRATO</strong><br/>
+                            Solicite por escrito la terminación anticipada y cancele el monto ajustado exigible conforme al pagaré suscrito.<br/><br/>
+                            <strong>MONTO AJUSTADO DEL PAGARÉ: <span t-out="doc._format_litigation_amount(doc.pagare_adjusted_amount)"/></strong><br/><br/>
+                            Este monto ya refleja los pagos aplicados y el ajuste contractual de terminación registrado a la fecha.
+                            La liquidación definitiva reconocerá cualquier pago, abono, crédito u otro ajuste adicional que proceda
+                            conforme al contrato y la legislación aplicable.
+                        </div>
+                        <div class="notice-warning">
+                            <strong>IMPORTANTE — CONSECUENCIAS DE NO RESPONDER</strong><br/><br/>
+                            Si al <strong t-out="doc._format_litigation_long_date(deadline)"/> no hemos recibido:
+                            <ul><li>el pago correspondiente;</li><li>un convenio formal de pago;</li><li>una solicitud escrita de terminación; o</li><li>una objeción documentada,</li></ul>
+                            <strong>el expediente será remitido, sin nuevo aviso, a una agencia de cobros y/o a los tribunales competentes</strong>
+                            para gestionar el cobro y, cuando corresponda, la ejecución del contrato y del pagaré.
+                        </div>
+                    </t>
+                    <t t-else="">
+                        <p>
+                            <strong>Le requerimos cancelar íntegramente el saldo a más tardar el <span t-out="doc._format_litigation_long_date(deadline)"/></strong>
+                            o presentar dentro de ese plazo una objeción documentada si considera que existe algún error.
+                        </p>
+                        <div class="notice-warning">
+                            <strong>IMPORTANTE — CONSECUENCIAS DE NO RESPONDER</strong><br/><br/>
+                            Si al <strong t-out="doc._format_litigation_long_date(deadline)"/> no hemos recibido el pago o una objeción documentada,
+                            <strong>el expediente será remitido, sin nuevo aviso, a una agencia de cobros y/o a los tribunales competentes</strong>
+                            para gestionar el cobro del saldo.
+                        </div>
+                    </t>
+                    <p>Esta comunicación constituye un requerimiento <t t-if="doc.has_contract_evidence and doc.pagare_verified">de regularización</t><t t-else="">de pago</t> y <strong>no afirma que a la fecha se haya presentado una demanda judicial</strong>.</p>
+                    <p>Si ya realizó algún pago, envíe el comprobante correspondiente para que pueda ser incorporado a la liquidación de su cuenta.</p>
+                    <p><strong>Le recomendamos atender este requerimiento antes del <span t-out="doc._format_litigation_long_date(deadline)"/> para evitar el traslado del expediente a la siguiente etapa de cobro.</strong></p>
+                    <p>Atentamente,<br/><strong t-out="doc.company_id.name"/></p>
+                </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

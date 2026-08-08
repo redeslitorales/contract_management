@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mail_template_litigation_initial_notice" model="mail.template">
+        <field name="name">Litigation: Initial Account Review Notice</field>
+        <field name="model_id" ref="model_contract_litigation_case"/>
+        <field name="subject">{{ 'Requerimiento formal: regularización o terminación — Contrato' if object.has_contract_evidence and object.pagare_verified else 'Requerimiento formal de pago — Cuenta' }} {{ object.subscription_id.cabal_sequence or object.subscription_id.name }}</field>
+        <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
+        <field name="email_to">{{ object.contact_email }}</field>
+        <field name="reply_to">legal@cabal.sv</field>
+        <field name="lang">es_419</field>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+            <div style="font-family: Arial, sans-serif; color: #263238; font-size: 14px; line-height: 1.6;">
+                <t t-if="object.has_contract_evidence and object.pagare_verified">
+                    <p>Estimado/a <strong><t t-out="object.partner_id.name or 'cliente'"/></strong>:</p>
+                    <p>
+                        Por medio de la presente, <strong><t t-out="object.company_id.name"/></strong> le requiere formalmente
+                        regularizar la situación del servicio correspondiente al contrato
+                        <strong><t t-out="object.subscription_id.cabal_sequence or object.subscription_id.name"/></strong>,
+                        suspendido desde el <strong><t t-out="object._format_litigation_long_date(object.suspended_on)"/></strong>.
+                    </p>
+                    <h2 style="color: #17394a; font-size: 19px; margin: 22px 0 8px; text-transform: uppercase;">
+                        SALDO VENCIDO: <t t-out="object._format_litigation_amount(object.claim_balance)"/>
+                    </h2>
+                    <p style="font-size: 15px;">
+                        <strong>Fecha límite para responder o regularizar:
+                        <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong>
+                    </p>
+                    <p>
+                        Al <strong><t t-out="object._format_litigation_long_date(object.snapshot_date)"/></strong>,
+                        se encuentran pendientes las siguientes facturas:
+                    </p>
+                    <table style="border-collapse: collapse; width: 100%; margin: 14px 0 20px;">
+                        <thead><tr style="background: #17394a; color: #ffffff;"><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: left;">Factura</th><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: left;">Fecha</th><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;">Saldo</th></tr></thead>
+                        <tbody>
+                            <tr t-foreach="object.invoice_line_ids.filtered('include_in_claim')" t-as="line">
+                                <td style="border: 1px solid #d9e1e5; padding: 8px;"><t t-out="line.move_id.name"/></td>
+                                <td style="border: 1px solid #d9e1e5; padding: 8px;"><t t-out="object._format_litigation_date(line.invoice_date)"/></td>
+                                <td style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;"><t t-out="object._format_litigation_amount(line.residual_amount)"/></td>
+                            </tr>
+                            <tr style="background: #f3f6f8; font-weight: bold;"><td style="border: 1px solid #d9e1e5; padding: 8px;">Total vencido</td><td style="border: 1px solid #d9e1e5; padding: 8px;"></td><td style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;"><t t-out="object._format_litigation_amount(object.claim_balance)"/></td></tr>
+                        </tbody>
+                    </table>
+                    <p>
+                        Debido a que existe un <strong>contrato firmado que incorpora un pagaré suscrito por usted</strong>,
+                        deberá seleccionar y formalizar <strong>una de las siguientes alternativas a más tardar el
+                        <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong>:
+                    </p>
+                    <h3 style="color: #17394a; font-size: 15px; margin: 20px 0 6px;">1. REGULARIZAR LA CUENTA Y CONTINUAR EL CONTRATO</h3>
+                    <p>Pague el saldo vencido de <strong><t t-out="object._format_litigation_amount(object.claim_balance)"/></strong> o comuníquese con nosotros para evaluar y documentar un plan de pagos.</p>
+                    <p>
+                        Una vez cancelado el saldo pendiente o formalizado el acuerdo y cumplido el pago inicial correspondiente,
+                        procederemos al restablecimiento del servicio por el plazo restante del contrato<t t-if="object.applicable_contract_id.end_date">,
+                        hasta el <strong><t t-out="object._format_litigation_long_date(object.applicable_contract_id.end_date)"/></strong></t>.
+                    </p>
+                    <h3 style="color: #17394a; font-size: 15px; margin: 20px 0 6px;">2. SOLICITAR LA TERMINACIÓN ANTICIPADA DEL CONTRATO</h3>
+                    <p>Solicite por escrito la terminación anticipada y cancele el monto ajustado exigible conforme al pagaré suscrito.</p>
+                    <p><strong>MONTO AJUSTADO DEL PAGARÉ: <t t-out="object._format_litigation_amount(object.pagare_adjusted_amount)"/></strong></p>
+                    <p>
+                        Este monto ya refleja los pagos aplicados y el ajuste contractual de terminación registrado a la fecha.
+                        La liquidación definitiva reconocerá cualquier pago, abono, crédito u otro ajuste adicional que proceda
+                        conforme al contrato y la legislación aplicable.
+                    </p>
+                    <h2 style="background: #fff0ef; border-left: 5px solid #c62828; color: #8e1717; font-size: 16px; margin: 22px 0 10px; padding: 10px;">IMPORTANTE — CONSECUENCIAS DE NO RESPONDER</h2>
+                    <p>Si al <strong><t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong> no hemos recibido:</p>
+                    <ul><li>el pago correspondiente;</li><li>un convenio formal de pago;</li><li>una solicitud escrita de terminación; o</li><li>una objeción documentada,</li></ul>
+                    <p>
+                        <strong>el expediente será remitido, sin nuevo aviso, a una agencia de cobros y/o a los tribunales competentes</strong>
+                        para gestionar el cobro y, cuando corresponda, la ejecución del contrato y del pagaré.
+                    </p>
+                    <p>Esta comunicación constituye un requerimiento de regularización y <strong>no afirma que a la fecha se haya presentado una demanda judicial</strong>.</p>
+                    <p>Si ya realizó algún pago, envíe el comprobante correspondiente para que pueda ser incorporado a la liquidación de su cuenta.</p>
+                    <p><strong>Le recomendamos atender este requerimiento antes del <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/> para evitar el traslado del expediente a la siguiente etapa de cobro.</strong></p>
+                    <p>Atentamente,<br/><strong><t t-out="object.company_id.name"/></strong></p>
+                </t>
+                <t t-else="">
+                <p>Estimado/a <strong><t t-out="object.partner_id.name or 'cliente'"/></strong>:</p>
+                <p>
+                    Por medio de la presente, <strong><t t-out="object.company_id.name"/></strong> le requiere formalmente cancelar
+                    el saldo vencido del servicio correspondiente a la cuenta
+                    <strong><t t-out="object.subscription_id.cabal_sequence or object.subscription_id.name"/></strong>
+                    suspendida desde el <strong><t t-out="object._format_litigation_long_date(object.suspended_on)"/></strong>.
+                </p>
+                <h2 style="color: #17394a; font-size: 19px; margin: 22px 0 8px; text-transform: uppercase;">SALDO VENCIDO: <t t-out="object._format_litigation_amount(object.claim_balance)"/></h2>
+                <p style="font-size: 15px;"><strong>Fecha límite para pagar o presentar una objeción documentada: <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong></p>
+                <p>Al <strong><t t-out="object._format_litigation_long_date(object.snapshot_date)"/></strong>, se encuentran pendientes las siguientes facturas:</p>
+                <table style="border-collapse: collapse; width: 100%; margin: 14px 0 20px;">
+                    <thead><tr style="background: #17394a; color: #ffffff;"><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: left;">Factura</th><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: left;">Fecha</th><th style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;">Saldo</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="object.invoice_line_ids.filtered('include_in_claim')" t-as="line">
+                            <td style="border: 1px solid #d9e1e5; padding: 8px;"><t t-out="line.move_id.name"/></td><td style="border: 1px solid #d9e1e5; padding: 8px;"><t t-out="object._format_litigation_date(line.invoice_date)"/></td><td style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;"><t t-out="object._format_litigation_amount(line.residual_amount)"/></td>
+                        </tr>
+                        <tr style="background: #f3f6f8; font-weight: bold;"><td style="border: 1px solid #d9e1e5; padding: 8px;">Total vencido</td><td style="border: 1px solid #d9e1e5; padding: 8px;"></td><td style="border: 1px solid #d9e1e5; padding: 8px; text-align: right;"><t t-out="object._format_litigation_amount(object.claim_balance)"/></td></tr>
+                    </tbody>
+                </table>
+                <p><strong>Le requerimos cancelar íntegramente el saldo a más tardar el <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong> o presentar dentro de ese plazo una objeción documentada si considera que existe algún error.</p>
+                <h2 style="background: #fff0ef; border-left: 5px solid #c62828; color: #8e1717; font-size: 16px; margin: 22px 0 10px; padding: 10px;">IMPORTANTE — CONSECUENCIAS DE NO RESPONDER</h2>
+                <p>
+                    Si al <strong><t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong> no hemos recibido el pago o una objeción documentada,
+                    <strong>el expediente será remitido, sin nuevo aviso, a una agencia de cobros y/o a los tribunales competentes</strong> para gestionar el cobro del saldo.
+                </p>
+                <p>Esta comunicación constituye un requerimiento de pago y <strong>no afirma que a la fecha se haya presentado una demanda judicial</strong>.</p>
+                <p>Si ya realizó algún pago, envíe el comprobante correspondiente para que pueda ser incorporado a la liquidación de su cuenta.</p>
+                <p><strong>Le recomendamos atender este requerimiento antes del <t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/> para evitar el traslado del expediente a la siguiente etapa de cobro.</strong></p>
+                <p>Atentamente,<br/><strong><t t-out="object.company_id.name"/></strong></p>
+                </t>
+            </div>
+        </field>
+    </record>
+
+    <record id="mail_template_litigation_final_demand" model="mail.template">
+        <field name="name">Litigation: Final Pre-Litigation Demand</field>
+        <field name="model_id" ref="model_contract_litigation_case"/>
+        <field name="subject">Requerimiento final de pago — Contrato {{ object.subscription_id.cabal_sequence or object.subscription_id.name }}</field>
+        <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
+        <field name="email_to">{{ object.contact_email }}</field>
+        <field name="reply_to">legal@cabal.sv</field>
+        <field name="lang">es_419</field>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+            <div style="font-family: Arial, sans-serif; color: #263238; font-size: 14px; line-height: 1.6;">
+                <p>Estimado/a <t t-out="object.partner_id.name or 'cliente'"/>:</p>
+                <p>
+                    A la fecha continúa pendiente la cantidad de
+                    <strong><t t-out="object.currency_id.symbol"/> <t t-out="'%.2f' % object.claim_balance"/></strong>
+                    correspondiente al contrato
+                    <strong><t t-out="object.subscription_id.cabal_sequence or object.subscription_id.name"/></strong>.
+                </p>
+                <table style="border-collapse: collapse; width: 100%; margin: 12px 0;">
+                    <thead><tr><th style="border: 1px solid #d9e1e5; padding: 6px; text-align: left;">Factura</th><th style="border: 1px solid #d9e1e5; padding: 6px; text-align: left;">Fecha</th><th style="border: 1px solid #d9e1e5; padding: 6px; text-align: right;">Saldo incluido</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="object.invoice_line_ids.filtered('include_in_claim')" t-as="line">
+                            <td style="border: 1px solid #d9e1e5; padding: 6px;"><t t-out="line.move_id.name"/></td>
+                            <td style="border: 1px solid #d9e1e5; padding: 6px;"><t t-out="line.invoice_date"/></td>
+                            <td style="border: 1px solid #d9e1e5; padding: 6px; text-align: right;"><t t-out="object.currency_id.symbol"/> <t t-out="'%.2f' % line.residual_amount"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Le requerimos cancelar el saldo o presentar por escrito cualquier objeción documentada a más tardar el <strong><t t-out="ctx.get('response_deadline')"/></strong>.</p>
+                <p>Si no recibimos el pago, una propuesta aceptada o una objeción dentro del plazo indicado, la cuenta podrá remitirse a asesoría jurídica para evaluar las acciones de cobro permitidas por el contrato y la legislación aplicable. Esta comunicación no afirma que una demanda ya haya sido presentada.</p>
+                <p>Atentamente,<br/><strong><t t-out="object.company_id.name"/></strong></p>
+            </div>
+        </field>
+    </record>
+
+    <function model="contract.litigation.case" name="_configure_litigation_email_templates"/>
+</odoo>

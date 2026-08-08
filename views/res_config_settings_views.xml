@@ -102,6 +102,56 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Litigation Review">
+                        <setting>
+                            <label for="litigation_threshold_days" string="Suspension Age Threshold"/>
+                            <div class="text-muted">
+                                Create an internal review case after a subscription has remained suspended for this many days. No customer notice is sent automatically.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16"><field name="litigation_threshold_days"/></div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="litigation_minimum_balance" string="Minimum Open Balance"/>
+                            <div class="text-muted">
+                                Ignore suspended subscriptions whose linked open invoices total less than this amount.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <field name="litigation_minimum_balance"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="litigation_response_days" string="Response Period"/>
+                            <div class="text-muted">
+                                Default number of days given to the customer to respond to a notice.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16"><field name="litigation_response_days"/></div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <label for="litigation_timezone" string="Collection Time Zone"/>
+                            <div class="text-muted">
+                                Time zone used to enforce the weekday 8:00 AM–6:00 PM collection-contact window.
+                            </div>
+                            <div class="content-group">
+                                <div class="mt16"><field name="litigation_timezone"/></div>
+                            </div>
+                        </setting>
+                        <setting string="WhatsApp Notice Templates" help="Submit or synchronize the two Spanish litigation notice templates with Meta. Meta approval is required before they can be sent.">
+                            <button name="action_submit_litigation_whatsapp_templates"
+                                    type="object"
+                                    string="Submit / Sync WhatsApp Templates"
+                                    class="btn-primary"
+                                    groups="contract_management.group_contract_litigation_manager"/>
+                            <div class="text-muted mt8">
+                                Uses the formal notice PDF as the document attachment and automatically selects the contract or balance-only wording.
+                            </div>
+                        </setting>
+                    </block>
                     <block title="Security">
                         <setting>
                             <label for="contract_confirmation_secret" string="Quote Confirmation Secret"/>
