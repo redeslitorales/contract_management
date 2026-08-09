@@ -31,8 +31,13 @@ class ProjectTask(models.Model):
         - Never regress or change state if not at 'to_be_scheduled'
         """
         for task in self:
-            # Only process installation tasks with a sale order
-            if not task.sale_order_id:
+            # FSM stores the subscription in fsm_subscription_id.  Depending on
+            # the task creation/reschedule path, the computed sale_order_id can
+            # be temporarily empty, so accept either link.
+            subscription = task.sale_order_id
+            if 'fsm_subscription_id' in task._fields:
+                subscription = task.fsm_subscription_id or subscription
+            if not subscription:
                 continue
             
             # Check if this is an installation task
@@ -45,10 +50,13 @@ class ProjectTask(models.Model):
             
             # CRITICAL: Only advance if currently at 'to_beschedule' state
             # This prevents regression from later states
-            current_state = task.sale_order_id.installation_state
+            current_state = subscription.installation_state
             if current_state != 'to_be_scheduled':
                 # Don't touch subscriptions that are not at the schedule state
                 continue
             
             # Advance subscription to next state (Pending Install)
-            task.sale_order_id.write({'installation_state': 'scheduled', 'configuration_state': 'scheduled'})
+            subscription.write({
+                'installation_state': 'scheduled',
+                'configuration_state': 'scheduled',
+            })

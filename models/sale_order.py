@@ -989,6 +989,32 @@ class SaleSubscription(models.Model):
             ('subscription_category_ids', 'in', product_categories.ids)
         ])
 
+        # IPTV task types may share a broad subscription category with Internet
+        # products so mixed kits remain selectable. A plain Internet order must
+        # never pick one of those IPTV choices merely because task types are
+        # ordered alphabetically.
+        has_iptv = False
+        iptv_detector = getattr(self, '_has_iptv_product', None)
+        if callable(iptv_detector):
+            has_iptv = bool(iptv_detector())
+        else:
+            has_iptv = any(
+                getattr(line.product_id.product_tmpl_id, 'is_iptv_category', False)
+                for line in self.order_line.filtered('product_id')
+            )
+        if not has_iptv:
+            non_iptv_task_types = task_types.filtered(
+                lambda task_type: 'iptv' not in (
+                    task_type.with_context(lang=False).name or ''
+                ).casefold()
+            )
+            if non_iptv_task_types:
+                task_types = non_iptv_task_types
+
+        # Make the fallback deterministic instead of relying on the model's
+        # alphabetical ordering.
+        task_types = task_types.sorted('id')
+
         if not task_types:
             category_names = ', '.join(product_categories.mapped('name'))
             raise UserError(_(
