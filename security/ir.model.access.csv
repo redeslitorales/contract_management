@@ -1,4 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dte_base_contract_manager,access.dte.base.contract.manager,dte_base.model_dte_base_contract,contract_management.group_contract_management_manager,1,1,1,1
 access_contract_management_user,access.contract.management.user,model_contract_management,base.group_user,1,1,1,1
 access_contract_management_manager,access.contract.management.manager,model_contract_management,base.group_system,1,1,1,1
 access_contract_management_portal,access.contract.management.portal,model_contract_management,base.group_portal,1,0,0,0
