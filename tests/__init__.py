@@ -6,3 +6,4 @@ from . import test_renewal_classification
 from . import test_contract_management
 from . import test_customer_account_statement
 from . import test_contract_litigation
+from . import test_installation_task_selection

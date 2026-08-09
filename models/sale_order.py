@@ -974,26 +974,29 @@ class SaleSubscription(models.Model):
                 },
             }
         
-        # Get first subscription product category
-        subscription_product = self.order_line.filtered(lambda l: l.product_id).mapped('product_id')[:1]
-        if not subscription_product:
+        # Match against every category on the order. Equipment may appear before
+        # the recurring service line, so using only the first product can miss
+        # the installation task type that belongs to the subscription service.
+        product_categories = self.order_line.filtered(
+            lambda line: not line.display_type and line.product_id
+        ).mapped('product_id.categ_id')
+        if not product_categories:
             raise UserError(_("No product found on subscription order."))
-        
-        product_category = subscription_product.categ_id
-        
-        # Search for installation task types matching the product category
+
+        # Search for installation task types matching any order-line category.
         task_types = self.env['fsm.task.type'].search([
             ('is_installation', '=', True),
-            ('subscription_category_ids', 'in', product_category.ids)
+            ('subscription_category_ids', 'in', product_categories.ids)
         ])
-        
+
         if not task_types:
+            category_names = ', '.join(product_categories.mapped('name'))
             raise UserError(_(
                 "No installation task type found for product category '%s'.\n\n"
                 "Please configure an installation task type with:\n"
                 "- 'Is Installation' flag checked\n"
                 "- Subscription category matching '%s'"
-            ) % (product_category.name, product_category.name))
+            ) % (category_names, category_names))
         
         task_type = task_types[0]
         
