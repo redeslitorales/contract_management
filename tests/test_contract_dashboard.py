@@ -154,11 +154,9 @@ class TestContractDashboard(TransactionCase):
     def test_action_refresh_statistics(self):
         """Test manual refresh action"""
         action = self.dashboard.action_refresh_statistics()
-        
-        self.assertEqual(action['type'], 'ir.actions.act_window')
-        self.assertEqual(action['res_model'], 'contract.dashboard')
-        self.assertEqual(action['view_mode'], 'form')
-        self.assertTrue(action.get('res_id'))
+
+        self.assertEqual(action['type'], 'ir.actions.client')
+        self.assertEqual(action['tag'], 'reload')
     
     def test_top_partners_summary(self):
         """Test top partners aggregation"""

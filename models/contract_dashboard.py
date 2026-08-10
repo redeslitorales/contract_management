@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
-from datetime import datetime, timedelta
+from collections import defaultdict
+from datetime import timedelta
+
+from markupsafe import escape
 
 try:
     from .contract_management import (
@@ -18,6 +21,8 @@ class ContractDashboard(models.Model):
     _name = 'contract.dashboard'
     _description = 'Contract Management Dashboard'
     _order = 'id desc'
+
+    _dashboard_detail_limit = 50
 
     name = fields.Char(string='Dashboard Name', required=True, default='Contract Overview')
     
@@ -94,76 +99,66 @@ class ContractDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'partner_id', 'contract_term_id', 'state')
     def _compute_statistics(self):
-        """Compute all dashboard statistics based on filters."""
+        """Compute dashboard data without materializing every contract record.
+
+        The old implementation repeatedly filtered one large recordset and read the
+        non-stored ``total_paid`` field for every contract.  That field walks paid
+        invoices and invoice lines, so dashboard time grew very quickly with the
+        portfolio.  This implementation fetches the filtered ids once and lets
+        PostgreSQL calculate paid totals in one set-based query.
+        """
         for dashboard in self:
-            domain = []
-            
-            # Apply filters
-            if dashboard.date_from:
-                domain.append(('start_date', '>=', dashboard.date_from))
-            if dashboard.date_to:
-                domain.append(('start_date', '<=', dashboard.date_to))
-            if dashboard.partner_id:
-                domain.append(('partner_id', '=', dashboard.partner_id.id))
-            if dashboard.contract_term_id:
-                domain.append(('contract_term', '=', dashboard.contract_term_id.id))
-            if dashboard.state:
-                domain.append(('state', '=', dashboard.state))
-            
-            # Get contracts
             Contract = self.env['contract.management'].sudo()
-            contracts = Contract.search(domain)
-            
-            # Basic counts by status
-            dashboard.total_contracts = len(contracts)
+            contract_ids = Contract.search(dashboard._get_filtered_domain()).ids
+            rows = dashboard._get_dashboard_rows(contract_ids)
 
-            draft_contracts = contracts.filtered(lambda c: c.state == 'draft')
-            active_contracts = contracts.filtered(lambda c: c.state == 'active')
-            renewal_contracts = contracts.filtered(lambda c: c.state == 'renewal_due')
-            expired_contracts = contracts.filtered(lambda c: c.state == 'expired')
-            terminated_contracts = contracts.filtered(lambda c: c.state == 'terminated')
+            state_metrics = defaultdict(lambda: {'count': 0, 'value': 0.0})
+            signature_metrics = defaultdict(lambda: {'count': 0, 'value': 0.0})
+            stage_metrics = defaultdict(lambda: {'count': 0, 'value': 0.0})
+            partner_metrics = defaultdict(lambda: {'count': 0, 'value': 0.0})
+            term_counts = defaultdict(int)
 
-            dashboard.total_draft = len(draft_contracts)
-            dashboard.total_active = len(active_contracts)
-            dashboard.total_expired = len(expired_contracts)
-            dashboard.total_terminated = len(terminated_contracts)
-            dashboard.total_renewal_due = len(renewal_contracts)
-            dashboard.total_value_draft = sum(draft_contracts.mapped('total_paid'))
-            dashboard.total_value_active = sum(active_contracts.mapped('total_paid'))
-            dashboard.total_value_renewal_due = sum(renewal_contracts.mapped('total_paid'))
-            dashboard.total_value_expired = sum(expired_contracts.mapped('total_paid'))
-            dashboard.total_value_terminated = sum(terminated_contracts.mapped('total_paid'))
-            dashboard.avg_value_draft = dashboard.total_value_draft / dashboard.total_draft if dashboard.total_draft else 0
-            dashboard.avg_value_active = dashboard.total_value_active / dashboard.total_active if dashboard.total_active else 0
-            dashboard.avg_value_renewal_due = dashboard.total_value_renewal_due / dashboard.total_renewal_due if dashboard.total_renewal_due else 0
-            dashboard.avg_value_expired = dashboard.total_value_expired / dashboard.total_expired if dashboard.total_expired else 0
-            dashboard.avg_value_terminated = dashboard.total_value_terminated / dashboard.total_terminated if dashboard.total_terminated else 0
+            for row in rows:
+                paid = row['total_paid'] or 0.0
+                for metrics, key in (
+                    (state_metrics, row['state']),
+                    (signature_metrics, row['docusign_status']),
+                    (stage_metrics, row['progress_stage']),
+                ):
+                    metrics[key]['count'] += 1
+                    metrics[key]['value'] += paid
+                if row['partner_id']:
+                    partner_metrics[row['partner_name'] or 'Unknown']['count'] += 1
+                    partner_metrics[row['partner_name'] or 'Unknown']['value'] += paid
+                if row['contract_term_id']:
+                    term_counts[row['contract_term_id']] += 1
 
-            sig_new_contracts = contracts.filtered(lambda c: c.docusign_status == 'new')
-            sig_sent_contracts = contracts.filtered(lambda c: c.docusign_status == 'sent')
-            sig_open_contracts = contracts.filtered(lambda c: c.docusign_status == 'open')
-            sig_customer_contracts = contracts.filtered(lambda c: c.docusign_status == 'customer')
-            sig_completed_contracts = contracts.filtered(lambda c: c.docusign_status == 'completed')
+            dashboard.total_contracts = len(rows)
+            dashboard.total_contract_value = sum(row['total_paid'] or 0.0 for row in rows)
+            dashboard.avg_contract_value = (
+                dashboard.total_contract_value / dashboard.total_contracts
+                if dashboard.total_contracts else 0.0
+            )
 
-            dashboard.total_sig_new = len(sig_new_contracts)
-            dashboard.total_sig_sent = len(sig_sent_contracts)
-            dashboard.total_sig_open = len(sig_open_contracts)
-            dashboard.total_sig_customer = len(sig_customer_contracts)
-            dashboard.total_sig_completed = len(sig_completed_contracts)
-            dashboard.total_value_sig_new = sum(sig_new_contracts.mapped('total_paid'))
-            dashboard.total_value_sig_sent = sum(sig_sent_contracts.mapped('total_paid'))
-            dashboard.total_value_sig_open = sum(sig_open_contracts.mapped('total_paid'))
-            dashboard.total_value_sig_customer = sum(sig_customer_contracts.mapped('total_paid'))
-            dashboard.total_value_sig_completed = sum(sig_completed_contracts.mapped('total_paid'))
-            dashboard.avg_value_sig_new = dashboard.total_value_sig_new / dashboard.total_sig_new if dashboard.total_sig_new else 0
-            dashboard.avg_value_sig_sent = dashboard.total_value_sig_sent / dashboard.total_sig_sent if dashboard.total_sig_sent else 0
-            dashboard.avg_value_sig_open = dashboard.total_value_sig_open / dashboard.total_sig_open if dashboard.total_sig_open else 0
-            dashboard.avg_value_sig_customer = dashboard.total_value_sig_customer / dashboard.total_sig_customer if dashboard.total_sig_customer else 0
-            dashboard.avg_value_sig_completed = dashboard.total_value_sig_completed / dashboard.total_sig_completed if dashboard.total_sig_completed else 0
-            
-            # Financial summary
-            dashboard.total_contract_value = sum(contracts.mapped('total_paid'))
-            dashboard.avg_contract_value = dashboard.total_contract_value / dashboard.total_contracts if dashboard.total_contracts > 0 else 0
+            for code in ('draft', 'active', 'renewal_due', 'expired', 'terminated'):
+                metric = state_metrics[code]
+                setattr(dashboard, f'total_{code}', metric['count'])
+                setattr(dashboard, f'total_value_{code}', metric['value'])
+                setattr(
+                    dashboard,
+                    f'avg_value_{code}',
+                    metric['value'] / metric['count'] if metric['count'] else 0.0,
+                )
+
+            for code in ('new', 'sent', 'open', 'customer', 'completed'):
+                metric = signature_metrics[code]
+                setattr(dashboard, f'total_sig_{code}', metric['count'])
+                setattr(dashboard, f'total_value_sig_{code}', metric['value'])
+                setattr(
+                    dashboard,
+                    f'avg_value_sig_{code}',
+                    metric['value'] / metric['count'] if metric['count'] else 0.0,
+                )
 
             dashboard.state_summary_html = dashboard._build_state_summary_table([
                 ('Draft', dashboard.total_draft, dashboard.total_value_draft, dashboard.avg_value_draft, 'action_view_draft_contracts'),
@@ -181,8 +176,6 @@ class ContractDashboard(models.Model):
                 ('Open', dashboard.total_sig_open, dashboard.total_value_sig_open, dashboard.avg_value_sig_open, 'action_view_sig_open'),
             ])
 
-            # Progress stage summary (driven by subscription progress_stage propagated to contracts)
-            stage_rows = []
             stage_definitions = [
                 ('Draft', 'draft', 'action_view_stage_draft'),
                 ('Confirmed', 'confirmed', 'action_view_stage_confirmed'),
@@ -201,12 +194,16 @@ class ContractDashboard(models.Model):
                 ('Suspended w/ Issues', 'suspended_with_issues', 'action_view_stage_suspended_with_issues'),
             ]
 
+            stage_rows = []
             for label, code, action in stage_definitions:
-                stage_contracts = contracts.filtered(lambda c, code=code: c.progress_stage == code)
-                count = len(stage_contracts)
-                total_val = sum(stage_contracts.mapped('total_paid'))
-                avg_val = total_val / count if count else 0
-                stage_rows.append((label, count, total_val, avg_val, action))
+                metric = stage_metrics[code]
+                stage_rows.append((
+                    label,
+                    metric['count'],
+                    metric['value'],
+                    metric['value'] / metric['count'] if metric['count'] else 0.0,
+                    action,
+                ))
 
             dashboard.progress_stage_summary_html = dashboard._build_state_summary_table(stage_rows)
             
@@ -216,64 +213,141 @@ class ContractDashboard(models.Model):
             date_60 = today + timedelta(days=60)
             date_90 = today + timedelta(days=90)
             
-            active_end_dated_contracts = active_contracts.filtered(lambda c: c.end_date)
-            expiring_30 = active_end_dated_contracts.filtered(lambda c: today <= c.end_date <= date_30)
-            expiring_60 = active_end_dated_contracts.filtered(lambda c: today <= c.end_date <= date_60)
-            expiring_90 = active_end_dated_contracts.filtered(lambda c: today <= c.end_date <= date_90)
-            
+            active_with_end = [row for row in rows if row['state'] == 'active' and row['end_date']]
+            expiring_30 = [row for row in active_with_end if today <= row['end_date'] <= date_30]
+            expiring_60 = [row for row in active_with_end if today <= row['end_date'] <= date_60]
+            expiring_90 = [row for row in active_with_end if today <= row['end_date'] <= date_90]
+
             dashboard.expiring_30_days = len(expiring_30)
             dashboard.expiring_60_days = len(expiring_60)
             dashboard.expiring_90_days = len(expiring_90)
-            
-            # Generate detailed listings
-            dashboard.expiring_30_days_list = dashboard._format_expiring_contracts(expiring_30)
-            dashboard.expiring_60_days_list = dashboard._format_expiring_contracts(expiring_60)
-            dashboard.expiring_90_days_list = dashboard._format_expiring_contracts(expiring_90)
+            dashboard.expiring_30_days_list = dashboard._format_expiring_rows(expiring_30)
+            dashboard.expiring_60_days_list = dashboard._format_expiring_rows(expiring_60)
+            dashboard.expiring_90_days_list = dashboard._format_expiring_rows(expiring_90)
 
             allowed_active_states = SUBSCRIPTION_ACTIVE_STATE + SUBSCRIPTION_SUSPENDED_STATE
-            non_compliant_contracts = contracts.filtered(
-                lambda c: (
-                    c.state == 'draft'
-                    and (c.subscription_id.subscription_state not in SUBSCRIPTION_DRAFT_STATE)
+            non_compliant_rows = [
+                row for row in rows
+                if (
+                    row['state'] == 'draft'
+                    and row['subscription_state'] not in SUBSCRIPTION_DRAFT_STATE
+                ) or (
+                    row['state'] == 'active'
+                    and row['subscription_state'] not in allowed_active_states
                 )
-                or (
-                    c.state == 'active'
-                    and (c.subscription_id.subscription_state not in allowed_active_states)
-                )
-            )
+            ]
+            dashboard.non_compliant_count = len(non_compliant_rows)
+            dashboard.non_compliant_list = dashboard._format_non_compliant_rows(non_compliant_rows)
 
-            dashboard.non_compliant_count = len(non_compliant_contracts)
-            dashboard.non_compliant_list = dashboard._format_non_compliant_contracts(non_compliant_contracts)
-            
-            # Top partners by contract count
-            partner_data = {}
-            for contract in contracts:
-                if contract.partner_id:
-                    partner_name = contract.partner_id.name
-                    if partner_name not in partner_data:
-                        partner_data[partner_name] = {'count': 0, 'value': 0}
-                    partner_data[partner_name]['count'] += 1
-                    partner_data[partner_name]['value'] += contract.total_paid
-            
-            # Sort and get top 10
-            sorted_partners = sorted(partner_data.items(), key=lambda x: x[1]['count'], reverse=True)[:10]
+            sorted_partners = sorted(
+                partner_metrics.items(), key=lambda item: item[1]['count'], reverse=True
+            )[:10]
             dashboard.top_partners_summary = dashboard._format_top_partners(sorted_partners)
-            
-            # Contract term distribution
-            term_data = {}
-            for contract in contracts:
-                if contract.contract_term:
-                    term_name = contract.contract_term.name
-                    term_data[term_name] = term_data.get(term_name, 0) + 1
-            
-            sorted_terms = sorted(term_data.items(), key=lambda x: x[1], reverse=True)
+
+            term_names = {
+                term.id: term.display_name
+                for term in self.env['dte.base.contract'].sudo().browse(term_counts.keys()).exists()
+            }
+            sorted_terms = sorted(
+                ((term_names.get(term_id, 'Unknown'), count) for term_id, count in term_counts.items()),
+                key=lambda item: item[1],
+                reverse=True,
+            )
             dashboard.term_distribution = dashboard._format_term_distribution(sorted_terms)
+
+    def _get_dashboard_rows(self, contract_ids):
+        """Return one compact row per contract, including paid totals.
+
+        ``total_paid`` is intentionally non-stored on the contract model.  Computing
+        it record-by-record traverses every invoice relationship.  The CTE below is
+        equivalent to that computation, but performs it once for the whole dashboard.
+        """
+        if not contract_ids:
+            return []
+        self.env.cr.execute("""
+            WITH filtered_contracts AS (
+                SELECT id, state, docusign_status, progress_stage, end_date, subscription_id
+                  FROM contract_management
+                 WHERE id = ANY(%s)
+            ),
+            eligible_invoices AS (
+                SELECT DISTINCT sale_line.order_id,
+                                invoice.id AS invoice_id,
+                                invoice.amount_total
+                  FROM sale_order_line_invoice_rel line_rel
+                  JOIN sale_order_line sale_line
+                    ON sale_line.id = line_rel.order_line_id
+                  JOIN filtered_contracts contract
+                    ON contract.subscription_id = sale_line.order_id
+                  JOIN account_move_line invoice_line
+                    ON invoice_line.id = line_rel.invoice_line_id
+                  JOIN account_move invoice ON invoice.id = invoice_line.move_id
+                 WHERE invoice.move_type = 'out_invoice'
+                   AND invoice.state = 'posted'
+                   AND invoice.payment_state = 'paid'
+            ),
+            recurring_lines AS (
+                SELECT DISTINCT
+                       line.move_id AS invoice_id,
+                       line.id AS line_id,
+                       line.price_total
+                  FROM account_move_line line
+                  JOIN eligible_invoices eligible ON eligible.invoice_id = line.move_id
+                  JOIN sale_order_line_invoice_rel line_rel
+                    ON line_rel.invoice_line_id = line.id
+                  JOIN sale_order_line sale_line
+                    ON sale_line.id = line_rel.order_line_id
+                  JOIN product_product product
+                    ON product.id = sale_line.product_id
+                  JOIN product_template template
+                    ON template.id = product.product_tmpl_id
+                 WHERE template.recurring_invoice = TRUE
+            ),
+            recurring_totals AS (
+                SELECT invoice_id, SUM(price_total) AS total
+                  FROM recurring_lines
+                 GROUP BY invoice_id
+            ),
+            paid_by_order AS (
+                SELECT eligible.order_id,
+                       SUM(
+                           CASE WHEN recurring.invoice_id IS NOT NULL
+                                THEN recurring.total
+                                ELSE eligible.amount_total
+                           END
+                       ) AS total_paid
+                  FROM eligible_invoices eligible
+                  LEFT JOIN recurring_totals recurring ON recurring.invoice_id = eligible.invoice_id
+                 GROUP BY eligible.order_id
+            )
+            SELECT contract.id,
+                   contract.state,
+                   contract.docusign_status,
+                   contract.progress_stage,
+                   contract.end_date,
+                   contract.subscription_id,
+                   subscription.subscription_state,
+                   subscription.partner_id,
+                   partner.name AS partner_name,
+                   subscription.contract_term AS contract_term_id,
+                   subscription.cabal_sequence AS contract_name,
+                   COALESCE(paid.total_paid, 0.0) AS total_paid
+              FROM filtered_contracts contract
+              LEFT JOIN sale_order subscription ON subscription.id = contract.subscription_id
+              LEFT JOIN res_partner partner ON partner.id = subscription.partner_id
+              LEFT JOIN paid_by_order paid ON paid.order_id = contract.subscription_id
+        """, [contract_ids])
+        return self.env.cr.dictfetchall()
 
     def action_view_draft_contracts(self):
         """Action to view draft contracts."""
         domain = self._get_filtered_domain()
         domain.append(('state', '=', 'draft'))
         return self._create_action('Draft Contracts', domain)
+
+    def action_view_all_contracts(self):
+        """Open every contract matching the dashboard filters."""
+        return self._create_action('All Contracts', self._get_filtered_domain())
 
     def action_view_active_contracts(self):
         """Action to view active contracts."""
@@ -448,6 +522,91 @@ class ContractDashboard(models.Model):
             'context': {'create': False},
             'target': 'current',
         }
+
+    def _format_expiring_rows(self, rows):
+        """Render a bounded expiration preview from compact dashboard rows."""
+        if not rows:
+            return '<p class="cm-empty-state">No contracts expiring in this period</p>'
+
+        ordered_rows = sorted(rows, key=lambda row: row['end_date'])
+        visible_rows = ordered_rows[:self._dashboard_detail_limit]
+        body = []
+        for row in visible_rows:
+            partner_name = escape(row['partner_name'] or 'Unknown')
+            contract_name = escape(row['contract_name'] or f"Contract #{row['id']}")
+            end_date = row['end_date'].strftime('%Y-%m-%d')
+            body.append(
+                '<tr>'
+                f'<td><span class="cm-date-pill">{end_date}</span></td>'
+                f'<td>{partner_name}</td>'
+                f'<td><a href="/web#id={row["id"]}&amp;model=contract.management&amp;view_type=form">'
+                f'{contract_name}</a></td>'
+                f'<td class="num">${row["total_paid"] or 0.0:,.2f}</td>'
+                '</tr>'
+            )
+
+        note = self._format_preview_note(len(ordered_rows))
+        return (
+            note
+            + '<div class="cm-table-wrap"><table class="o_table cm-data-table">'
+            '<thead><tr><th>End date</th><th>Customer</th><th>Contract</th><th>Paid</th></tr></thead>'
+            '<tbody>' + ''.join(body) + '</tbody></table></div>'
+        )
+
+    def _format_non_compliant_rows(self, rows):
+        """Render a bounded non-compliance preview from compact dashboard rows."""
+        if not rows:
+            return '<p class="cm-empty-state">All contracts are compliant</p>'
+
+        state_selection = dict(self.env['contract.management']._fields['state'].selection)
+        subscription_selection = dict(self.env['sale.order']._fields['subscription_state'].selection)
+        signature_selection = dict(self.env['docusign.connector']._fields['state'].selection)
+        visible_rows = sorted(
+            rows,
+            key=lambda row: ((row['partner_name'] or ''), (row['contract_name'] or '')),
+        )[:self._dashboard_detail_limit]
+        body = []
+        for row in visible_rows:
+            partner_name = escape(row['partner_name'] or 'Unknown')
+            contract_name = escape(row['contract_name'] or f"Contract #{row['id']}")
+            end_date = row['end_date'].strftime('%Y-%m-%d') if row['end_date'] else 'N/A'
+            contract_label = escape(state_selection.get(row['state'], row['state'] or 'N/A'))
+            subscription_label = escape(
+                subscription_selection.get(
+                    row['subscription_state'], row['subscription_state'] or 'N/A'
+                )
+            )
+            signature_label = escape(
+                signature_selection.get(row['docusign_status'], row['docusign_status'] or 'N/A')
+            )
+            body.append(
+                '<tr>'
+                f'<td>{partner_name}</td>'
+                f'<td><a href="/web#id={row["id"]}&amp;model=contract.management&amp;view_type=form">'
+                f'{contract_name}</a></td>'
+                f'<td>{end_date}</td>'
+                f'<td><span class="cm-state cm-state-{row["state"] or "unknown"}">{contract_label}</span></td>'
+                f'<td><span class="cm-state cm-state-warning">{subscription_label}</span></td>'
+                f'<td>{signature_label}</td>'
+                '</tr>'
+            )
+
+        return (
+            self._format_preview_note(len(rows))
+            + '<div class="cm-table-wrap"><table class="o_table cm-data-table cm-data-table-wide">'
+            '<thead><tr><th>Customer</th><th>Contract</th><th>End date</th>'
+            '<th>Contract status</th><th>Subscription status</th><th>Signature</th></tr></thead>'
+            '<tbody>' + ''.join(body) + '</tbody></table></div>'
+        )
+
+    def _format_preview_note(self, total):
+        if total <= self._dashboard_detail_limit:
+            return ''
+        return (
+            '<p class="cm-preview-note">Showing the first '
+            f'{self._dashboard_detail_limit:,} of {total:,} results. '
+            'Use the count above to open the full list.</p>'
+        )
     
     def _format_expiring_contracts(self, contracts):
         """Format contract list as an HTML table with partner, amount, and expiration date."""
@@ -688,24 +847,10 @@ class ContractDashboard(models.Model):
         return table
 
     def action_refresh_statistics(self):
-        """Refresh dashboard statistics safely even if the current record was deleted."""
-        dashboard = self[:1].exists()
-        if not dashboard:
-            dashboard = self.create({'name': 'Contract Overview'})
-
-        new_dashboard = self.create({
-            'name': dashboard.name,
-            'date_from': dashboard.date_from,
-            'date_to': dashboard.date_to,
-            'partner_id': dashboard.partner_id.id if dashboard.partner_id else False,
-            'contract_term_id': dashboard.contract_term_id.id if dashboard.contract_term_id else False,
-            'state': dashboard.state,
-        })
+        """Reload the current dashboard without creating duplicate records."""
+        self.ensure_one()
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'contract.dashboard',
-            'view_mode': 'form',
-            'res_id': new_dashboard.id,
-            'target': 'current',
+            'type': 'ir.actions.client',
+            'tag': 'reload',
         }
 

@@ -2,7 +2,7 @@
     'name': 'Cabal Contract Management',
     'author': 'Bálsamo Labs SAS',
     'maintainer': 'Bálsamo Labs SAS',
-    'version': '17.0.8.6.31',
+    'version': '17.0.8.6.33',
     'category': 'Sales Management',
     'sequence': -100,
     'summary': 'Contract Management',
@@ -85,6 +85,11 @@
         'views/portal_contract_templates.xml',
     ],
     'demo': [],
+    'assets': {
+        'web.assets_backend': [
+            'contract_management/static/src/scss/contract_dashboard.scss',
+        ],
+    },
     'application': True,
     'auto_install': False,
     'license': 'OPL-1',

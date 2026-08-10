@@ -5,91 +5,200 @@
         <field name="name">contract.dashboard.form</field>
         <field name="model">contract.dashboard</field>
         <field name="arch" type="xml">
-            <form string="Contract Dashboard" class="o_contract_dashboard_form">
+            <form string="Contract Dashboard" class="o_contract_dashboard_form" create="false" delete="false" duplicate="false">
+                <!-- Critical styles stay with the view so the dashboard remains usable
+                     when Odoo's debug asset URL is cached across a module upgrade. -->
+                <style>
+                    .o_contract_dashboard_form{--cm-ink:#17223b;--cm-muted:#68748a;--cm-line:#e4e9f1;--cm-primary:#3157d5;background:#f4f7fb}
+                    .o_contract_dashboard_form .cm-dashboard-sheet{max-width:none!important;margin:0!important;padding:0 32px 40px!important;border:0;background:transparent;box-shadow:none}
+                    .o_contract_dashboard_form .cm-dashboard-hero{display:flex;align-items:center;justify-content:space-between;gap:32px;margin:0 -32px 24px;padding:34px 36px;color:#fff;background:radial-gradient(circle at 82% 20%,rgba(108,135,255,.42),transparent 28%),linear-gradient(125deg,#152445 0%,#243a70 58%,#3157d5 100%)}
+                    .o_contract_dashboard_form .cm-dashboard-heading h1{margin:4px 0 7px;color:#fff;font-size:36px;font-weight:750}.o_contract_dashboard_form .cm-dashboard-heading p{margin:0;color:rgba(255,255,255,.72)}
+                    .o_contract_dashboard_form .cm-eyebrow{color:#aabaff;font-size:11px;font-weight:800;letter-spacing:.14em}.o_contract_dashboard_form .cm-portfolio-value{min-width:240px;padding:17px 20px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.1)}
+                    .o_contract_dashboard_form .cm-portfolio-label,.o_contract_dashboard_form .cm-portfolio-meta{display:block;color:rgba(255,255,255,.7);font-size:12px}.o_contract_dashboard_form .cm-portfolio-number{margin:2px 0;font-size:28px;font-weight:750}
+                    .o_contract_dashboard_form .cm-filter-panel,.o_contract_dashboard_form .cm-summary-card,.o_contract_dashboard_form .cm-dashboard-notebook{border:1px solid var(--cm-line);border-radius:14px;background:#fff;box-shadow:0 6px 22px rgba(23,34,59,.045)}
+                    .o_contract_dashboard_form .cm-filter-panel{margin-bottom:18px;padding:18px 20px 20px}.o_contract_dashboard_form .cm-filter-heading{display:flex;gap:8px;margin-bottom:13px;color:var(--cm-ink);font-weight:750}
+                    .o_contract_dashboard_form .cm-filter-grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:14px}.o_contract_dashboard_form .cm-filter-wide{grid-column:span 2}.o_contract_dashboard_form .cm-filter-field label{display:block;margin-bottom:5px;color:var(--cm-muted);font-size:11px;font-weight:750;text-transform:uppercase}
+                    .o_contract_dashboard_form .cm-filter-field .o_field_widget{width:100%;min-height:32px;padding:3px 8px;border:1px solid #d9dfeb;border-radius:7px;background:#fafbfe}
+                    .o_contract_dashboard_form .cm-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:14px;margin-bottom:34px}.o_contract_dashboard_form button.cm-kpi-card{display:flex;align-items:center;min-height:96px;padding:16px;border:1px solid var(--cm-line);border-radius:14px;color:var(--cm-ink);text-align:left;background:#fff;box-shadow:0 6px 22px rgba(23,34,59,.045)}
+                    .o_contract_dashboard_form .cm-kpi-icon,.o_contract_dashboard_form .cm-card-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;color:var(--cm-primary);background:#e9efff;font-size:18px}.o_contract_dashboard_form .cm-kpi-copy{display:flex;flex-direction:column;margin-left:12px}.o_contract_dashboard_form .cm-kpi-label{color:var(--cm-muted);font-size:12px;font-weight:650}.o_contract_dashboard_form .cm-kpi-number{font-size:25px;font-weight:800}.o_contract_dashboard_form .cm-kpi-arrow{margin-left:auto;color:#bcc5d4}
+                    .o_contract_dashboard_form .cm-section-heading{margin:0 0 14px}.o_contract_dashboard_form .cm-section-heading h2{margin:3px 0 0;color:var(--cm-ink);font-size:22px;font-weight:750}.o_contract_dashboard_form .cm-details-heading{margin-top:34px}.o_contract_dashboard_form .cm-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.o_contract_dashboard_form .cm-summary-card{min-width:0;padding:18px}.o_contract_dashboard_form .cm-card-heading{display:flex;align-items:center;gap:11px;margin-bottom:15px}.o_contract_dashboard_form .cm-card-heading h3,.o_contract_dashboard_form .cm-card-heading p{margin:0}
+                    .o_contract_dashboard_form .cm-summary-table{max-height:410px;overflow:auto}.o_contract_dashboard_form .cm-dashboard-notebook{overflow:hidden}.o_contract_dashboard_form .cm-dashboard-notebook .tab-content{padding:20px}.o_contract_dashboard_form .cm-tab-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:18px}.o_contract_dashboard_form .cm-tab-toolbar h3,.o_contract_dashboard_form .cm-tab-toolbar p{margin:0}
+                    .o_contract_dashboard_form .cm-table-wrap{width:100%;overflow-x:auto}.o_contract_dashboard_form .cm-data-table{width:100%;min-width:700px}.o_contract_dashboard_form .cm-empty-state{padding:32px;border:1px dashed #d7deea;border-radius:10px;color:var(--cm-muted);text-align:center;background:#fafbfe}
+                    @media(max-width:1100px){.o_contract_dashboard_form .cm-filter-grid{grid-template-columns:repeat(3,minmax(150px,1fr))}.o_contract_dashboard_form .cm-kpi-grid{grid-template-columns:repeat(3,minmax(180px,1fr))}.o_contract_dashboard_form .cm-summary-grid{grid-template-columns:1fr 1fr}.o_contract_dashboard_form .cm-summary-card:last-child{grid-column:span 2}}
+                    @media(max-width:700px){.o_contract_dashboard_form .cm-dashboard-hero{align-items:stretch;flex-direction:column}.o_contract_dashboard_form .cm-filter-grid,.o_contract_dashboard_form .cm-kpi-grid,.o_contract_dashboard_form .cm-summary-grid{grid-template-columns:1fr}.o_contract_dashboard_form .cm-filter-wide,.o_contract_dashboard_form .cm-summary-card:last-child{grid-column:auto}}
+                </style>
                 <header>
-                    <button name="action_refresh_statistics" type="object" string="Refresh" class="oe_highlight"/>
+                    <button name="action_refresh_statistics" type="object" string="Refresh dashboard" icon="fa-refresh" class="oe_highlight"/>
                 </header>
-                <sheet style="max-width: 100% !important;">
-                    <div class="oe_title">
-                        <h1>
-                            <field name="name" placeholder="Dashboard Name"/>
-                        </h1>
+                <sheet class="cm-dashboard-sheet">
+                    <div class="cm-dashboard-hero">
+                        <div class="cm-dashboard-heading">
+                            <span class="cm-eyebrow">CONTRACT OPERATIONS</span>
+                            <h1><field name="name" placeholder="Dashboard Name" nolabel="1"/></h1>
+                            <p>Portfolio health, signature progress, renewals, and compliance at a glance.</p>
+                        </div>
+                        <div class="cm-portfolio-value">
+                            <span class="cm-portfolio-label">Total paid value</span>
+                            <div class="cm-portfolio-number"><field name="total_contract_value" nolabel="1"/></div>
+                            <span class="cm-portfolio-meta">Average <field name="avg_contract_value" nolabel="1"/> per contract</span>
+                        </div>
                     </div>
-                    
-                    <group name="filters" string="Filters">
-                        <group>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                        </group>
-                        <group>
-                            <field name="partner_id"/>
-                            <field name="contract_term_id"/>
-                            <field name="state"/>
-                        </group>
-                    </group>
-                    
-                    <group name="summary_row" string="Summary" col="3" class="o_full_width">
-                        <group col="1" class="o_vertical_alignment_top">
-                            <separator string="Summary by Contract Status"/>
+
+                    <div class="cm-filter-panel">
+                        <div class="cm-filter-heading">
+                            <i class="fa fa-sliders"/>
+                            <span>Filter portfolio</span>
+                        </div>
+                        <div class="cm-filter-grid">
+                            <div class="cm-filter-field">
+                                <label for="date_from"/>
+                                <field name="date_from" nolabel="1"/>
+                            </div>
+                            <div class="cm-filter-field">
+                                <label for="date_to"/>
+                                <field name="date_to" nolabel="1"/>
+                            </div>
+                            <div class="cm-filter-field cm-filter-wide">
+                                <label for="partner_id"/>
+                                <field name="partner_id" nolabel="1" options="{'no_create': True}"/>
+                            </div>
+                            <div class="cm-filter-field">
+                                <label for="contract_term_id"/>
+                                <field name="contract_term_id" nolabel="1" options="{'no_create': True}"/>
+                            </div>
+                            <div class="cm-filter-field">
+                                <label for="state"/>
+                                <field name="state" nolabel="1"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cm-kpi-grid">
+                        <button name="action_view_all_contracts" type="object" class="cm-kpi-card cm-kpi-primary">
+                            <span class="cm-kpi-icon"><i class="fa fa-file-text-o"/></span>
+                            <span class="cm-kpi-copy">
+                                <span class="cm-kpi-label">Total contracts</span>
+                                <span class="cm-kpi-number"><field name="total_contracts" nolabel="1"/></span>
+                            </span>
+                            <i class="fa fa-arrow-right cm-kpi-arrow"/>
+                        </button>
+                        <button name="action_view_active_contracts" type="object" class="cm-kpi-card cm-kpi-success">
+                            <span class="cm-kpi-icon"><i class="fa fa-check-circle"/></span>
+                            <span class="cm-kpi-copy">
+                                <span class="cm-kpi-label">Active</span>
+                                <span class="cm-kpi-number"><field name="total_active" nolabel="1"/></span>
+                            </span>
+                            <i class="fa fa-arrow-right cm-kpi-arrow"/>
+                        </button>
+                        <button name="action_view_renewal_due_contracts" type="object" class="cm-kpi-card cm-kpi-info">
+                            <span class="cm-kpi-icon"><i class="fa fa-repeat"/></span>
+                            <span class="cm-kpi-copy">
+                                <span class="cm-kpi-label">Renewal due</span>
+                                <span class="cm-kpi-number"><field name="total_renewal_due" nolabel="1"/></span>
+                            </span>
+                            <i class="fa fa-arrow-right cm-kpi-arrow"/>
+                        </button>
+                        <button name="action_view_expiring_30_days" type="object" class="cm-kpi-card cm-kpi-warning">
+                            <span class="cm-kpi-icon"><i class="fa fa-clock-o"/></span>
+                            <span class="cm-kpi-copy">
+                                <span class="cm-kpi-label">Expiring in 30 days</span>
+                                <span class="cm-kpi-number"><field name="expiring_30_days" nolabel="1"/></span>
+                            </span>
+                            <i class="fa fa-arrow-right cm-kpi-arrow"/>
+                        </button>
+                        <button name="action_view_non_compliant" type="object" class="cm-kpi-card cm-kpi-danger">
+                            <span class="cm-kpi-icon"><i class="fa fa-exclamation-triangle"/></span>
+                            <span class="cm-kpi-copy">
+                                <span class="cm-kpi-label">Needs attention</span>
+                                <span class="cm-kpi-number"><field name="non_compliant_count" nolabel="1"/></span>
+                            </span>
+                            <i class="fa fa-arrow-right cm-kpi-arrow"/>
+                        </button>
+                    </div>
+
+                    <div class="cm-section-heading">
+                        <div>
+                            <span class="cm-eyebrow">PORTFOLIO BREAKDOWN</span>
+                            <h2>Where contracts stand</h2>
+                        </div>
+                    </div>
+
+                    <div name="summary_row" class="cm-summary-grid">
+                        <div class="cm-summary-card">
+                            <div class="cm-card-heading">
+                                <span class="cm-card-icon cm-icon-blue"><i class="fa fa-folder-open-o"/></span>
+                                <div><h3>Contract status</h3><p>Lifecycle overview</p></div>
+                            </div>
                             <field name="state_summary_html" widget="html" nolabel="1"/>
-                        </group>
-                        <group col="1" class="o_vertical_alignment_top">
-                            <separator string="Summary by Signature Status"/>
+                        </div>
+                        <div class="cm-summary-card">
+                            <div class="cm-card-heading">
+                                <span class="cm-card-icon cm-icon-purple"><i class="fa fa-pencil-square-o"/></span>
+                                <div><h3>Signature status</h3><p>Envelope progress</p></div>
+                            </div>
                             <field name="signature_summary_html" widget="html" nolabel="1"/>
-                        </group>
-                        <group col="1" class="o_vertical_alignment_top">
-                            <separator string="Summary by Progress Stage"/>
+                        </div>
+                        <div class="cm-summary-card">
+                            <div class="cm-card-heading">
+                                <span class="cm-card-icon cm-icon-green"><i class="fa fa-tasks"/></span>
+                                <div><h3>Progress stage</h3><p>Operational pipeline</p></div>
+                            </div>
                             <field name="progress_stage_summary_html" widget="html" nolabel="1"/>
-                        </group>
-                    </group>
-                    
-                    <notebook>
-                        <page string="Expiring in 30 Days" name="expiration_30">
-                            <group col="1" class="o_full_width">
-                                <button name="action_view_expiring_30_days" type="object" class="oe_stat_button" icon="fa-exclamation-triangle">
-                                    <field name="expiring_30_days" widget="statinfo" string="Total Count"/>
-                                </button>
-                                <field name="expiring_30_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 30 days"/>
-                            </group>
+                        </div>
+                    </div>
+
+                    <div class="cm-section-heading cm-details-heading">
+                        <div>
+                            <span class="cm-eyebrow">DETAILS</span>
+                            <h2>Focus lists</h2>
+                        </div>
+                    </div>
+
+                    <notebook class="cm-dashboard-notebook">
+                        <page string="Expiring · 30 days" name="expiration_30">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Immediate renewals</h3><p>Active contracts ending in the next 30 days.</p></div>
+                                <button name="action_view_expiring_30_days" type="object" class="btn btn-outline-primary" icon="fa-external-link" string="Open all"/>
+                            </div>
+                            <field name="expiring_30_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 30 days"/>
                         </page>
-                        
-                        <page string="Expiring in 60 Days" name="expiration_60">
-                            <group col="1" class="o_full_width">
-                                <button name="action_view_expiring_60_days" type="object" class="oe_stat_button" icon="fa-calendar">
-                                    <field name="expiring_60_days" widget="statinfo" string="Total Count"/>
-                                </button>
-                                <field name="expiring_60_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 60 days"/>
-                            </group>
+
+                        <page string="Expiring · 60 days" name="expiration_60">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Upcoming renewals</h3><p>Active contracts ending in the next 60 days.</p></div>
+                                <button name="action_view_expiring_60_days" type="object" class="btn btn-outline-primary" icon="fa-external-link" string="Open all"/>
+                            </div>
+                            <field name="expiring_60_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 60 days"/>
                         </page>
-                        
-                        <page string="Expiring in 90 Days" name="expiration_90">
-                            <group col="1" class="o_full_width">
-                                <button name="action_view_expiring_90_days" type="object" class="oe_stat_button" icon="fa-calendar-o">
-                                    <field name="expiring_90_days" widget="statinfo" string="Total Count"/>
-                                </button>
-                                <field name="expiring_90_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 90 days"/>
-                            </group>
+
+                        <page string="Expiring · 90 days" name="expiration_90">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Renewal pipeline</h3><p>Active contracts ending in the next 90 days.</p></div>
+                                <button name="action_view_expiring_90_days" type="object" class="btn btn-outline-primary" icon="fa-external-link" string="Open all"/>
+                            </div>
+                            <field name="expiring_90_days_list" widget="html" nolabel="1" placeholder="No contracts expiring in 90 days"/>
                         </page>
-                        
-                        <page string="Non Compliant" name="non_compliant">
-                            <group col="1" class="o_full_width">
-                                <button name="action_view_non_compliant" type="object" class="oe_stat_button" icon="fa-warning">
-                                    <field name="non_compliant_count" widget="statinfo" string="Total Count"/>
-                                </button>
-                                <field name="non_compliant_list" widget="html" nolabel="1" placeholder="No non compliant contracts"/>
-                            </group>
+
+                        <page string="Needs attention" name="non_compliant">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Contract exceptions</h3><p>Contracts whose state conflicts with their subscription.</p></div>
+                                <button name="action_view_non_compliant" type="object" class="btn btn-outline-danger" icon="fa-external-link" string="Open all"/>
+                            </div>
+                            <field name="non_compliant_list" widget="html" nolabel="1" placeholder="No non compliant contracts"/>
                         </page>
-                        
-                        <page string="Top Partners" name="partners">
-                            <group col="1" class="o_full_width">
-                                <field name="top_partners_summary" widget="html" nolabel="1"/>
-                            </group>
+
+                        <page string="Top customers" name="partners">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Largest customer portfolios</h3><p>Top ten customers by contract count.</p></div>
+                            </div>
+                            <field name="top_partners_summary" widget="html" nolabel="1"/>
                         </page>
-                        
-                        <page string="Contract Term Distribution" name="terms">
-                            <group col="1" class="o_full_width">
-                                <field name="term_distribution" widget="html" nolabel="1"/>
-                            </group>
+
+                        <page string="Contract terms" name="terms">
+                            <div class="cm-tab-toolbar">
+                                <div><h3>Term distribution</h3><p>How the portfolio is distributed by contract term.</p></div>
+                            </div>
+                            <field name="term_distribution" widget="html" nolabel="1"/>
                         </page>
                     </notebook>
                 </sheet>
