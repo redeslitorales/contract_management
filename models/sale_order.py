@@ -3493,6 +3493,11 @@ class SaleSubscription(models.Model):
         }
     def send_quote_via_whatsapp(self, records):
 
+        raise UserError(_(
+            "The legacy Freshchat quotation sender has been retired. "
+            "Send the quotation by email until a Zelty quotation workflow is configured."
+        ))
+
         auth_token = self.env['ir.config_parameter'].get_param('fc_auth_token', '')
         fc_url_base = self.env['ir.config_parameter'].get_param('fc_url_base', '')
         fc_url_send = self.env['ir.config_parameter'].get_param('fc_url_send', '')
