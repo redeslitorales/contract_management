@@ -2,7 +2,7 @@
     'name': 'Cabal Contract Management',
     'author': 'Bálsamo Labs SAS',
     'maintainer': 'Bálsamo Labs SAS',
-    'version': '17.0.8.6.33',
+    'version': '17.0.8.6.35',
     'category': 'Sales Management',
     'sequence': -100,
     'summary': 'Contract Management',
