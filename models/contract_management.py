@@ -192,6 +192,14 @@ class ContractManagement(models.Model):
             # the full business rules (upsell flow, install/config states, etc.).
             contract.progress_stage = subscription.progress_stage or 'draft'
 
+    @api.depends(
+        'subscription_id.invoice_ids.state',
+        'subscription_id.invoice_ids.move_type',
+        'subscription_id.invoice_ids.payment_state',
+        'subscription_id.invoice_ids.amount_total',
+        'subscription_id.invoice_ids.invoice_line_ids.price_total',
+        'subscription_id.invoice_ids.invoice_line_ids.sale_line_ids.product_id.recurring_invoice',
+    )
     def _compute_total_paid(self):
         for contract in self:
             total = 0.0
@@ -214,6 +222,7 @@ class ContractManagement(models.Model):
                         total += inv.amount_total
             contract.total_paid = total
 
+    @api.depends('contract_value', 'total_paid', 'early_termination_fee')
     def _compute_early_termination_cost(self):
         """Calculate early termination cost: contract_value - total_paid + early_termination_fee"""
         for contract in self:
@@ -1144,4 +1153,3 @@ class ContractClause(models.Model):
             ('contract_template_ids', 'in', contract_template_id),
             ('active', '=', True)
         ])
-    

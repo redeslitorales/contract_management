@@ -179,6 +179,26 @@ class TestContractLitigation(TransactionCase):
         self.assertNotIn("nominal", sms_text.lower())
         self.assertLessEqual(len(sms_text), 160)
 
+    def test_stored_applicable_contract_and_adjusted_amount_recompute(self):
+        contract = self.env["contract.management"].create({
+            "subscription_id": self.subscription.id,
+            "state": "active",
+            "contract_value": 500.0,
+            "early_termination_fee": 25.0,
+            "contract_file": base64.b64encode(b"%PDF-1.4 signed contract"),
+            "contract_filename": "signed_contract.pdf",
+        })
+
+        field = self.case._fields["applicable_contract_id"]
+        self.assertTrue(field.store)
+        self.assertTrue(field.index)
+        self.assertEqual(self.case.applicable_contract_id, contract)
+        self.assertEqual(self.case.pagare_adjusted_amount, 525.0)
+
+        contract.contract_value = 650.0
+
+        self.assertEqual(self.case.pagare_adjusted_amount, 675.0)
+
     def test_no_contract_notice_demands_payment_only(self):
         self._add_claim_line()
         self._complete_checklist()

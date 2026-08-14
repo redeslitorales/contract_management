@@ -248,10 +248,15 @@ class ContractLitigationCase(models.Model):
 
     legal_hold = fields.Boolean(related="subscription_id.litigation_hold", readonly=True)
     legal_hold_reason = fields.Text(related="subscription_id.litigation_hold_reason", readonly=True)
-    has_contract = fields.Boolean(compute="_compute_contract_evidence")
-    has_contract_evidence = fields.Boolean(compute="_compute_contract_evidence")
+    has_contract = fields.Boolean(compute="_compute_contract_evidence", store=True)
+    has_contract_evidence = fields.Boolean(compute="_compute_contract_evidence", store=True)
     applicable_contract_id = fields.Many2one(
-        "contract.management", compute="_compute_contract_evidence", string="Applicable Contract"
+        "contract.management",
+        compute="_compute_contract_evidence",
+        string="Applicable Contract",
+        store=True,
+        index=True,
+        readonly=True,
     )
     pagare_face_value = fields.Monetary(
         compute="_compute_pagare_face_value_compat",
@@ -476,8 +481,12 @@ class ContractLitigationCase(models.Model):
         "applicable_contract_id",
         "applicable_contract_id.contract_value",
         "applicable_contract_id.early_termination_fee",
+        "applicable_contract_id.subscription_id.invoice_ids.state",
+        "applicable_contract_id.subscription_id.invoice_ids.move_type",
         "applicable_contract_id.subscription_id.invoice_ids.payment_state",
         "applicable_contract_id.subscription_id.invoice_ids.amount_total",
+        "applicable_contract_id.subscription_id.invoice_ids.invoice_line_ids.price_total",
+        "applicable_contract_id.subscription_id.invoice_ids.invoice_line_ids.sale_line_ids.product_id.recurring_invoice",
     )
     def _compute_pagare_adjusted_amount(self):
         for case in self:
@@ -499,11 +508,7 @@ class ContractLitigationCase(models.Model):
         "post_suspension_reviewed",
         "disputes_cleared",
         "address_verified",
-        "subscription_id.contract_ids",
-        "subscription_id.contract_ids.state",
-        "subscription_id.contract_ids.contract_file",
-        "subscription_id.contract_ids.docusign_status",
-        "subscription_id.contract_ids.docusign_id.connector_line_ids.signed_attachment_ids",
+        "has_contract_evidence",
         "pagare_verified",
         "has_post_suspension_items",
         "subscription_id.invoice_ids.state",
