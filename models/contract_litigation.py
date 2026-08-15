@@ -14,6 +14,7 @@ from PyPDF2 import PdfFileReader, PdfFileWriter
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_compare
+from odoo.tools.misc import format_amount, format_date
 
 
 LITIGATION_CASE_STATES = [
@@ -294,7 +295,10 @@ class ContractLitigationCase(models.Model):
         compute="_compute_readiness",
         store=True,
     )
-    readiness_notes = fields.Text(compute="_compute_readiness", store=True)
+    # Readiness explanations contain translated sentences.  They must be
+    # computed in the requesting user's language instead of being persisted in
+    # whichever language happened to run the last stored recomputation.
+    readiness_notes = fields.Text(compute="_compute_readiness")
 
     identity_verified = fields.Boolean(tracking=True)
     contract_reviewed = fields.Boolean(tracking=True)
@@ -686,6 +690,9 @@ class ContractLitigationCase(models.Model):
         for case in self:
             case._check_collection_contact_window()
             deadline = case._litigation_response_deadline()
+            customer_case = case.with_context(
+                lang=case._litigation_customer_language()
+            )
             if not case.contact_email:
                 raise UserError(_("A verified customer email is required before sending the notice."))
             if "whatsapp.comm" not in self.env:
@@ -711,7 +718,9 @@ class ContractLitigationCase(models.Model):
             if not sms_number:
                 raise UserError(_("Add a billing SMS or mobile number to the customer before sending the initial notice."))
 
-            attachment, media_url, case_missing_dtes = case._litigation_notice_delivery_document()
+            attachment, media_url, case_missing_dtes = (
+                customer_case._litigation_notice_delivery_document()
+            )
             missing_dte_invoices.extend(case_missing_dtes)
 
             # Queue the email with the same consolidated PDF used by WhatsApp.
@@ -727,7 +736,7 @@ class ContractLitigationCase(models.Model):
                 attachment_ids=[attachment.id],
             )
 
-            whatsapp_components = case._litigation_whatsapp_components(
+            whatsapp_components = customer_case._litigation_whatsapp_components(
                 media_url, attachment.name, deadline=deadline
             )
             whatsapp_helper._send_cloud_template(
@@ -744,7 +753,7 @@ class ContractLitigationCase(models.Model):
 
             sms = sms_helper.send_mandatory_event(
                 case.partner_id,
-                case._litigation_initial_sms_text(deadline),
+                customer_case._litigation_initial_sms_text(deadline),
                 "litigation_initial_notice",
                 related={"sale_order": case.subscription_id.id},
                 category="billing",
@@ -889,34 +898,93 @@ class ContractLitigationCase(models.Model):
         )
         return self.contact_whatsapp or partner_whatsapp or self.partner_id.mobile or self.partner_id.phone
 
+    def _litigation_customer_language(self):
+        """Return the customer's language for externally visible communications."""
+        self.ensure_one()
+        return self.partner_id.lang or self.env.lang or LITIGATION_LANGUAGE
+
+    def _litigation_customer_name(self):
+        self.ensure_one()
+        return self.partner_id.name or _("customer")
+
+    def _litigation_selection_label(self, record, field_name):
+        """Return a translated selection label for QWeb and generated documents."""
+        self.ensure_one()
+        field = record._fields[field_name]
+        selection = dict(field._description_selection(record.env))
+        return selection.get(record[field_name], record[field_name] or "")
+
+    def _litigation_yes_no(self, value):
+        self.ensure_one()
+        return _("Yes") if value else _("No")
+
+    def _litigation_enforcement_basis(self):
+        self.ensure_one()
+        if self.has_contract_evidence:
+            return _("Pagaré sin protesto contained in the signed contract")
+        if self.has_contract:
+            return _("Account evidence; contract record exists without available contract evidence")
+        return _("Account evidence (no contract record)")
+
+    def _litigation_initial_notice_title(self):
+        self.ensure_one()
+        if self.has_contract_evidence and self.pagare_verified:
+            return _("Formal demand: account remediation or termination")
+        return _("Formal demand for payment")
+
+    def _litigation_initial_notice_subject(self):
+        self.ensure_one()
+        account = self.subscription_id.cabal_sequence or self.subscription_id.name
+        if self.has_contract_evidence and self.pagare_verified:
+            return _("Formal demand: account remediation or termination — Contract %(account)s") % {
+                "account": account,
+            }
+        return _("Formal demand for payment — Account %(account)s") % {
+            "account": account,
+        }
+
+    def _litigation_final_demand_subject(self):
+        self.ensure_one()
+        account = self.subscription_id.cabal_sequence or self.subscription_id.name
+        return _("Final demand for payment — Contract %(account)s") % {
+            "account": account,
+        }
+
+    def _litigation_package_report_filename(self):
+        self.ensure_one()
+        return _("Litigation Package - %s") % self.name
+
+    def _litigation_initial_notice_report_filename(self):
+        self.ensure_one()
+        return _("Formal demand - %s") % self.name
+
     def _format_litigation_amount(self, amount):
         self.ensure_one()
-        return "%s%.2f" % (self.currency_id.symbol or self.currency_id.name or "", amount)
+        return (
+            format_amount(self.env, amount, self.currency_id)
+            .replace("\u00a0", " ")
+            .replace("\u202f", " ")
+        )
 
     def _format_litigation_date(self, value):
         self.ensure_one()
-        return fields.Date.to_date(value).strftime("%d/%m/%Y") if value else ""
+        return format_date(self.env, fields.Date.to_date(value)) if value else ""
 
     def _format_litigation_long_date(self, value):
         self.ensure_one()
         if not value:
             return ""
-        date_value = fields.Date.to_date(value)
-        months = (
-            "enero", "febrero", "marzo", "abril", "mayo", "junio",
-            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-        )
-        return "%s de %s de %s" % (
-            date_value.day,
-            months[date_value.month - 1],
-            date_value.year,
+        return format_date(
+            self.env,
+            fields.Date.to_date(value),
+            date_format="long",
         )
 
     def _litigation_initial_sms_text(self, deadline=None):
         self.ensure_one()
         deadline = deadline or self._litigation_response_deadline()
         account = (self.subscription_id.cabal_sequence or self.subscription_id.name or self.name)[:17]
-        return (
+        return _(
             "CABAL: Requerimiento formal %(account)s. Saldo %(balance)s. "
             "Pague o responda antes del %(deadline)s. Sin respuesta: cobros y/o "
             "tribunales. Revise email/WhatsApp."
@@ -954,7 +1022,7 @@ class ContractLitigationCase(models.Model):
         self.ensure_one()
         report = self.env.ref("contract_management.action_report_litigation_initial_notice")
         notice_pdf, _report_type = report.with_context(
-            lang=LITIGATION_LANGUAGE
+            lang=self._litigation_customer_language()
         )._render_qweb_pdf(report.report_name, res_ids=self.ids)
         pdf_parts = [(_("Formal initial notice"), notice_pdf)]
         dte_parts, missing_dte_invoices = self._litigation_overdue_dte_pdf_parts(
@@ -963,7 +1031,7 @@ class ContractLitigationCase(models.Model):
         pdf_parts.extend(dte_parts)
         pdf_parts.extend(self._litigation_contract_pdf_parts())
         pdf_content = self._merge_litigation_pdf_parts(pdf_parts)
-        filename = "Requerimiento formal - %s.pdf" % self._package_filename(self.name)
+        filename = _("Formal demand - %s.pdf") % self._package_filename(self.name)
         attachment = self.env["ir.attachment"].sudo().create({
             "name": filename,
             "type": "binary",
@@ -1094,7 +1162,7 @@ class ContractLitigationCase(models.Model):
             try:
                 reader = PdfFileReader(io.BytesIO(pdf_content), strict=False)
                 if reader.isEncrypted and reader.decrypt("") == 0:
-                    raise ValueError("encrypted PDF")
+                    raise ValueError(_("encrypted PDF"))
                 for page_number in range(reader.getNumPages()):
                     writer.addPage(reader.getPage(page_number))
             except Exception as exc:
@@ -1297,13 +1365,15 @@ class ContractLitigationCase(models.Model):
                 _("Verify the customer-signed pagaré in the contract before generating the litigation package.")
             )
 
-    @staticmethod
-    def _package_filename(value, fallback="document"):
+    def _package_filename(self, value, fallback=None):
+        self.ensure_one()
+        fallback = fallback or _("document")
         filename = re.sub(r"[^A-Za-z0-9._-]+", "_", value or fallback).strip("._")
         return filename or fallback
 
-    def _package_add_attachment(self, archive, attachment, folder="Supporting"):
+    def _package_add_attachment(self, archive, attachment, folder=None):
         self.ensure_one()
+        folder = folder or _("Supporting")
         if not attachment.datas:
             return
         filename = self._package_filename(attachment.name, "attachment_%s" % attachment.id)
@@ -1323,20 +1393,33 @@ class ContractLitigationCase(models.Model):
                 report_ref="contract_management.action_report_litigation_package",
                 res_ids=self.ids,
             )[0]
-            archive.writestr("00_Case_Summary_%s.pdf" % self._package_filename(self.name), cover_pdf)
+            archive.writestr(
+                _("00_Case_Summary_%s.pdf") % self._package_filename(self.name),
+                cover_pdf,
+            )
 
             dte_parts, _missing_dte_invoices = self._litigation_overdue_dte_pdf_parts(
                 return_missing=True
             )
             for index, (label, invoice_pdf) in enumerate(dte_parts, start=1):
                 invoice_name = self._package_filename(label, "official_dte_%s" % index)
-                archive.writestr("Invoices/%02d_%s.pdf" % (index, invoice_name), invoice_pdf)
+                archive.writestr(
+                    _("Invoices/%(index)02d_%(invoice)s.pdf") % {
+                        "index": index,
+                        "invoice": invoice_name,
+                    },
+                    invoice_pdf,
+                )
 
             seen_attachment_ids = set()
             for contract in self.subscription_id.contract_ids:
                 for attachment in contract.signed_document_ids:
                     if attachment.id not in seen_attachment_ids:
-                        self._package_add_attachment(archive, attachment, folder="Contracts_and_Pagare")
+                        self._package_add_attachment(
+                            archive,
+                            attachment,
+                            folder=_("Contracts_and_Pagare"),
+                        )
                         seen_attachment_ids.add(attachment.id)
                 if contract.contract_file:
                     filename = self._package_filename(
@@ -1344,7 +1427,10 @@ class ContractLitigationCase(models.Model):
                         "contract_%s.pdf" % contract.id,
                     )
                     archive.writestr(
-                        "Contracts_and_Pagare/%s_%s" % (contract.id, filename),
+                        _("Contracts_and_Pagare/%(contract)s_%(filename)s") % {
+                            "contract": contract.id,
+                            "filename": filename,
+                        },
                         base64.b64decode(contract.contract_file),
                     )
                 for addendum in contract.addendum_ids.filtered(
@@ -1355,7 +1441,7 @@ class ContractLitigationCase(models.Model):
                             self._package_add_attachment(
                                 archive,
                                 attachment,
-                                folder="Contracts_and_Pagare/Signed_Addenda",
+                                folder=_("Contracts_and_Pagare/Signed_Addenda"),
                             )
                             seen_attachment_ids.add(attachment.id)
 
@@ -1367,7 +1453,7 @@ class ContractLitigationCase(models.Model):
             for attachment in supporting:
                 self._package_add_attachment(archive, attachment)
 
-        package_name = "Litigation_Package_%s.zip" % self._package_filename(self.name)
+        package_name = _("Litigation_Package_%s.zip") % self._package_filename(self.name)
         attachment_values = {
             "name": package_name,
             "type": "binary",
@@ -1444,7 +1530,7 @@ class ContractLitigationCase(models.Model):
 
     @api.model
     def _litigation_whatsapp_template_bodies(self):
-        contract_body = (
+        contract_body = _(
             "*REQUERIMIENTO FORMAL*\n\n"
             "{{1}}, la cuenta {{2}} mantiene un saldo vencido de {{3}}. "
             "A más tardar el {{4}} debe elegir y formalizar una de estas opciones:\n\n"
@@ -1456,7 +1542,7 @@ class ContractLitigationCase(models.Model):
             "el expediente será remitido, sin nuevo aviso, a una agencia de cobros y/o a los tribunales "
             "competentes para el cobro y la ejecución que corresponda. Consulte el requerimiento adjunto."
         )
-        balance_body = (
+        balance_body = _(
             "*REQUERIMIENTO FORMAL DE PAGO*\n\n"
             "{{1}}, la cuenta {{2}} mantiene un saldo vencido de {{3}}. "
             "Le requerimos pagarlo íntegramente a más tardar el {{4}} o presentar una objeción documentada.\n\n"
@@ -1467,11 +1553,11 @@ class ContractLitigationCase(models.Model):
         return {
             LITIGATION_WHATSAPP_CONTRACT_TEMPLATE: (
                 contract_body,
-                ["Cliente Ejemplo", "SUB-0001", "$125.00", "17/08/2026"],
+                [_('Sample Customer'), "SUB-0001", "$125.00", "17/08/2026"],
             ),
             LITIGATION_WHATSAPP_BALANCE_TEMPLATE: (
                 balance_body,
-                ["Cliente Ejemplo", "SUB-0001", "$125.00", "17/08/2026"],
+                [_('Sample Customer'), "SUB-0001", "$125.00", "17/08/2026"],
             ),
         }
 
@@ -1482,12 +1568,20 @@ class ContractLitigationCase(models.Model):
 
         buffer = io.BytesIO()
         document = canvas.Canvas(buffer, pagesize=letter)
-        document.setTitle("Requerimiento formal - ejemplo")
+        document.setTitle(_("Formal demand - sample"))
         document.setFont("Helvetica-Bold", 15)
-        document.drawString(72, 720, "REQUERIMIENTO FORMAL - DOCUMENTO DE EJEMPLO")
+        document.drawString(72, 720, _("FORMAL DEMAND - SAMPLE DOCUMENT"))
         document.setFont("Helvetica", 10)
-        document.drawString(72, 690, "Este documento de ejemplo se utiliza exclusivamente para registrar la plantilla.")
-        document.drawString(72, 672, "El aviso enviado al cliente incluirá su liquidación y requerimiento correspondientes.")
+        document.drawString(
+            72,
+            690,
+            _("This sample document is used only to register the template."),
+        )
+        document.drawString(
+            72,
+            672,
+            _("The customer notice will include the applicable statement and demand."),
+        )
         document.save()
         return buffer.getvalue()
 

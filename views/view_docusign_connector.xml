@@ -8,7 +8,7 @@
 			<field name="arch" type="xml">
             <!--  Docusign poilicies do not allow checking status after a document as reached the completed state  -->
                 <xpath expr="//button[@name='status_docs']" position="attributes">
-                    <attribute name="invisible">state == "completed"</attribute>
+                    <attribute name="invisible">state in ("completed", "voided")</attribute>
                 </xpath>
                 <xpath expr="//button[@name='download_docs']" position="attributes">
                     <attribute name="invisible">state != "completed"</attribute>

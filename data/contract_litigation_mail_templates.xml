@@ -3,16 +3,16 @@
     <record id="mail_template_litigation_initial_notice" model="mail.template">
         <field name="name">Litigation: Initial Account Review Notice</field>
         <field name="model_id" ref="model_contract_litigation_case"/>
-        <field name="subject">{{ 'Requerimiento formal: regularización o terminación — Contrato' if object.has_contract_evidence and object.pagare_verified else 'Requerimiento formal de pago — Cuenta' }} {{ object.subscription_id.cabal_sequence or object.subscription_id.name }}</field>
+        <field name="subject">{{ object._litigation_initial_notice_subject() }}</field>
         <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
         <field name="email_to">{{ object.contact_email }}</field>
         <field name="reply_to">legal@cabal.sv</field>
-        <field name="lang">es_419</field>
+        <field name="lang">{{ object._litigation_customer_language() }}</field>
         <field name="auto_delete" eval="False"/>
         <field name="body_html" type="html">
             <div style="font-family: Arial, sans-serif; color: #263238; font-size: 14px; line-height: 1.6;">
                 <t t-if="object.has_contract_evidence and object.pagare_verified">
-                    <p>Estimado/a <strong><t t-out="object.partner_id.name or 'cliente'"/></strong>:</p>
+                    <p>Estimado/a <strong><t t-out="object._litigation_customer_name()"/></strong>:</p>
                     <p>
                         Por medio de la presente, <strong><t t-out="object.company_id.name"/></strong> le requiere formalmente
                         regularizar la situación del servicio correspondiente al contrato
@@ -74,7 +74,7 @@
                     <p>Atentamente,<br/><strong><t t-out="object.company_id.name"/></strong></p>
                 </t>
                 <t t-else="">
-                <p>Estimado/a <strong><t t-out="object.partner_id.name or 'cliente'"/></strong>:</p>
+                <p>Estimado/a <strong><t t-out="object._litigation_customer_name()"/></strong>:</p>
                 <p>
                     Por medio de la presente, <strong><t t-out="object.company_id.name"/></strong> le requiere formalmente cancelar
                     el saldo vencido del servicio correspondiente a la cuenta
@@ -111,18 +111,18 @@
     <record id="mail_template_litigation_final_demand" model="mail.template">
         <field name="name">Litigation: Final Pre-Litigation Demand</field>
         <field name="model_id" ref="model_contract_litigation_case"/>
-        <field name="subject">Requerimiento final de pago — Contrato {{ object.subscription_id.cabal_sequence or object.subscription_id.name }}</field>
+        <field name="subject">{{ object._litigation_final_demand_subject() }}</field>
         <field name="email_from">Cabal &lt;DoNotReply@cabal.sv&gt;</field>
         <field name="email_to">{{ object.contact_email }}</field>
         <field name="reply_to">legal@cabal.sv</field>
-        <field name="lang">es_419</field>
+        <field name="lang">{{ object._litigation_customer_language() }}</field>
         <field name="auto_delete" eval="False"/>
         <field name="body_html" type="html">
             <div style="font-family: Arial, sans-serif; color: #263238; font-size: 14px; line-height: 1.6;">
-                <p>Estimado/a <t t-out="object.partner_id.name or 'cliente'"/>:</p>
+                <p>Estimado/a <t t-out="object._litigation_customer_name()"/>:</p>
                 <p>
                     A la fecha continúa pendiente la cantidad de
-                    <strong><t t-out="object.currency_id.symbol"/> <t t-out="'%.2f' % object.claim_balance"/></strong>
+                    <strong><t t-out="object._format_litigation_amount(object.claim_balance)"/></strong>
                     correspondiente al contrato
                     <strong><t t-out="object.subscription_id.cabal_sequence or object.subscription_id.name"/></strong>.
                 </p>
@@ -131,12 +131,12 @@
                     <tbody>
                         <tr t-foreach="object.invoice_line_ids.filtered('include_in_claim')" t-as="line">
                             <td style="border: 1px solid #d9e1e5; padding: 6px;"><t t-out="line.move_id.name"/></td>
-                            <td style="border: 1px solid #d9e1e5; padding: 6px;"><t t-out="line.invoice_date"/></td>
-                            <td style="border: 1px solid #d9e1e5; padding: 6px; text-align: right;"><t t-out="object.currency_id.symbol"/> <t t-out="'%.2f' % line.residual_amount"/></td>
+                            <td style="border: 1px solid #d9e1e5; padding: 6px;"><t t-out="object._format_litigation_date(line.invoice_date)"/></td>
+                            <td style="border: 1px solid #d9e1e5; padding: 6px; text-align: right;"><t t-out="object._format_litigation_amount(line.residual_amount)"/></td>
                         </tr>
                     </tbody>
                 </table>
-                <p>Le requerimos cancelar el saldo o presentar por escrito cualquier objeción documentada a más tardar el <strong><t t-out="ctx.get('response_deadline')"/></strong>.</p>
+                <p>Le requerimos cancelar el saldo o presentar por escrito cualquier objeción documentada a más tardar el <strong><t t-out="object._format_litigation_long_date(ctx.get('response_deadline'))"/></strong>.</p>
                 <p>Si no recibimos el pago, una propuesta aceptada o una objeción dentro del plazo indicado, la cuenta podrá remitirse a asesoría jurídica para evaluar las acciones de cobro permitidas por el contrato y la legislación aplicable. Esta comunicación no afirma que una demanda ya haya sido presentada.</p>
                 <p>Atentamente,<br/><strong><t t-out="object.company_id.name"/></strong></p>
             </div>

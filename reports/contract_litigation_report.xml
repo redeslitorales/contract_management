@@ -16,7 +16,7 @@
         <field name="report_name">contract_management.report_contract_litigation_package</field>
         <field name="report_file">contract_management.report_contract_litigation_package</field>
         <field name="paperformat_id" ref="contract_litigation_paperformat"/>
-        <field name="print_report_name">'Litigation Package - %s' % object.name</field>
+        <field name="print_report_name">object._litigation_package_report_filename()</field>
     </record>
 
     <template id="report_contract_litigation_package">
@@ -59,7 +59,7 @@
                         <tr>
                             <td><span class="lit-label">Suspended</span><span class="lit-value" t-field="doc.suspended_on"/></td>
                             <td><span class="lit-label">Days Suspended</span><span class="lit-value" t-out="doc.days_suspended"/></td>
-                            <td><span class="lit-label">Case Stage</span><span class="lit-value" t-out="dict(doc._fields['state'].selection).get(doc.state)"/></td>
+                            <td><span class="lit-label">Case Stage</span><span class="lit-value" t-out="doc._litigation_selection_label(doc, 'state')"/></td>
                         </tr>
                         <tr>
                             <td><span class="lit-label">Open Balance</span><span class="lit-value" t-field="doc.gross_open_balance" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
@@ -68,14 +68,18 @@
                         </tr>
                     </table>
 
-                    <div t-if="doc.legal_hold" class="lit-warning"><strong>LEGAL HOLD:</strong> <span t-out="doc.legal_hold_reason or 'No reason recorded.'"/></div>
+                    <div t-if="doc.legal_hold" class="lit-warning">
+                        <strong>LEGAL HOLD:</strong>
+                        <span t-if="doc.legal_hold_reason" t-out="doc.legal_hold_reason"/>
+                        <span t-else="">No reason recorded.</span>
+                    </div>
                     <div t-if="doc.has_post_suspension_items" class="lit-warning">The ledger contains post-suspension items. Only rows affirmatively marked “Included” form part of the proposed claim.</div>
 
                     <h2 class="lit-section">Enforcement Instrument</h2>
                     <table class="lit-table">
                         <tr>
                             <td><strong>Basis</strong></td>
-                            <td t-out="'Pagaré sin protesto contained in the signed contract' if doc.has_contract_evidence else ('Account evidence; contract record exists without available contract evidence' if doc.has_contract else 'Account evidence (no contract record)')"/>
+                            <td t-out="doc._litigation_enforcement_basis()"/>
                         </tr>
                         <tr t-if="doc.has_contract">
                             <td><strong>Applicable contract</strong></td>
@@ -83,16 +87,16 @@
                         </tr>
                         <tr t-if="doc.has_contract_evidence">
                             <td><strong>Customer-signed pagaré verified</strong></td>
-                            <td t-out="'YES' if doc.pagare_verified else 'NO'"/>
+                            <td t-out="doc._litigation_yes_no(doc.pagare_verified)"/>
                         </tr>
                     </table>
 
                     <h2 class="lit-section">Evidence and Approval Checklist</h2>
                     <table class="lit-table">
-                        <tr><td>Customer identity verified</td><td t-out="'YES' if doc.identity_verified else 'NO'"/><td>Contract reviewed</td><td t-out="'YES' if doc.contract_reviewed else 'NO'"/></tr>
-                        <tr><td>Service delivery verified</td><td t-out="'YES' if doc.service_delivery_verified else 'NO'"/><td>Balance reviewed</td><td t-out="'YES' if doc.balance_reviewed else 'NO'"/></tr>
-                        <tr><td>Disputes cleared</td><td t-out="'YES' if doc.disputes_cleared else 'NO'"/><td>Notice address verified</td><td t-out="'YES' if doc.address_verified else 'NO'"/></tr>
-                        <tr><td>Post-suspension reviewed</td><td t-out="'YES' if doc.post_suspension_reviewed or not doc.has_post_suspension_items else 'NO'"/><td>Manager approved</td><td t-out="'YES' if doc.manager_approved else 'NO'"/></tr>
+                        <tr><td>Customer identity verified</td><td t-out="doc._litigation_yes_no(doc.identity_verified)"/><td>Contract reviewed</td><td t-out="doc._litigation_yes_no(doc.contract_reviewed)"/></tr>
+                        <tr><td>Service delivery verified</td><td t-out="doc._litigation_yes_no(doc.service_delivery_verified)"/><td>Balance reviewed</td><td t-out="doc._litigation_yes_no(doc.balance_reviewed)"/></tr>
+                        <tr><td>Disputes cleared</td><td t-out="doc._litigation_yes_no(doc.disputes_cleared)"/><td>Notice address verified</td><td t-out="doc._litigation_yes_no(doc.address_verified)"/></tr>
+                        <tr><td>Post-suspension reviewed</td><td t-out="doc._litigation_yes_no(doc.post_suspension_reviewed or not doc.has_post_suspension_items)"/><td>Manager approved</td><td t-out="doc._litigation_yes_no(doc.manager_approved)"/></tr>
                     </table>
                     <p><strong>Readiness:</strong> <span t-out="doc.readiness_notes"/></p>
 
@@ -104,7 +108,7 @@
                                 <td t-out="line.move_id.name"/><td><span t-field="line.invoice_date"/></td><td><span t-if="line.due_date" t-field="line.due_date"/></td>
                                 <td class="lit-number"><span t-field="line.total_amount" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
                                 <td class="lit-number"><span t-field="line.residual_amount" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></td>
-                                <td t-out="'YES' if line.post_suspension else 'NO'"/><td t-out="'YES' if line.include_in_claim else 'NO'"/><td t-out="line.review_note or ''"/>
+                                <td t-out="doc._litigation_yes_no(line.post_suspension)"/><td t-out="doc._litigation_yes_no(line.include_in_claim)"/><td t-out="line.review_note or ''"/>
                             </tr>
                         </tbody>
                     </table>
@@ -114,9 +118,9 @@
                         <thead><tr><th>Date</th><th>Type</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Notes</th></tr></thead>
                         <tbody>
                             <tr t-foreach="doc.communication_ids" t-as="communication">
-                                <td><span t-field="communication.sent_on"/></td><td t-out="dict(communication._fields['communication_type'].selection).get(communication.communication_type)"/>
-                                <td t-out="dict(communication._fields['channel'].selection).get(communication.channel)"/><td t-out="communication.recipient"/>
-                                <td t-out="dict(communication._fields['status'].selection).get(communication.status)"/><td t-out="communication.notes or ''"/>
+                                <td><span t-field="communication.sent_on"/></td><td t-out="doc._litigation_selection_label(communication, 'communication_type')"/>
+                                <td t-out="doc._litigation_selection_label(communication, 'channel')"/><td t-out="communication.recipient"/>
+                                <td t-out="doc._litigation_selection_label(communication, 'status')"/><td t-out="communication.notes or ''"/>
                             </tr>
                             <tr t-if="not doc.communication_ids"><td colspan="6">No communications recorded.</td></tr>
                         </tbody>
@@ -145,7 +149,7 @@
         <field name="report_name">contract_management.report_contract_litigation_initial_notice</field>
         <field name="report_file">contract_management.report_contract_litigation_initial_notice</field>
         <field name="paperformat_id" ref="contract_litigation_paperformat"/>
-        <field name="print_report_name">'Requerimiento formal - %s' % object.name</field>
+        <field name="print_report_name">object._litigation_initial_notice_report_filename()</field>
     </record>
 
     <template id="report_contract_litigation_initial_notice">
@@ -173,7 +177,7 @@
                         <tr>
                             <td style="width: 68%;">
                                 <div class="notice-subtitle" t-out="doc.company_id.name"/>
-                                <h1 class="notice-title" t-out="'Requerimiento formal: regularización o terminación' if doc.has_contract_evidence and doc.pagare_verified else 'Requerimiento formal de pago'"/>
+                                <h1 class="notice-title" t-out="doc._litigation_initial_notice_title()"/>
                             </td>
                             <td style="text-align: right; width: 32%;">
                                 <strong t-out="doc.name"/><br/>
@@ -187,7 +191,7 @@
                         <tr><td><strong>Servicio suspendido desde</strong><br/><span t-out="doc._format_litigation_long_date(doc.suspended_on)"/></td><td><strong>Fecha límite de respuesta</strong><br/><span t-out="doc._format_litigation_long_date(deadline)"/></td></tr>
                     </table>
 
-                    <p>Estimado/a <strong t-out="doc.partner_id.name or 'cliente'"/>:</p>
+                    <p>Estimado/a <strong t-out="doc._litigation_customer_name()"/>:</p>
                     <p>
                         Por medio de la presente, <strong t-out="doc.company_id.name"/> le requiere formalmente
                         <t t-if="doc.has_contract_evidence and doc.pagare_verified">regularizar la situación del servicio correspondiente al contrato</t>

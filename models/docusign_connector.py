@@ -21,7 +21,6 @@ platform_type = {
 class OverrideDocumentStatus(models.Model):
     _inherit = 'docusign.connector'
 
-    state = fields.Selection([('new', 'New'), ('open', 'Open'),('sent', 'Sent'), ('customer', 'Customer Signed'), ('completed', 'Completed')], default='new')
     monthly_payment = fields.Float(string='Monthly Payment', help='Total of recurring line items with taxes')
     contract_value = fields.Float(string='Contract Value', help='Monthly payment * contract length')
     contract_management_id = fields.Many2one(
@@ -38,6 +37,23 @@ class OverrideDocumentStatus(models.Model):
         ondelete='set null',
         readonly=True,
     )
+
+    def _docusign_api_user(self):
+        """Use the configured service account for server-side API actions."""
+        self.ensure_one()
+        service_user_id = self.env['ir.config_parameter'].sudo().get_param(
+            'contract_management.docusign_service_user_id'
+        )
+        if service_user_id and str(service_user_id).isdigit():
+            service_user = self.env['res.users'].sudo().browse(
+                int(service_user_id)
+            ).exists()
+            if service_user:
+                return service_user
+        legacy_service_user = self.env['res.users'].sudo().browse(196).exists()
+        if legacy_service_user:
+            return legacy_service_user
+        return super()._docusign_api_user()
 
     def write(self, vals):
         """Finish the commercial workflow when DocuSign completes an envelope.

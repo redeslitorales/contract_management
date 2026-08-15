@@ -82,6 +82,37 @@ class TestContractLitigation(TransactionCase):
         case.contact_whatsapp = False
         self.assertEqual(case._litigation_whatsapp_number(), "+50370000000")
 
+    def test_runtime_labels_and_formats_use_the_customer_language(self):
+        self.partner.lang = "es_419"
+        localized_case = self.case.with_context(
+            lang=self.case._litigation_customer_language()
+        )
+
+        self.assertEqual(localized_case._litigation_customer_language(), "es_419")
+        self.assertEqual(
+            localized_case._litigation_selection_label(localized_case, "state"),
+            dict(
+                localized_case._fields["state"]._description_selection(
+                    localized_case.env
+                )
+            )[localized_case.state],
+        )
+        self.assertEqual(
+            localized_case._litigation_selection_label(localized_case, "state"),
+            "Revisión",
+        )
+        self.assertFalse(localized_case._fields["readiness_notes"].store)
+        self.assertIn(
+            "la identidad del cliente no está verificada",
+            localized_case.readiness_notes,
+        )
+        self.assertTrue(localized_case._format_litigation_amount(125.0))
+        self.assertTrue(
+            localized_case._format_litigation_long_date(
+                fields.Date.context_today(localized_case)
+            )
+        )
+
     def test_case_owner_must_be_internal_user(self):
         with self.assertRaises(ValidationError):
             self.case.responsible_id = self.env.ref("base.public_user")
@@ -157,7 +188,7 @@ class TestContractLitigation(TransactionCase):
         self.assertIn("REGULARIZAR LA CUENTA", rendered)
         self.assertIn("TERMINACIÓN ANTICIPADA", rendered)
         self.assertIn("MONTO AJUSTADO DEL PAGARÉ", rendered)
-        self.assertIn("$500.00", rendered)
+        self.assertIn(self.case._format_litigation_amount(500.0), rendered)
         self.assertNotIn("valor nominal", rendered)
         self.assertIn("agencia de cobros", rendered)
         self.assertIn("tribunales competentes", rendered)

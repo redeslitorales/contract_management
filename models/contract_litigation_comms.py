@@ -111,7 +111,7 @@ class ContractLitigationCaseCommunications(models.Model):
         ], limit=1)
         ticket_model = self.env["ir.model"].sudo()._get("helpdesk.ticket")
         values = {
-            "name": "Legal Collections",
+            "name": _("Legal Collections"),
             "server_type": "outlook",
             "server": "imap.outlook.com",
             "port": 993,
